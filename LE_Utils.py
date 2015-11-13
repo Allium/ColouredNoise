@@ -29,7 +29,8 @@ def FHO(x,b,X):
 
 def FBW(x,b,X):
 	""" Force at position x for bulk+wall confinement """
-	return -b*(np.abs(x)>=X).astype(int)*np.sign(x)
+	# return -b*(np.abs(x)>=X).astype(int)*np.sign(x)
+	return -b*0.5*(np.sign(x-X)+1)
 	
 ## Currents
 
