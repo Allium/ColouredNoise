@@ -1,5 +1,8 @@
 
 import numpy as np
+from scipy.interpolate import UnivariateSpline
+from scipy.interpolate import interp1d
+from scipy import integrate
 from matplotlib import pyplot as plt
 from sys import argv
 import os, glob
@@ -17,10 +20,11 @@ def main():
 		by exponentially correlated noise.
 	
 	EXECUTION
-		python LE_Pressure.py histfile
+		python LE_Pressure.py histfile/directory flags
 	
 	ARGUMENTS
 		histfile	path to density histogram
+		directory 	path to directory containing histfiles
 	
 	OPTIONS
 	
@@ -30,6 +34,8 @@ def main():
 	
 	EXAMPLE
 		python LE_Pressure.py dat_LE_stream\b=0.01\BHIS_y0.5bi50r5000b0.01X1seed65438.npy
+		
+	NOTES
 	
 	BUGS / TODO
 		-- Honest normalisation -- affects pressure
@@ -94,7 +100,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	# Hx /= np.trapz(Hx,x=x)
 	
 	## 2D PDF plot
-	if 1:
+	if 0:
 		plt.imshow(H, extent=[xmin,xmax,-0.5,0.5], aspect="auto")
 		plot_acco(plt.gca(),xlabel="$x$",ylabel="$y$",title="$\\alpha=$"+str(alpha))
 		plt.savefig(plotfilePDF)
@@ -102,7 +108,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 
 	## Calculate pressure
 	force = -alpha*0.5*(np.sign(x-1)+1)
-	press = - np.cumsum(force*Hx)
+	press = pressure(force,Hx,x,"discrete")
 	
 	fig,ax = plt.subplots(1,2)
 	ax[0].plot(x,Hx)
@@ -148,7 +154,7 @@ def pressure_plot_dir(dirpath, verbose):
 		Hx = np.load(filepath).sum(axis=0)
 		xmin,xmax = 0.8,calculate_xmax(1.0,Alpha[i])
 		x  = np.linspace(xmin,xmax,Hx.shape[0])
-		Hx /= np.trapz(Hx,x=x)
+		# Hx /= np.trapz(Hx,x=x)
 
 		## Calculate pressure
 		force = -Alpha[i]*0.5*(np.sign(x-1)+1)
@@ -164,6 +170,35 @@ def pressure_plot_dir(dirpath, verbose):
 
 
 ##=============================================================================
+##=============================================================================
+def pressure(force,Hx,x, method="interp_prod"):
+	"""
+	Calculate the pressure given an array of forces and densities at positions x.
+	Returns an array of pressure value at every point in x.
+	"""
+	me = "LE_Pressure.pressure: "
+	
+	if method is "discrete":
+		# press = -(x[1]-x[0])*np.cumsum(force*Hx)
+		press = np.array([np.trapz((-force*Hx)[:i], x[:i]) for i,xi in enumerate(x)])
+	elif method is "interp_prod":
+		## Very slow
+		# dpress = UnivariateSpline(x,-force*Hx,k=1)
+		# press = np.array([dpress.integral(x[0],xi) for xi in x])
+		dpress = interp1d(x,-force*Hx)
+		# press = np.array([integrate.quad(dpress,x[0],xi, points=[float(xi>1.0)] )[0]\
+			# for xi in x])
+		press =  [integrate.quad(dpress,x[0],xi )[0]	for xi in x[x<1.0]]
+		press += [integrate.quad(dpress,x[0],xi )[0]	for xi in x[x>1.0]]
+		press = np.array(press)
+	elif method is "interp_both":
+		## Not tested
+		force = UnivariateSpline(x,force,k=2)
+		Hx = UnivariateSpline(x,Hx)
+		press = -np.array([(force*Hx).integral(x[0],xi) for xi in x])
+		
+	return press
+	
 ##=============================================================================
 def plot_acco(ax, **kwargs):
 	"""
