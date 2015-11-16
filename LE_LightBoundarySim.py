@@ -32,6 +32,7 @@ def main():
 		python LE_LightBoundarySim.py -a 0.5 -r 100 -v
 	
 	NOTES
+		Proper treatment of alpha parameter
 	
 	BUGS
 		-- xmax is poorly hard-coded
@@ -105,7 +106,7 @@ def main():
 			h, xbins, ybins = np.histogram2d(x,y,bins=[xbins,ybins])
 			H += h*histogram_weight(y0,y[-1])
 	H = (H.T)[::-1]
-	## Normalise
+	## Normalise by number of particles
 	H /= Nybin*Nrun
 	# H /= np.trapz(np.trapz(H,dx=dx,axis=1), dx=dy)
 	save_data(hisfile, H, vb)
