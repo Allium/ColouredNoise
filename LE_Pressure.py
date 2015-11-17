@@ -94,12 +94,17 @@ def pressure_pdf_plot_file(filepath, verbose):
 	alpha = float(filepath[start:filepath.find("_",start)])
 	if verbose: print me+"alpha =",alpha
 	
-	## Load data and find ranges
+	## Load data
 	H = np.load(filepath)
-	Hx = H.sum(axis=0)
+	
+	## Space
 	xmin,xmax = 0.8,calculate_xmax(1.0,alpha)
-	x  = np.linspace(xmin,xmax,Hx.shape[0])
-	# Hx /= np.trapz(Hx,x=x)
+	ymax = 0.5
+	x = np.linspace(xmin,xmax,H.shape[1])
+	y = np.linspace(-ymax,ymax,H.shape[0])
+	
+	## Marginalise to PDF in X
+	Hx = np.trapz(H,x=y,axis=0)
 	
 	## 2D PDF plot
 	if 1:
@@ -153,7 +158,6 @@ def pressure_plot_dir(dirpath, verbose):
 		Alpha[i] = float(filepath[start:filepath.find("_",start)])
 				
 		## Load data
-		# Hx = np.load(filepath).sum(axis=0)
 		H = np.load(filepath)
 		
 		## Space
