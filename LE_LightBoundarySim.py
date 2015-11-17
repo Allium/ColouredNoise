@@ -32,7 +32,9 @@ def main():
 		python LE_LightBoundarySim.py -a 0.5 -r 100 -v
 	
 	NOTES
-		Proper treatment of alpha parameter
+		Proper treatment of alpha parameter.
+		Not sure about weight for uniform IC -- assume it's alright.
+		If IC=="uniform", Nrun must be small.
 	
 	BUGS
 		-- xmax is poorly hard-coded
@@ -68,6 +70,7 @@ def main():
 	Nrun	= opt.Nrun
 	timefac = opt.timefac
 	vb		= opt.verbose
+	IC		= "uniform"
 
 	if vb: print "\n==  "+me+"a =",a," Nruns =",Nrun," ==\n"
 
@@ -83,13 +86,23 @@ def main():
 	xmax = calculate_xmax(X,a)
 	xmin = 0.8*X	## For plotting, histogram bins and simulation cutoff
 	ymax = 0.5
-	Nxbin = 50
+	Nxbin = 200
 	Nybin = 50
 	xbins = np.linspace(xmin,xmax,Nxbin+1)
 	ybins = np.linspace(-ymax,ymax,Nybin+1)
 	dx = (xmax-x0)/Nxbin; dy = 2*ymax/Nybin
 	
-	hisfile = "Pressure/BHIS/BHIS_a"+str(a)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)
+	## Initial conditions and outfile
+	if IC is "line":
+		X0Y0 = np.array([[0.9*X,y0] for y0 in ybins])
+		Nparticles = Nybin*Nrun
+		if vb: print me+"initial condition uniform; computing",Nparticles,"trajectories"
+		hisfile = "Pressure/BHIS/line/BHIS_a"+str(a)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)
+	elif IC is "uniform":
+		X0Y0 = np.array([[x0,y0] for y0 in ybins for x0 in xbins])
+		Nparticles = Nybin*Nxbin
+		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
+		hisfile = "Pressure/BHIS/uniform/BHIS_a"+str(a)+"_Nx"+str(Nxbin)
 	
 	if os.path.isfile(hisfile): return hisfile
 	
@@ -99,15 +112,14 @@ def main():
 	expmt = np.exp(-np.arange(0,tmax,dt))
 	H = np.zeros((Nxbin,Nybin))
 	## Loop over initial y-position
-	for y0 in ybins:
-		if vb: print me+str(Nrun),"trajectories with y0 =",round(y0,2)
+	for x0y0 in X0Y0:
 		for run in xrange(Nrun):
-			x, y = boundary_sim((x0,y0), a, X, FBW, xmin, tmax, expmt, False)
+			x, y = boundary_sim(x0y0, a, X, FBW, xmin, tmax, expmt, False)
 			h, xbins, ybins = np.histogram2d(x,y,bins=[xbins,ybins])
-			H += h*histogram_weight(y0,y[-1])
+			H += h*histogram_weight(x0y0[1],y[-1])
 	H = (H.T)[::-1]
 	## Normalise by number of particles
-	H /= Nybin*Nrun
+	H /= Nparticles
 	# H /= np.trapz(np.trapz(H,dx=dx,axis=1), dx=dy)
 	save_data(hisfile, H, vb)
 	
