@@ -84,8 +84,10 @@ def pressure_pdf_plot_file(filepath, verbose):
 	t0 = sysT()
 	
 	## Filenames
-	plotfilePDF = "Pressure/"+os.path.splitext(os.path.split(filepath)[1])[0]+"_PDF.png"
-	plotfile = "Pressure/"+os.path.splitext(os.path.split(filepath)[1])[0]+"_P.png"
+	# plotfile = "Pressure/"+os.path.splitext(os.path.split(filepath)[1])[0]+"_P.png"
+	# plotfilePDF = "Pressure/"+os.path.splitext(os.path.split(filepath)[1])[0]+"_PDF.png"
+	plotfile = os.path.splitext(filepath)[0]+"_P.png"
+	plotfilePDF = os.path.splitext(filepath)[0]+"_PDF.png"
 	
 	## Get alpha from filename
 	start = filepath.find("_a") + 2
@@ -100,7 +102,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	# Hx /= np.trapz(Hx,x=x)
 	
 	## 2D PDF plot
-	if 0:
+	if 1:
 		plt.imshow(H, extent=[xmin,xmax,-0.5,0.5], aspect="auto")
 		plot_acco(plt.gca(),xlabel="$x$",ylabel="$y$",title="$\\alpha=$"+str(alpha))
 		plt.savefig(plotfilePDF)
@@ -149,12 +151,19 @@ def pressure_plot_dir(dirpath, verbose):
 		## Find alpha
 		start = filepath.find("_a") + 2
 		Alpha[i] = float(filepath[start:filepath.find("_",start)])
+				
+		## Load data
+		# Hx = np.load(filepath).sum(axis=0)
+		H = np.load(filepath)
 		
-		## Load data and find ranges
-		Hx = np.load(filepath).sum(axis=0)
+		## Space
 		xmin,xmax = 0.8,calculate_xmax(1.0,Alpha[i])
-		x  = np.linspace(xmin,xmax,Hx.shape[0])
-		# Hx /= np.trapz(Hx,x=x)
+		ymax = 0.5
+		x = np.linspace(xmin,xmax,H.shape[1])
+		y = np.linspace(-ymax,ymax,H.shape[0])
+		
+		## Marginalise to PDF in X
+		Hx = np.trapz(H,x=y,axis=0)
 
 		## Calculate pressure
 		force = -Alpha[i]*0.5*(np.sign(x-1)+1)
