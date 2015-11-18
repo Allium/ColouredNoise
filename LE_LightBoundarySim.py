@@ -97,12 +97,12 @@ def main():
 		X0Y0 = np.array([[0.9*X,y0] for y0 in ybins])
 		Nparticles = Nybin*Nrun
 		if vb: print me+"initial condition uniform; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/BHIS/line/BHIS_a"+str(a)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)
+		hisfile = "Pressure/line/BHIS_a"+str(a)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)
 	elif IC is "uniform":
 		X0Y0 = np.array([[x0,y0] for y0 in ybins for x0 in xbins])
 		Nparticles = Nybin*Nxbin
 		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/BHIS/uniform/BHIS_a"+str(a)+"_Nx"+str(Nxbin)
+		hisfile = "Pressure/uniform/BHIS_a"+str(a)+"_Nx"+str(Nxbin)
 	
 	if os.path.isfile(hisfile): return hisfile
 	

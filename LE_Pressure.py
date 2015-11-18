@@ -49,6 +49,8 @@ def main():
 	
 	## Options
 	parser = optparse.OptionParser(conflict_handler="resolve")	
+	parser.add_option('-X','--wallpos',
+                  dest="X",default=1.0,type="float")	
 	parser.add_option('-s','--show',
 		dest="showfig", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
@@ -58,14 +60,15 @@ def main():
 				  help="Print docstring.")		
 	opt = parser.parse_args()[0]
 	if opt.help: print main.__doc__; return
+	X		= opt.X
 	showfig = opt.showfig
 	verbose = opt.verbose
 	
 	argv[1] = argv[1].replace("\\","/")
 	if os.path.isfile(argv[1]):
-		pressure_pdf_plot_file(argv[1],verbose)
+		pressure_pdf_plot_file(argv[1],X,verbose)
 	elif os.path.isdir(argv[1]):
-		pressure_plot_dir(argv[1],verbose)
+		pressure_plot_dir(argv[1],X,verbose)
 	else:
 		print me+"you gave me rubbish. Abort."
 		exit()
@@ -76,7 +79,7 @@ def main():
 	return
 	
 ##=============================================================================
-def pressure_pdf_plot_file(filepath, verbose):
+def pressure_pdf_plot_file(filepath, X, verbose):
 	"""
 	Make plot for a single file
 	"""
@@ -98,7 +101,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	H = np.load(filepath)
 	
 	## Space
-	xmin,xmax = 0.8,calculate_xmax(1.0,alpha)
+	xmin,xmax = 0.8*X,calculate_xmax(X,alpha)
 	ymax = 0.5
 	x = np.linspace(xmin,xmax,H.shape[1])
 	y = np.linspace(-ymax,ymax,H.shape[0])
@@ -108,21 +111,21 @@ def pressure_pdf_plot_file(filepath, verbose):
 	
 	## 2D PDF plot
 	if 1:
-		plt.imshow(H, extent=[xmin,xmax,-0.5,0.5], aspect="auto")
-		plot_acco(plt.gca(),xlabel="$x$",ylabel="$y$",title="$\\alpha=$"+str(alpha))
+		plt.imshow(H, extent=[xmin,xmax,-ymax,ymax], aspect="auto")
+		plot_acco(plt.gca(),xlabel="$x$",ylabel="$\\eta$",title="$\\alpha=$"+str(alpha))
 		plt.savefig(plotfilePDF)
 		if verbose: print me+"plot saved to",plotfilePDF
 
 	## Calculate pressure
-	force = -alpha*0.5*(np.sign(x-1)+1)
+	force = -alpha*0.5*(np.sign(x-X)+1)
 	press = pressure(force,Hx,x,"discrete")
 	
 	fig,ax = plt.subplots(1,2)
 	ax[0].plot(x,Hx)
-	ax[0].set_xlim(left=0.9)
-	plot_acco(ax[0],ylabel="PDF")
+	ax[0].set_xlim(left=0.9*X)
+	plot_acco(ax[0],ylabel="PDF p(x)")
 	ax[1].plot(x,press)
-	ax[1].set_xlim(left=0.9)
+	ax[1].set_xlim(left=0.9*X)
 	plot_acco(ax[1],ylabel="Pressure")
 	plt.tight_layout()
 	fig.suptitle("$\\alpha=$"+str(alpha),fontsize=16);plt.subplots_adjust(top=0.9)
@@ -133,7 +136,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	return plotfilePDF, plotfile
 	
 ##=============================================================================
-def pressure_plot_dir(dirpath, verbose):
+def pressure_plot_dir(dirpath, X, verbose):
 	"""
 	Plot pressure at "infinity" against alpha for all files in directory
 	"""
@@ -161,7 +164,7 @@ def pressure_plot_dir(dirpath, verbose):
 		H = np.load(filepath)
 		
 		## Space
-		xmin,xmax = 0.8,calculate_xmax(1.0,Alpha[i])
+		xmin,xmax = 0.8*X,calculate_xmax(X,Alpha[i])
 		ymax = 0.5
 		x = np.linspace(xmin,xmax,H.shape[1])
 		y = np.linspace(-ymax,ymax,H.shape[0])
@@ -170,7 +173,7 @@ def pressure_plot_dir(dirpath, verbose):
 		Hx = np.trapz(H,x=y,axis=0)
 
 		## Calculate pressure
-		force = -Alpha[i]*0.5*(np.sign(x-1)+1)
+		force = -Alpha[i]*0.5*(np.sign(x-X)+1)
 		Press[i] = -np.sum(force*Hx)
 	
 	plt.plot(Alpha,Press,"bo")
