@@ -87,14 +87,14 @@ def pressure_pdf_plot_file(filepath, X, verbose):
 	t0 = sysT()
 	
 	## Filenames
-	# plotfile = "Pressure/"+os.path.splitext(os.path.split(filepath)[1])[0]+"_P.png"
-	# plotfilePDF = "Pressure/"+os.path.splitext(os.path.split(filepath)[1])[0]+"_PDF.png"
 	plotfile = os.path.splitext(filepath)[0]+"_P.png"
 	plotfilePDF = os.path.splitext(filepath)[0]+"_PDF.png"
 	
-	## Get alpha from filename
+	## Get alpha and X from filename
 	start = filepath.find("_a") + 2
 	alpha = float(filepath[start:filepath.find("_",start)])
+	start = filepath.find("_X") + 2
+	X = float(filepath[start:filepath.find("_",start)])
 	if verbose: print me+"alpha =",alpha
 	
 	## Load data
@@ -122,10 +122,10 @@ def pressure_pdf_plot_file(filepath, X, verbose):
 	
 	fig,ax = plt.subplots(1,2)
 	ax[0].plot(x,Hx)
-	ax[0].set_xlim(left=0.9*X)
+	ax[0].set_xlim(left=0.8*X)
 	plot_acco(ax[0],ylabel="PDF p(x)")
 	ax[1].plot(x,press)
-	ax[1].set_xlim(left=0.9*X)
+	ax[1].set_xlim(left=0.8*X)
 	plot_acco(ax[1],ylabel="Pressure")
 	plt.tight_layout()
 	fig.suptitle("$\\alpha=$"+str(alpha),fontsize=16);plt.subplots_adjust(top=0.9)
@@ -133,12 +133,14 @@ def pressure_pdf_plot_file(filepath, X, verbose):
 	plt.savefig(plotfile)
 	if verbose: print me+"plot saved to",plotfile
 		
-	return plotfilePDF, plotfile
+	return fig
 	
 ##=============================================================================
 def pressure_plot_dir(dirpath, X, verbose):
 	"""
-	Plot pressure at "infinity" against alpha for all files in directory
+	Plot pressure at "infinity" against alpha for all files in directory.
+	
+	Be careful heed changes in parameters between files in directory
 	"""
 	me = "LE_Pressure.pressure_plot_dir: "
 	t0 = sysT()
