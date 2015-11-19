@@ -93,11 +93,11 @@ def main():
 	## Histogramming
 	xmax = calculate_xmax(X,a)
 	xmin = 0.8*X	## Determine histogram bins and simulation cutoff
-	ymax = 0.5
 	xinit= 0.9*X
+	ymax = 0.5
 	Nxbin = 100
 	Nybin = 50
-	xbins = np.linspace(xmin,xmax,Nxbin+1)
+	xbins = np.linspace(xinit,xmax,Nxbin+1)
 	ybins = np.linspace(-ymax,ymax,Nybin+1)
 	dx = (xmax-xmin)/Nxbin; dy = 2.0*ymax/Nybin
 		
@@ -106,14 +106,17 @@ def main():
 		X0Y0 = np.array([[xinit,y0] for y0 in ybins])
 		Nparticles = Nybin*Nrun
 		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/line_tight_a0.5/BHIS_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)
+		hisfile = "Pressure/151119_alphas/BHIS_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)
 	elif IC == "uniform":
 		X0Y0 = np.array([[x0,y0] for y0 in ybins for x0 in xbins])
 		Nparticles = Nybin*Nxbin
 		if vb: print me+"initial condition uniform; computing",Nparticles,"trajectories"
 		hisfile = "Pressure/uniform_tight_long/BHIS_a"+str(a)+"_Nx"+str(Nxbin)
 	
-	if os.path.isfile(hisfile): return hisfile
+	if os.path.isfile(hisfile):
+		print me+"file",hisfile,"already exists. Not overwriting."
+		return hisfile
+	assert os.path.isdir(os.path.dirname(hisfile))
 	
 	## ----------------------------------------------------------------
 	
@@ -130,7 +133,7 @@ def main():
 	H = (H.T)[::-1]
 	## Normalise by number of particles
 	H /= Nparticles
-	## Normalise by run time
+	## Normalise by number of steps
 	H *= (1.0/timefac)*(dt/0.01)
 	# H /= np.trapz(np.trapz(H,dx=dx,axis=1), dx=dy)
 	save_data(hisfile, H, vb)
@@ -191,8 +194,10 @@ def histogram_weight(yi,yf):
 	
 ## ====================================================================
 def calculate_xmax(X,a):
-	xmax = max([(1.0+0.02/(a*a*a)),1.05])*X
-	xmax = min([xmax,3.0*X])
+	# xmax = max([(1.0+0.02/(a*a*a)),1.05])*X
+	# xmax = min([xmax,3.0*X])
+	## 19/11/2015 -- in response to explore_pars
+	xmax = X*(1.0+0.1*(0.1/a)**2)
 	return xmax
 
 ## ====================================================================
