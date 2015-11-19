@@ -123,12 +123,15 @@ def main():
 	## Loop over initial y-position
 	for x0y0 in X0Y0:
 		for run in xrange(Nrun):
+			## x, y are coordinates as a function of time
 			x, y = boundary_sim(x0y0, a, X, FBW, xmin, tmax, expmt, False)
 			h, xbins, ybins = np.histogram2d(x,y,bins=[xbins,ybins])
 			H += h*histogram_weight(x0y0[1],y[-1])
 	H = (H.T)[::-1]
 	## Normalise by number of particles
 	H /= Nparticles
+	## Normalise by run time
+	H *= (1.0/timefac)*(dt/0.01)
 	# H /= np.trapz(np.trapz(H,dx=dx,axis=1), dx=dy)
 	save_data(hisfile, H, vb)
 	
