@@ -101,7 +101,7 @@ def pressure_pdf_plot_file(filepath, X, verbose):
 	H = np.load(filepath)
 	
 	## Space
-	xmin,xmax = 0.8*X,calculate_xmax(X,alpha)
+	xmin,xmax = 0.9*X,calculate_xmax(X,alpha)
 	ymax = 0.5
 	x = np.linspace(xmin,xmax,H.shape[1])
 	y = np.linspace(-ymax,ymax,H.shape[0])
@@ -110,7 +110,7 @@ def pressure_pdf_plot_file(filepath, X, verbose):
 	Hx = np.trapz(H,x=y,axis=0)
 	
 	## 2D PDF plot
-	if 1:
+	if 0:
 		plt.imshow(H, extent=[xmin,xmax,-ymax,ymax], aspect="auto")
 		plot_acco(plt.gca(),xlabel="$x$",ylabel="$\\eta$",title="$\\alpha=$"+str(alpha))
 		plt.savefig(plotfilePDF)
@@ -122,10 +122,10 @@ def pressure_pdf_plot_file(filepath, X, verbose):
 	
 	fig,ax = plt.subplots(1,2)
 	ax[0].plot(x,Hx)
-	ax[0].set_xlim(left=0.8*X)
+	ax[0].set_xlim(left=xmin)
 	plot_acco(ax[0],ylabel="PDF p(x)")
 	ax[1].plot(x,press)
-	ax[1].set_xlim(left=0.8*X)
+	ax[1].set_xlim(left=xmin)
 	plot_acco(ax[1],ylabel="Pressure")
 	plt.tight_layout()
 	fig.suptitle("$\\alpha=$"+str(alpha),fontsize=16);plt.subplots_adjust(top=0.9)
