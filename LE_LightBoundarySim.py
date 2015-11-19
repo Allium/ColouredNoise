@@ -25,6 +25,7 @@ def main():
 		-a --alpha		0.1		Slope of the potential
 		-r --nruns		100		Number of runs for each (x0,y0)
 		-t --timefac	1.0		Multiply t_max by factor
+		-I --IC			uniform	The initial condition
 		-v --verbose	False	Print useful information to screen
 		-h --help		False	Print docstring and exit
 	
@@ -53,10 +54,16 @@ def main():
 	parser.add_option('-a','--alpha',
                   dest="potmag",default=0.1,type="float",
 				  help="The steepness of the potential.")
+	parser.add_option('-X','--wallpos',
+                  dest="X",default=1.0,type="float")		
 	parser.add_option('-r','--nrun',
-                  dest="Nrun",default=100,type="int")		
+                  dest="Nrun",default=100,type="int")
+	parser.add_option('--dt',
+                  dest="dt",default=0.01,type="float")		
 	parser.add_option('-t','--timefac',
-                  dest="timefac",default=1.0,type="float")	  
+                  dest="timefac",default=1.0,type="float")	 
+	parser.add_option('-I','--IC',
+                  dest="IC",default="line",type="str")	  
 	parser.add_option('-v','--verbose',
                   dest="verbose",default=False,action="store_true",
 				  help="Print useful information to screen.")
@@ -66,43 +73,45 @@ def main():
 	opt = parser.parse_args()[0]
 	if opt.help: print main.__doc__; return
 	a		= opt.potmag
-	X		= 1.0
+	X		= opt.X
 	Nrun	= opt.Nrun
+	global dt; dt = opt.dt
 	timefac = opt.timefac
+	IC		= opt.IC
 	vb		= opt.verbose
-	IC		= "uniform"
 
+	assert IC == "line" or "uniform"
+	
 	if vb: print "\n==  "+me+"a =",a," Nruns =",Nrun," ==\n"
 
 	## ----------------------------------------------------------------
 	## Parameters
 	
-	## Simulation	
-	x0 = 0.9*X
-	tmax = 1e3*timefac	## This is large enough to ensure re-hitting?
-	global dt; dt = 0.02
+	## Simulation time
+	tmax = 5e3*timefac
 	
 	## Histogramming
 	xmax = calculate_xmax(X,a)
-	xmin = 0.8*X	## For plotting, histogram bins and simulation cutoff
+	xmin = 0.8*X	## Determine histogram bins and simulation cutoff
 	ymax = 0.5
-	Nxbin = 200
+	xinit= 0.9*X
+	Nxbin = 100
 	Nybin = 50
 	xbins = np.linspace(xmin,xmax,Nxbin+1)
 	ybins = np.linspace(-ymax,ymax,Nybin+1)
-	dx = (xmax-x0)/Nxbin; dy = 2*ymax/Nybin
-	
+	dx = (xmax-xmin)/Nxbin; dy = 2.0*ymax/Nybin
+		
 	## Initial conditions and outfile
 	if IC is "line":
-		X0Y0 = np.array([[0.9*X,y0] for y0 in ybins])
+		X0Y0 = np.array([[xinit,y0] for y0 in ybins])
 		Nparticles = Nybin*Nrun
-		if vb: print me+"initial condition uniform; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/line/BHIS_a"+str(a)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)
-	elif IC is "uniform":
+		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
+		hisfile = "Pressure/line_tight_a0.5/BHIS_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)
+	elif IC == "uniform":
 		X0Y0 = np.array([[x0,y0] for y0 in ybins for x0 in xbins])
 		Nparticles = Nybin*Nxbin
-		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/uniform/BHIS_a"+str(a)+"_Nx"+str(Nxbin)
+		if vb: print me+"initial condition uniform; computing",Nparticles,"trajectories"
+		hisfile = "Pressure/uniform_tight_long/BHIS_a"+str(a)+"_Nx"+str(Nxbin)
 	
 	if os.path.isfile(hisfile): return hisfile
 	
@@ -146,8 +155,11 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt=None, vb=False):
 	xi = np.random.normal(0, 1, nstp)
 	
 	## OU noise
-	if expmt is None or expmt.shape[0]!=nstp: expmt = np.exp(-np.linspace(0,tmax,nstp))
-	y = y0*expmt + np.sqrt(2)*dt * fftconvolve(expmt,np.append(np.zeros(nstp),xi),"full")[nstp-1:-nstp]
+	if expmt is None or expmt.shape[0]!=nstp:
+		if vb: print me+"precomputing exp(-t] is much musch faster"
+		expmt = np.exp(-np.linspace(0,tmax,nstp))
+	# y = y0*expmt + np.sqrt(2)*dt * fftconvolve(expmt,np.append(np.zeros(nstp),xi),"full")[nstp-1:-nstp]
+	y = np.sqrt(2)*dt * fftconvolve(expmt,np.append(np.zeros(nstp),xi),"full")[nstp-1:-nstp]
 	if vb: print me+"Simulation of eta",round(time.time()-t0,1),"seconds for",nstp,"steps"
 	
 	t0 = time.time()
@@ -156,7 +168,7 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt=None, vb=False):
 	## Euler steps to calculate x(t)
 	for i in xrange(1,nstp):
 		x[i] += x[i-1] + dt*(f(x[i-1],b,X) + y[i-1])
-		if x[i] < xmin:	break
+		if x[i] < xmin:	break	#y *= -1
 	if i==nstp-1 and vb: print me+"Trarray ran out of space. BUG!"
 	if vb: print me+"Simulation of x  ",round(time.time()-t0,1),"seconds for",len(x),"steps"
 	
@@ -176,8 +188,8 @@ def histogram_weight(yi,yf):
 	
 ## ====================================================================
 def calculate_xmax(X,a):
-	xmax = max([X*(1.0+0.02/(a*a*a)),1.05])
-	xmax = min([xmax,3.0])
+	xmax = max([(1.0+0.02/(a*a*a)),1.05])*X
+	xmax = min([xmax,3.0*X])
 	return xmax
 
 ## ====================================================================
