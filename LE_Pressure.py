@@ -7,8 +7,10 @@ from matplotlib import pyplot as plt
 from sys import argv
 import os, glob
 import optparse
+import warnings
 from time import time as sysT
-from LE_LightBoundarySim import calculate_xmax
+from LE_LightBoundarySim import lookup_xmax, calculate_xbin
+
 
 def main():
 	"""
@@ -48,9 +50,7 @@ def main():
 	t0 = sysT()
 	
 	## Options
-	parser = optparse.OptionParser(conflict_handler="resolve")	
-	parser.add_option('-X','--wallpos',
-                  dest="X",default=1.0,type="float")	
+	parser = optparse.OptionParser(conflict_handler="resolve")
 	parser.add_option('-s','--show',
 		dest="showfig", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
@@ -60,15 +60,14 @@ def main():
 				  help="Print docstring.")		
 	opt = parser.parse_args()[0]
 	if opt.help: print main.__doc__; return
-	X		= opt.X
 	showfig = opt.showfig
 	verbose = opt.verbose
 	
 	argv[1] = argv[1].replace("\\","/")
 	if os.path.isfile(argv[1]):
-		pressure_pdf_plot_file(argv[1],X,verbose)
+		pressure_pdf_plot_file(argv[1],verbose)
 	elif os.path.isdir(argv[1]):
-		pressure_plot_dir(argv[1],X,verbose)
+		pressure_plot_dir(argv[1],verbose)
 	else:
 		print me+"you gave me rubbish. Abort."
 		exit()
@@ -79,7 +78,7 @@ def main():
 	return
 	
 ##=============================================================================
-def pressure_pdf_plot_file(filepath, X, verbose):
+def pressure_pdf_plot_file(filepath, verbose):
 	"""
 	Make plot for a single file
 	"""
@@ -95,18 +94,18 @@ def pressure_pdf_plot_file(filepath, X, verbose):
 	alpha = float(filepath[start:filepath.find("_",start)])
 	start = filepath.find("_X") + 2
 	X = float(filepath[start:filepath.find("_",start)])
-	if verbose: print me+"alpha =",alpha
+	if verbose: print me+"alpha =",alpha,"and X =",X
 	
 	## Load data
 	H = np.load(filepath)
 	
 	## Space
-	xmin,xmax = 0.9*X,calculate_xmax(X,alpha)
+	xmin,xmax = 0.9*X,lookup_xmax(X,alpha)
 	ymax = 0.5
-	x = np.linspace(xmin,xmax,H.shape[1])
+	x = calculate_xbin(xmin,X,xmax,H.shape[1]-1)
 	y = np.linspace(-ymax,ymax,H.shape[0])
 	
-	## Marginalise to PDF in X
+	## Marginalise to PDF in x
 	Hx = np.trapz(H,x=y,axis=0)
 	
 	## 2D PDF plot
@@ -114,19 +113,20 @@ def pressure_pdf_plot_file(filepath, X, verbose):
 		plt.imshow(H, extent=[xmin,xmax,-ymax,ymax], aspect="auto")
 		plot_acco(plt.gca(),xlabel="$x$",ylabel="$\\eta$",title="$\\alpha=$"+str(alpha))
 		plt.savefig(plotfilePDF)
-		if verbose: print me+"plot saved to",plotfilePDF
+		if verbose: print me+"2D PDF plot saved to",plotfilePDF
 
 	## Calculate pressure
 	force = -alpha*0.5*(np.sign(x-X)+1)
-	press = pressure(force,Hx,x,"discrete")
+	press = pressure_x(force,Hx,x,"discrete")
 	
 	fig,ax = plt.subplots(1,2)
-	ax[0].plot(x,Hx)
-	ax[0].set_xlim(left=xmin)
+	ax[0].plot(x,Hx,label="")
+	ax[0].set_xlim(left=xmin,right=xmax)
+	ax[0].set_ylim(bottom=0.0,top=np.ceil(Hx[Hx.shape[0]/4:].max()))
 	plot_acco(ax[0],ylabel="PDF p(x)")
-	ax[1].plot(x,press)
-	ax[1].set_xlim(left=xmin)
-	plot_acco(ax[1],ylabel="Pressure")
+	ax[1].plot(x,press,label="")
+	ax[1].set_xlim(left=xmin,right=xmax)
+	plot_acco(ax[1], ylabel="Pressure", legloc="")
 	plt.tight_layout()
 	fig.suptitle("$\\alpha=$"+str(alpha),fontsize=16);plt.subplots_adjust(top=0.9)
 	
@@ -136,7 +136,7 @@ def pressure_pdf_plot_file(filepath, X, verbose):
 	return fig
 	
 ##=============================================================================
-def pressure_plot_dir(dirpath, X, verbose):
+def pressure_plot_dir(dirpath, verbose):
 	"""
 	Plot pressure at "infinity" against alpha for all files in directory.
 	
@@ -145,16 +145,21 @@ def pressure_plot_dir(dirpath, X, verbose):
 	me = "LE_Pressure.pressure_plot_dir: "
 	t0 = sysT()
 	
-	## FIle discovery
+	## File discovery
 	histfiles = np.sort(glob.glob(dirpath+"/*.npy"))
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
+	
+	## Assume all files have same X
+	start = histfiles[0].find("_X") + 2
+	X = float(histfiles[0][start:histfiles[0].find("_",start)])
+	if verbose: print me+"determined X="+str(X)
 	
 	## Outfile name
 	pressplot = dirpath+"/PressureAlpha.png"
 	Alpha = np.zeros(numfiles)
 	Press = np.zeros(numfiles)
-	
+		
 	## Loop over files
 	for i,filepath in enumerate(histfiles):
 		
@@ -166,9 +171,9 @@ def pressure_plot_dir(dirpath, X, verbose):
 		H = np.load(filepath)
 		
 		## Space
-		xmin,xmax = 0.8*X,calculate_xmax(X,Alpha[i])
+		xmin,xmax = 0.9*X,lookup_xmax(X,Alpha[i])
 		ymax = 0.5
-		x = np.linspace(xmin,xmax,H.shape[1])
+		x = calculate_xbin(xmin,X,xmax,H.shape[1]-1)
 		y = np.linspace(-ymax,ymax,H.shape[0])
 		
 		## Marginalise to PDF in X
@@ -176,10 +181,11 @@ def pressure_plot_dir(dirpath, X, verbose):
 
 		## Calculate pressure
 		force = -Alpha[i]*0.5*(np.sign(x-X)+1)
-		Press[i] = -np.sum(force*Hx)
-	
-	plt.plot(Alpha,Press,"bo")
-	plot_acco(plt.gca(), xlabel="$\\alpha$", ylabel="Pressure")
+		Press[i] = np.trapz(-force*Hx, x)
+		
+	plt.plot(Alpha,Press,"bo",label=".")
+	plt.ylim(bottom=0.0)
+	plot_acco(plt.gca(), xlabel="$\\alpha$", ylabel="Pressure", legloc="")
 	
 	plt.savefig(pressplot)
 	if verbose: print me+"plot saved to",pressplot
@@ -189,7 +195,7 @@ def pressure_plot_dir(dirpath, X, verbose):
 
 ##=============================================================================
 ##=============================================================================
-def pressure(force,Hx,x, method="interp_prod"):
+def pressure_x(force,Hx,x, method="interp_prod"):
 	"""
 	Calculate the pressure given an array of forces and densities at positions x.
 	Returns an array of pressure value at every point in x.
@@ -197,10 +203,9 @@ def pressure(force,Hx,x, method="interp_prod"):
 	me = "LE_Pressure.pressure: "
 	
 	if method is "discrete":
-		# press = -(x[1]-x[0])*np.cumsum(force*Hx)
 		press = np.array([np.trapz((-force*Hx)[:i], x[:i]) for i,xi in enumerate(x)])
 	elif method is "interp_prod":
-		## Very slow
+		## Very slow; issues with discontinuity
 		# dpress = UnivariateSpline(x,-force*Hx,k=1)
 		# press = np.array([dpress.integral(x[0],xi) for xi in x])
 		dpress = interp1d(x,-force*Hx)
@@ -218,6 +223,17 @@ def pressure(force,Hx,x, method="interp_prod"):
 	return press
 	
 ##=============================================================================
+def av_pd(p,x,x0,X,fac=0.02):
+	"""
+	Average the probability density between two points
+	"""
+	x1 = x0 + fac*X
+	x2 = X  - fac*X
+	ind1 = np.abs(x-x1).argmin()
+	ind2 = np.abs(x-x2).argmin()
+	return p[ind1:ind2].mean()
+
+##=============================================================================
 def plot_acco(ax, **kwargs):
 	"""
 	Plot accoutrements.
@@ -233,8 +249,10 @@ def plot_acco(ax, **kwargs):
 	try: ax.set_ylabel(kwargs["ylabel"], fontsize=14)
 	except: pass
 	ax.grid(True)
-	# try: ax.legend(loc=kwargs["legloc"], fontsize=11)
-	# except KeyError: ax.legend(loc="best", fontsize=11)
+	try:
+		if kwargs["legloc"]!="":	ax.legend(loc=kwargs["legloc"], fontsize=11)
+		else: pass
+	except KeyError: ax.legend(loc="best", fontsize=11)
 	return
 	
 ##=============================================================================

@@ -25,7 +25,7 @@ def main():
 		-a --alpha		0.1		Slope of the potential
 		-r --nruns		100		Number of runs for each (x0,y0)
 		-t --timefac	1.0		Multiply t_max by factor
-		-I --IC			uniform	The initial condition
+		-I --IC			line	The initial condition
 		-v --verbose	False	Print useful information to screen
 		-h --help		False	Print docstring and exit
 	
@@ -38,7 +38,7 @@ def main():
 		If IC=="uniform", Nrun must be small.
 	
 	BUGS
-		-- xmax is poorly hard-coded
+		-- xmax is poorly constructed
 	
 	STARTED
 		13 November 2015	Adapted from LE_BoundarySimPlt.py
@@ -90,23 +90,27 @@ def main():
 	## Simulation time
 	tmax = 5e3*timefac
 	
-	## Histogramming
-	xmax = calculate_xmax(X,a)
-	xmin = 0.8*X	## Determine histogram bins and simulation cutoff
-	xinit= 0.9*X
+	## Space
+	# xmax = calculate_xmax(X,a)
+	xmax = lookup_xmax(X,a)
+	xmin = 0.7*X	## Simulation cutoff
+	xinit= 0.9*X	## Particle initial x ("line" IC)
 	ymax = 0.5
-	Nxbin = 100
+	
+	## Histogramming
+	Nxbin = 200
 	Nybin = 50
-	xbins = np.linspace(xinit,xmax,Nxbin+1)
+	xbins = calculate_xbin(xinit,X,xmax,Nxbin)
 	ybins = np.linspace(-ymax,ymax,Nybin+1)
-	dx = (xmax-xmin)/Nxbin; dy = 2.0*ymax/Nybin
 		
 	## Initial conditions and outfile
 	if IC is "line":
 		X0Y0 = np.array([[xinit,y0] for y0 in ybins])
 		Nparticles = Nybin*Nrun
 		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/151119_alphas/BHIS_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)
+		hisfile = "Pressure/test/BHIS0.7_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)
+		# hisfile = "Pressure/151125X"+str(X)+"Nx"+str(Nxbin)+"r"+str(Nrun)+\
+				# "/BHIS_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)
 	elif IC == "uniform":
 		X0Y0 = np.array([[x0,y0] for y0 in ybins for x0 in xbins])
 		Nparticles = Nybin*Nxbin
@@ -128,14 +132,11 @@ def main():
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim(x0y0, a, X, FBW, xmin, tmax, expmt, False)
-			h, xbins, ybins = np.histogram2d(x,y,bins=[xbins,ybins])
+			h, xbins, ybins = np.histogram2d(x,y,bins=[xbins,ybins], normed=True)
 			H += h*histogram_weight(x0y0[1],y[-1])
 	H = (H.T)[::-1]
 	## Normalise by number of particles
 	H /= Nparticles
-	## Normalise by number of steps
-	H *= (1.0/timefac)*(dt/0.01)
-	# H /= np.trapz(np.trapz(H,dx=dx,axis=1), dx=dy)
 	save_data(hisfile, H, vb)
 	
 	if vb: print me+"execution time",round(time.time()-t0,2),"seconds"
@@ -158,6 +159,7 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt=None, vb=False):
 	## Initialisation
 	x0,y0 = x0y0
 	nstp = int(tmax/dt)
+	np.random.seed(1234)
 	xi = np.random.normal(0, 1, nstp)
 	
 	## OU noise
@@ -173,7 +175,7 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt=None, vb=False):
 	x = np.zeros(nstp); x[0] = x0
 	## Euler steps to calculate x(t)
 	for i in xrange(1,nstp):
-		x[i] += x[i-1] + dt*(f(x[i-1],b,X) + y[i-1])
+		x[i] = x[i-1] + dt*(f(x[i-1],b,X) + y[i-1])
 		if x[i] < xmin:	break	#y *= -1
 	if i==nstp-1 and vb: print me+"Trarray ran out of space. BUG!"
 	if vb: print me+"Simulation of x  ",round(time.time()-t0,1),"seconds for",len(x),"steps"
@@ -197,8 +199,36 @@ def calculate_xmax(X,a):
 	# xmax = max([(1.0+0.02/(a*a*a)),1.05])*X
 	# xmax = min([xmax,3.0*X])
 	## 19/11/2015 -- in response to explore_pars
-	xmax = X*(1.0+0.1*(0.1/a)**2)
+	xmax = X*(1.0+0.02+0.1*(0.1/a))
+	## 25/11/2015
+	xmax = round(xmax,3)
 	return xmax
+
+def lookup_xmax(X,a):
+	"""
+	Lookup table for xmax
+	Limited testing; X=5.0 only
+	"""
+	if a<=0.1:		xmax=1.2*X
+	elif a<=0.2:	xmax=1.1*X
+	elif a<=0.3:	xmax=1.04*X
+	elif a<=0.4:	xmax=1.04*X
+	elif a<=0.5:	xmax=1.005*X
+	elif a<=0.6:	xmax=1.005*X
+	elif a<=0.7:	xmax=1.004*X
+	elif a<=0.8:	xmax=1.004*X
+	else:			xmax=1.002*X
+	return xmax
+	
+def calculate_xbin(xinit,X,xmax,Nxbin):
+	"""
+	Return histogram bins in x
+	"""
+	# xbins = np.linspace(xinit,xmax,Nxbin+1)
+	## Extra bins for detail in wall region
+	NxbinL = Nxbin/2; NxbinR = Nxbin - NxbinL
+	xbins = np.unique(np.append(np.linspace(xinit,X,NxbinL+1),np.linspace(X,xmax,NxbinR+1)))
+	return xbins
 
 ## ====================================================================
 ## ====================================================================
