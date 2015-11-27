@@ -108,9 +108,8 @@ def main():
 		X0Y0 = np.array([[xinit,y0] for y0 in ybins])
 		Nparticles = Nybin*Nrun
 		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/test/BHIS0.7_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)
-		# hisfile = "Pressure/151125X"+str(X)+"Nx"+str(Nxbin)+"r"+str(Nrun)+\
-				# "/BHIS_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)
+		hisfile = "Pressure/151127X"+str(X)+"Nx"+str(Nxbin)+"r"+str(Nrun)+\
+				"_x0xm/BHIS_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)+"_x0"+str(xinit)+"_xm"+str(xmin)
 	elif IC == "uniform":
 		X0Y0 = np.array([[x0,y0] for y0 in ybins for x0 in xbins])
 		Nparticles = Nybin*Nxbin
@@ -159,7 +158,7 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt=None, vb=False):
 	## Initialisation
 	x0,y0 = x0y0
 	nstp = int(tmax/dt)
-	np.random.seed(1234)
+	# np.random.seed(1234)
 	xi = np.random.normal(0, 1, nstp)
 	
 	## OU noise

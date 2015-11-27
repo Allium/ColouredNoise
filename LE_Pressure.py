@@ -11,6 +11,9 @@ import warnings
 from time import time as sysT
 from LE_LightBoundarySim import lookup_xmax, calculate_xbin
 
+warnings.filterwarnings("ignore",
+	"No labelled objects found. Use label='...' kwarg on individual plots.",
+	UserWarning)
 
 def main():
 	"""

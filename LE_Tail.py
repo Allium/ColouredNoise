@@ -75,11 +75,12 @@ def tail_plot(histfile, verbose):
 	fit = np.polyfit(x[lm:],np.log(Hx[lm:]),1)
 	fit_fn = np.poly1d(fit)
 
-	## Plot
-	plt.semilogy(x,Hx,label="Data")
-	plt.semilogy(x,np.exp(fit_fn(x)),"r--",label="$\exp["+str(round(fit[0],1))+"x]$")
-	plt.xlim(left=X)
-	plot_acco(plt.gca(),title="Wall region, $\\alpha="+str(alpha)+"$",ylabel="PDF $p(x)$")
+	## Plot (x-X distance into wall)
+	plt.semilogy(x-X,Hx,label="Data")
+	plt.semilogy(x-X,np.exp(fit_fn(x)),"r--",label="$\exp["+str(round(fit[0],1))+"x]$")
+	plt.xlim(left=0.0)
+	plot_acco(plt.gca(),title="Wall region, $\\alpha="+str(alpha)+"$",
+		xlabel="Distance into wall region",ylabel="PDF $p(x)$")
 	
 	plt.savefig(plotfile)
 	if verbose:	print me+"figure saved to",plotfile
