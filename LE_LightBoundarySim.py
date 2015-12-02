@@ -91,9 +91,8 @@ def main():
 	tmax = 5e3*timefac
 	
 	## Space
-	# xmax = calculate_xmax(X,a)
 	xmax = lookup_xmax(X,a)
-	xmin = 0.7*X	## Simulation cutoff
+	xmin = 0.8*X	## Simulation cutoff
 	xinit= 0.9*X	## Particle initial x ("line" IC)
 	ymax = 0.5
 	
@@ -108,18 +107,26 @@ def main():
 		X0Y0 = np.array([[xinit,y0] for y0 in ybins])
 		Nparticles = Nybin*Nrun
 		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/151127X"+str(X)+"Nx"+str(Nxbin)+"r"+str(Nrun)+\
-				"_x0xm/BHIS_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)+"_x0"+str(xinit)+"_xm"+str(xmin)
+		hisfile = "Pressure/151130X"+str(X)+"Nx"+str(Nxbin)+"r"+str(Nrun)+\
+				"/BHIS_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)#+"_x0"+str(xinit/X)+"_xm"+str(xmin/X)
 	elif IC == "uniform":
 		X0Y0 = np.array([[x0,y0] for y0 in ybins for x0 in xbins])
 		Nparticles = Nybin*Nxbin
 		if vb: print me+"initial condition uniform; computing",Nparticles,"trajectories"
 		hisfile = "Pressure/uniform_tight_long/BHIS_a"+str(a)+"_Nx"+str(Nxbin)
 	
+	## Directory and file existence
 	if os.path.isfile(hisfile):
 		print me+"file",hisfile,"already exists. Not overwriting."
-		return hisfile
-	assert os.path.isdir(os.path.dirname(hisfile))
+		raise IOError
+	try:
+		assert os.path.isdir(os.path.dirname(hisfile))
+	except AssertionError:
+		print me+"directory",os.path.dirname(hisfile),"doesn't exist. Abort."
+		raise AssertionError
+	
+	## If running a pure wall simulation
+	# Nxbin = xbins.size - 1
 	
 	## ----------------------------------------------------------------
 	
@@ -131,11 +138,12 @@ def main():
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim(x0y0, a, X, FBW, xmin, tmax, expmt, False)
-			h, xbins, ybins = np.histogram2d(x,y,bins=[xbins,ybins], normed=True)
+			h = np.histogram2d(x,y,bins=[Nxbin,Nybin], normed=True)[0]
 			H += h*histogram_weight(x0y0[1],y[-1])
 	H = (H.T)[::-1]
 	## Normalise by number of particles
 	H /= Nparticles
+	# H /= dt
 	save_data(hisfile, H, vb)
 	
 	if vb: print me+"execution time",round(time.time()-t0,2),"seconds"
@@ -143,9 +151,9 @@ def main():
 	return hisfile
 	
 ## ====================================================================
-def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt=None, vb=False):
+def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
 	"""
-	Run the LE simulation from (x0,y0), stopping if x<x0
+	Run the LE simulation from (x0,y0), stopping if x<xmin
 	
 	NOTES
 	-- Assuming tmax is sufficient time to explore and return.
@@ -158,17 +166,13 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt=None, vb=False):
 	## Initialisation
 	x0,y0 = x0y0
 	nstp = int(tmax/dt)
-	# np.random.seed(1234)
-	xi = np.random.normal(0, 1, nstp)
+	xi = np.sqrt(2) * np.random.normal(0, 1, nstp)
 	
 	## OU noise
-	if expmt is None or expmt.shape[0]!=nstp:
-		if vb: print me+"precomputing exp(-t] is much musch faster"
-		expmt = np.exp(-np.linspace(0,tmax,nstp))
-	# y = y0*expmt + np.sqrt(2)*dt * fftconvolve(expmt,np.append(np.zeros(nstp),xi),"full")[nstp-1:-nstp]
-	y = np.sqrt(2)*dt * fftconvolve(expmt,np.append(np.zeros(nstp),xi),"full")[nstp-1:-nstp]
+	y = y0*expmt + dt * fftconvolve(expmt,np.append(np.zeros(nstp),xi),"full")[nstp-1:-nstp]
+	# y = dt * fftconvolve(expmt,np.append(np.zeros(nstp),xi),"full")[nstp-1:-nstp]
 	if vb: print me+"Simulation of eta",round(time.time()-t0,1),"seconds for",nstp,"steps"
-	
+
 	t0 = time.time()
 	## Variable of interest
 	x = np.zeros(nstp); x[0] = x0
@@ -176,12 +180,12 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt=None, vb=False):
 	for i in xrange(1,nstp):
 		x[i] = x[i-1] + dt*(f(x[i-1],b,X) + y[i-1])
 		if x[i] < xmin:	break	#y *= -1
-	if i==nstp-1 and vb: print me+"Trarray ran out of space. BUG!"
+	if i==nstp-1: print me+"trajectory array ran out of space. BUG!"
 	if vb: print me+"Simulation of x  ",round(time.time()-t0,1),"seconds for",len(x),"steps"
 	
 	## Clip y and x to be their actual lengths
 	x, y = x[:i+1], y[:i+1]
-
+	
 	return np.vstack([x,y])
 
 ## ====================================================================
@@ -216,8 +220,10 @@ def lookup_xmax(X,a):
 	elif a<=0.6:	xmax=1.005*X
 	elif a<=0.7:	xmax=1.004*X
 	elif a<=0.8:	xmax=1.004*X
-	else:			xmax=1.002*X
+	## 15/11/30 changed from 1.002 to 1.003
+	else:			xmax=1.003*X
 	return xmax
+		
 	
 def calculate_xbin(xinit,X,xmax,Nxbin):
 	"""

@@ -59,14 +59,23 @@ def tail_plot(histfile, verbose):
 	alpha = float(histfile[start:histfile.find("_",start)])
 	start = histfile.find("_X") + 2
 	X = float(histfile[start:histfile.find("_",start)])
-
+	
+	## 2D histogram
 	H = np.load(histfile)
-
-	ybins = np.linspace(-0.5,0.5,H.shape[0])
-	x = calculate_xbin(0.9*X,X,lookup_xmax(X,alpha),H.shape[1]-1)[H.shape[1]/2-1:]
+	
+	## Space -- bin edges and centres
+	ybins = np.linspace(-0.5,0.5,H.shape[0]+1)
+	y = 0.5*(ybins[1:]+ybins[:-1])
+	xmin, xmax = 0.9*X, lookup_xmax(X,alpha)
+	xbins = calculate_xbin(xmin,X,xmax,H.shape[1])[H.shape[1]/2-1:]
+	x = 0.5*(xbins[1:]+xbins[:-1])
+	
+	## Interested in wall region
 	H = H[:,H.shape[1]/2-1:]
-
-	Hx = np.trapz(H,x=ybins,axis=0)
+	
+	## Marginalise
+	Hx = np.trapz(H,x=y,axis=0)
+	# Hx = H.sum(axis=0) * (y[1]-y[0])	## Should be dot product with diffy
 	Hx = Hx[Hx!=0]; x = x[Hx!=0]
 
 	## Fit; throw away first portion of data

@@ -48,6 +48,7 @@ def main():
 	HISTORY
 		12 November 2015	Started
 		15 November 2015	Pressure versus alpha functionality
+		30 November 2015	Added IG result
 	"""
 	me = "LE_Pressure.main: "
 	t0 = sysT()
@@ -93,10 +94,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	plotfilePDF = os.path.splitext(filepath)[0]+"_PDF.png"
 	
 	## Get alpha and X from filename
-	start = filepath.find("_a") + 2
-	alpha = float(filepath[start:filepath.find("_",start)])
-	start = filepath.find("_X") + 2
-	X = float(filepath[start:filepath.find("_",start)])
+	alpha, X, dt = filename_pars(filepath)
 	if verbose: print me+"alpha =",alpha,"and X =",X
 	
 	## Load data
@@ -105,11 +103,15 @@ def pressure_pdf_plot_file(filepath, verbose):
 	## Space
 	xmin,xmax = 0.9*X,lookup_xmax(X,alpha)
 	ymax = 0.5
-	x = calculate_xbin(xmin,X,xmax,H.shape[1]-1)
-	y = np.linspace(-ymax,ymax,H.shape[0])
+	ybins = np.linspace(-ymax,ymax,H.shape[0]+1)
+	y = 0.5*(ybins[1:]+ybins[:-1])
+	xbins = calculate_xbin(xmin,X,xmax,H.shape[1])
+	x = 0.5*(xbins[1:]+xbins[:-1])
 	
 	## Marginalise to PDF in x
 	Hx = np.trapz(H,x=y,axis=0)
+	# Hx = H.sum(axis=0) * (y[1]-y[0])	## Should be dot product with diffy
+	if verbose: print me+"integral of density",np.trapz(Hx,x=x,axis=0)
 	
 	## 2D PDF plot
 	if 0:
@@ -121,13 +123,17 @@ def pressure_pdf_plot_file(filepath, verbose):
 	## Calculate pressure
 	force = -alpha*0.5*(np.sign(x-X)+1)
 	press = pressure_x(force,Hx,x,"discrete")
+	Hx_wn = 0.5*np.exp(-50*alpha*(x-X)); Hx_wn[:len(x)/2]=Hx_wn[len(x)/2]	## Note quite right
+	pressIG = pressure_x(force,Hx_wn,x,"discrete")
 	
 	fig,ax = plt.subplots(1,2)
 	ax[0].plot(x,Hx,label="")
+	ax[0].plot(x,Hx_wn,"r--",label="")
 	ax[0].set_xlim(left=xmin,right=xmax)
 	ax[0].set_ylim(bottom=0.0,top=np.ceil(Hx[Hx.shape[0]/4:].max()))
 	plot_acco(ax[0],ylabel="PDF p(x)")
 	ax[1].plot(x,press,label="")
+	ax[1].plot(x,pressIG,"r--",label="")
 	ax[1].set_xlim(left=xmin,right=xmax)
 	plot_acco(ax[1], ylabel="Pressure", legloc="")
 	plt.tight_layout()
@@ -224,6 +230,19 @@ def pressure_x(force,Hx,x, method="interp_prod"):
 		press = -np.array([(force*Hx).integral(x[0],xi) for xi in x])
 		
 	return press
+	
+##=============================================================================
+def filename_pars(filename):
+	"""
+	Scrape filename for parameters
+	"""
+	start = filepath.find("_a") + 2
+	a = float(filepath[start:filepath.find("_",start)])
+	start = filepath.find("_X") + 2
+	X = float(filepath[start:filepath.find("_",start)])
+	start = filepath.find("_dt") + 3
+	dt = float(filepath[start:filepath.find(".npy",start)])
+	return a, X, dt
 	
 ##=============================================================================
 def av_pd(p,x,x0,X,fac=0.02):
