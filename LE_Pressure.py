@@ -43,7 +43,7 @@ def main():
 	NOTES
 	
 	BUGS / TODO
-		-- Honest normalisation -- affects pressure
+		-- 2D PDF doen't work with unequal bin width
 	
 	HISTORY
 		12 November 2015	Started
@@ -89,51 +89,70 @@ def pressure_pdf_plot_file(filepath, verbose):
 	me = "LE_Pressure.pressure_pdf_plot_file: "
 	t0 = sysT()
 	
+	IG = False
+	
 	## Filenames
 	plotfile = os.path.splitext(filepath)[0]+"_P.png"
 	plotfilePDF = os.path.splitext(filepath)[0]+"_PDF.png"
 	
 	## Get alpha and X from filename
-	alpha, X, dt = filename_pars(filepath)
+	alpha, X, dt, ymax = filename_pars(filepath)
 	if verbose: print me+"alpha =",alpha,"and X =",X
 	
 	## Load data
 	H = np.load(filepath)
 	
-	## Space
+	## To correct for overcounting from dt
+	# H /= dt
+	
+	## Space -- for axes
 	xmin,xmax = 0.9*X,lookup_xmax(X,alpha)
-	ymax = 0.5
 	ybins = np.linspace(-ymax,ymax,H.shape[0]+1)
 	y = 0.5*(ybins[1:]+ybins[:-1])
 	xbins = calculate_xbin(xmin,X,xmax,H.shape[1])
 	x = 0.5*(xbins[1:]+xbins[:-1])
+	
+	## 2D PDF plot. Cannot do unequal bin widths.
+	if 0:
+		plt.imshow(H, extent=[xmin,xmax,-ymax,ymax], aspect="auto")
+		plt.plot([X,X],[-ymax,ymax],"m:",linewidth=2)
+		plt.xlim(xmin,xmax); plt.ylim(-ymax,ymax)
+		plot_acco(plt.gca(),xlabel="$x$",ylabel="$\\eta$",title="$\\alpha=$"+str(alpha))
+		plt.savefig(plotfilePDF)
+		if verbose: print me+"2D PDF plot saved to",plotfilePDF
+		# plt.show(); exit()
+	## Plot y-pdfs in the bulk.
+	if 0:
+		plt.clf()
+		for i in range(0,H.shape[1]/2,H.shape[1]/20):
+			plt.plot(y,H[:,i]/np.trapz(H[:,i],x=y))
+		var = 0.05
+		plt.plot(y,1/np.sqrt(2*np.pi*var)*np.exp(-y*y/(2*var)),"k--",linewidth=3)
+		plot_acco(plt.gca(),xlabel="$\\eta$",ylabel="$p(\\eta)$",\
+					title="$\\alpha=$"+str(alpha)+". PDF slices in bulk.")
+		plt.savefig(os.path.splitext(filepath)[0]+"_yPDFs.png")
+		# plt.show(); exit()
 	
 	## Marginalise to PDF in x
 	Hx = np.trapz(H,x=y,axis=0)
 	# Hx = H.sum(axis=0) * (y[1]-y[0])	## Should be dot product with diffy
 	if verbose: print me+"integral of density",np.trapz(Hx,x=x,axis=0)
 	
-	## 2D PDF plot
-	if 0:
-		plt.imshow(H, extent=[xmin,xmax,-ymax,ymax], aspect="auto")
-		plot_acco(plt.gca(),xlabel="$x$",ylabel="$\\eta$",title="$\\alpha=$"+str(alpha))
-		plt.savefig(plotfilePDF)
-		if verbose: print me+"2D PDF plot saved to",plotfilePDF
-
 	## Calculate pressure
 	force = -alpha*0.5*(np.sign(x-X)+1)
 	press = pressure_x(force,Hx,x,"discrete")
-	Hx_wn = 0.5*np.exp(-50*alpha*(x-X)); Hx_wn[:len(x)/2]=Hx_wn[len(x)/2]	## Note quite right
-	pressIG = pressure_x(force,Hx_wn,x,"discrete")
+	if IG:
+		Hx_wn = 0.5*np.exp(-50*alpha*(x-X)); Hx_wn[:len(x)/2]=Hx_wn[len(x)/2]	## Not quite right
+		pressIG = pressure_x(force,Hx_wn,x,"discrete")
 	
 	fig,ax = plt.subplots(1,2)
 	ax[0].plot(x,Hx,label="")
-	ax[0].plot(x,Hx_wn,"r--",label="")
+	if IG: ax[0].plot(x,Hx_wn,"r--",label="")
 	ax[0].set_xlim(left=xmin,right=xmax)
 	ax[0].set_ylim(bottom=0.0,top=np.ceil(Hx[Hx.shape[0]/4:].max()))
 	plot_acco(ax[0],ylabel="PDF p(x)")
 	ax[1].plot(x,press,label="")
-	ax[1].plot(x,pressIG,"r--",label="")
+	if IG: ax[1].plot(x,pressIG,"r--",label="")
 	ax[1].set_xlim(left=xmin,right=xmax)
 	plot_acco(ax[1], ylabel="Pressure", legloc="")
 	plt.tight_layout()
@@ -159,11 +178,6 @@ def pressure_plot_dir(dirpath, verbose):
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
 	
-	## Assume all files have same X
-	start = histfiles[0].find("_X") + 2
-	X = float(histfiles[0][start:histfiles[0].find("_",start)])
-	if verbose: print me+"determined X="+str(X)
-	
 	## Outfile name
 	pressplot = dirpath+"/PressureAlpha.png"
 	Alpha = np.zeros(numfiles)
@@ -173,11 +187,13 @@ def pressure_plot_dir(dirpath, verbose):
 	for i,filepath in enumerate(histfiles):
 		
 		## Find alpha
-		start = filepath.find("_a") + 2
-		Alpha[i] = float(filepath[start:filepath.find("_",start)])
+		alpha, X, dt, ymax = filename_pars(filepath)
+		Alpha[i] = alpha
 				
 		## Load data
 		H = np.load(filepath)
+		## Overcounting in LE_LBS -- bug
+		# H /= dt
 		
 		## Space
 		xmin,xmax = 0.9*X,lookup_xmax(X,Alpha[i])
@@ -236,13 +252,23 @@ def filename_pars(filename):
 	"""
 	Scrape filename for parameters
 	"""
-	start = filepath.find("_a") + 2
-	a = float(filepath[start:filepath.find("_",start)])
-	start = filepath.find("_X") + 2
-	X = float(filepath[start:filepath.find("_",start)])
-	start = filepath.find("_dt") + 3
-	dt = float(filepath[start:filepath.find(".npy",start)])
-	return a, X, dt
+	#
+	start = filename.find("_a") + 2
+	a = float(filename[start:filename.find("_",start)])
+	#
+	start = filename.find("_X") + 2
+	X = float(filename[start:filename.find("_",start)])
+	#
+	start = filename.find("_dt") + 3
+	dt = float(filename[start:filename.find(".npy",start)])
+	#
+	try:
+		start = filename.find("_ym") + 2
+		ymax = float(filename[start:filename.find("_",start)])
+	except:
+		ymax = 0.5
+	#
+	return a, X, dt, ymax
 	
 ##=============================================================================
 def av_pd(p,x,x0,X,fac=0.02):

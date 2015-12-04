@@ -88,7 +88,7 @@ def main():
 	## Parameters
 	
 	## Simulation time
-	tmax = 5e3*timefac
+	tmax = 1e3*timefac
 	
 	## Space
 	xmax = lookup_xmax(X,a)
@@ -96,10 +96,10 @@ def main():
 	xinit= 0.9*X	## Particle initial x ("line" IC)
 	ymax = 0.5
 	
-	## Histogramming
+	## Histogramming; xbins and ybins are bin edges.
 	Nxbin = 200
 	Nybin = 50
-	xbins = calculate_xbin(xinit,X,xmax,Nxbin)
+	xbins = calculate_xbin(xinit,X,xmax,Nxbin)#np.linspace(xmin,xmax,Nxbin+1)#
 	ybins = np.linspace(-ymax,ymax,Nybin+1)
 		
 	## Initial conditions and outfile
@@ -107,8 +107,8 @@ def main():
 		X0Y0 = np.array([[xinit,y0] for y0 in ybins])
 		Nparticles = Nybin*Nrun
 		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/151130X"+str(X)+"Nx"+str(Nxbin)+"r"+str(Nrun)+\
-				"/BHIS_a"+str(a)+"_X"+str(X)+"_Nx"+str(Nxbin)+"_r"+str(Nrun)+"_dt"+str(dt)#+"_x0"+str(xinit/X)+"_xm"+str(xmin/X)
+		hisfile = "Pressure/151203X"+str(X)+"r"+str(Nrun)+\
+				"/BHIS_a"+str(a)+"_X"+str(X)+"_ym"+str(ymax)+"_r"+str(Nrun)+"_dt"+str(dt)
 	elif IC == "uniform":
 		X0Y0 = np.array([[x0,y0] for y0 in ybins for x0 in xbins])
 		Nparticles = Nybin*Nxbin
@@ -136,14 +136,16 @@ def main():
 	## Loop over initial y-position
 	for x0y0 in X0Y0:
 		for run in xrange(Nrun):
+			np.random.seed(123)
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim(x0y0, a, X, FBW, xmin, tmax, expmt, False)
-			h = np.histogram2d(x,y,bins=[Nxbin,Nybin], normed=True)[0]
+			h = np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
 			H += h*histogram_weight(x0y0[1],y[-1])
 	H = (H.T)[::-1]
+	## When normed=False, need to divide by the bin area -- or do we?
+	# H /= np.outer(np.diff(ybins),np.diff(xbins))
 	## Normalise by number of particles
 	H /= Nparticles
-	# H /= dt
 	save_data(hisfile, H, vb)
 	
 	if vb: print me+"execution time",round(time.time()-t0,2),"seconds"
@@ -179,15 +181,64 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
 	## Euler steps to calculate x(t)
 	for i in xrange(1,nstp):
 		x[i] = x[i-1] + dt*(f(x[i-1],b,X) + y[i-1])
-		if x[i] < xmin:	break	#y *= -1
-	if i==nstp-1: print me+"trajectory array ran out of space. BUG!"
+		if x[i] < xmin:	break
+	if i==nstp-1: print me+"trajectory array ran out of space. BUG! x="+str(x[-1]),[i];exit()
 	if vb: print me+"Simulation of x  ",round(time.time()-t0,1),"seconds for",len(x),"steps"
 	
 	## Clip y and x to be their actual lengths
 	x, y = x[:i+1], y[:i+1]
 	
 	return np.vstack([x,y])
+	
+## ----------------------------------------------------------------------------	
+## ----------------------------------------------------------------------------	
 
+def boundary_sim_dev(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
+	"""
+	Run the LE simulation from (x0,y0), stopping if x<xmin.
+	Dynamically adds more space to arrays.
+	Same results if end of array not hit.
+	Harder to test other case: random numbers. However, it looks close enough.
+	"""
+	me = "LE_BoundarySimPlt.boundary_sim_dev: "
+	t0 = time.time()
+	
+	## Initialisation
+	x0,y0 = x0y0
+	nstp = int(tmax/dt)
+	exstp = nstp/10
+	
+	## Simulate eta
+	if vb: t0 = time.time()
+	y = sim_eta(y0, expmt, dt, nstp)
+	if vb: print me+"Simulation of eta",round(time.time()-t0,1),"seconds for",nstp,"steps"
+	
+	## Variable of interest
+	if vb: t0 = time.time()
+	x = np.zeros(nstp); x[0],xt = x0,x0; i,j = 1,0
+	## Euler steps to calculate x(t)
+	while xt > xmin:
+		xt = x[i-1] + dt*(f(x[i-1],b,X) + y[i-1])
+		x[i] = xt; i +=1
+		if i == len(x):
+			x = np.append(x,np.zeros(exstp))
+			y = np.append(y,sim_eta(y[-1],expmt,dt,exstp))
+			j += 1
+	if vb: print me+"trajectory array extended",j,"times."
+	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",len(x),"steps"
+	
+	## Clip y and x to be their actual lengths
+	x, y = x[:i+1], y[:i+1]
+	
+	return np.vstack([x,y])
+
+## ----------------------------------------------------------------------------	
+	
+def sim_eta(et0, expmt, dt, npoints):
+	xi = np.sqrt(2) * np.random.normal(0, 1, npoints)
+	et = et0*expmt + dt * fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
+	return et
+	
 ## ====================================================================
 
 def histogram_weight(yi,yf):
