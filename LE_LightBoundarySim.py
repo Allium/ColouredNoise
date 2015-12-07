@@ -91,14 +91,14 @@ def main():
 	tmax = 1e3*timefac
 	
 	## Space
-	xmax = lookup_xmax(X,a)
+	xmax = X+1/(10*a*a) #lookup_xmax(X,a)
 	xmin = 0.8*X	## Simulation cutoff
 	xinit= 0.9*X	## Particle initial x ("line" IC)
 	ymax = 0.5
 	
 	## Histogramming; xbins and ybins are bin edges.
 	Nxbin = 200
-	Nybin = 50
+	Nybin = 100
 	xbins = calculate_xbin(xinit,X,xmax,Nxbin)#np.linspace(xmin,xmax,Nxbin+1)#
 	ybins = np.linspace(-ymax,ymax,Nybin+1)
 		
@@ -107,8 +107,8 @@ def main():
 		X0Y0 = np.array([[xinit,y0] for y0 in ybins])
 		Nparticles = Nybin*Nrun
 		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/151203X"+str(X)+"r"+str(Nrun)+\
-				"/BHIS_a"+str(a)+"_X"+str(X)+"_ym"+str(ymax)+"_r"+str(Nrun)+"_dt"+str(dt)
+		hisfile = "Pressure/151206X"+str(X)+"r"+str(Nrun)+\
+				"_WN/BHIS_a"+str(a)+"_X"+str(X)+"_r"+str(Nrun)+"_dt"+str(dt)
 	elif IC == "uniform":
 		X0Y0 = np.array([[x0,y0] for y0 in ybins for x0 in xbins])
 		Nparticles = Nybin*Nxbin
@@ -136,14 +136,13 @@ def main():
 	## Loop over initial y-position
 	for x0y0 in X0Y0:
 		for run in xrange(Nrun):
-			np.random.seed(123)
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim(x0y0, a, X, FBW, xmin, tmax, expmt, False)
 			h = np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
-			H += h*histogram_weight(x0y0[1],y[-1])
+			H += h#*histogram_weight(x0y0[1],y[-1])
 	H = (H.T)[::-1]
-	## When normed=False, need to divide by the bin area -- or do we?
-	# H /= np.outer(np.diff(ybins),np.diff(xbins))
+	## When normed=False, need to divide by the bin area and the time-step -- or do we?
+	H /= np.outer(np.diff(ybins),np.diff(xbins)) * dt
 	## Normalise by number of particles
 	H /= Nparticles
 	save_data(hisfile, H, vb)
@@ -153,54 +152,17 @@ def main():
 	return hisfile
 	
 ## ====================================================================
+
 def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
-	"""
-	Run the LE simulation from (x0,y0), stopping if x<xmin
-	
-	NOTES
-	-- Assuming tmax is sufficient time to explore and return.
-	If this turns out to not be the case, will have to dynamically increase array size.
-	-- Computing eta and then x. Maybe faster to have one loop.
-	"""
-	me = "LE_BoundarySimPlt.boundary_sim: "
-	t0 = time.time()
-	
-	## Initialisation
-	x0,y0 = x0y0
-	nstp = int(tmax/dt)
-	xi = np.sqrt(2) * np.random.normal(0, 1, nstp)
-	
-	## OU noise
-	y = y0*expmt + dt * fftconvolve(expmt,np.append(np.zeros(nstp),xi),"full")[nstp-1:-nstp]
-	# y = dt * fftconvolve(expmt,np.append(np.zeros(nstp),xi),"full")[nstp-1:-nstp]
-	if vb: print me+"Simulation of eta",round(time.time()-t0,1),"seconds for",nstp,"steps"
-
-	t0 = time.time()
-	## Variable of interest
-	x = np.zeros(nstp); x[0] = x0
-	## Euler steps to calculate x(t)
-	for i in xrange(1,nstp):
-		x[i] = x[i-1] + dt*(f(x[i-1],b,X) + y[i-1])
-		if x[i] < xmin:	break
-	if i==nstp-1: print me+"trajectory array ran out of space. BUG! x="+str(x[-1]),[i];exit()
-	if vb: print me+"Simulation of x  ",round(time.time()-t0,1),"seconds for",len(x),"steps"
-	
-	## Clip y and x to be their actual lengths
-	x, y = x[:i+1], y[:i+1]
-	
-	return np.vstack([x,y])
-	
-## ----------------------------------------------------------------------------	
-## ----------------------------------------------------------------------------	
-
-def boundary_sim_dev(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
 	"""
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
 	Dynamically adds more space to arrays.
 	Same results if end of array not hit.
 	Harder to test other case: random numbers. However, it looks close enough.
+	
+	**BUG** transition not hanled correctly
 	"""
-	me = "LE_BoundarySimPlt.boundary_sim_dev: "
+	me = "LE_BoundarySimPlt.boundary_sim: "
 	t0 = time.time()
 	
 	## Initialisation
@@ -218,26 +180,26 @@ def boundary_sim_dev(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
 	x = np.zeros(nstp); x[0],xt = x0,x0; i,j = 1,0
 	## Euler steps to calculate x(t)
 	while xt > xmin:
-		xt = x[i-1] + dt*(f(x[i-1],b,X) + y[i-1])
+		xt = x[i-1] + dt*(f(x[i-1],1,X) + 1/b*y[i-1])#(f(x[i-1],b,X) + y[i-1])
 		x[i] = xt; i +=1
+		## Extend array if necessary
 		if i == len(x):
 			x = np.append(x,np.zeros(exstp))
-			y = np.append(y,sim_eta(y[-1],expmt,dt,exstp))
+			y = np.append(y,sim_eta(y[-2],expmt,dt,exstp))
 			j += 1
-	if vb: print me+"trajectory array extended",j,"times."
+	if j>0: print me+"trajectory array extended",j,"times."
 	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",len(x),"steps"
 	
-	## Clip y and x to be their actual lengths
-	x, y = x[:i+1], y[:i+1]
-	
+	## Clip trailing zeroes from y and x
+	x, y = x[:i+1], y[:i+1]	
 	return np.vstack([x,y])
 
 ## ----------------------------------------------------------------------------	
 	
 def sim_eta(et0, expmt, dt, npoints):
 	xi = np.sqrt(2) * np.random.normal(0, 1, npoints)
-	et = et0*expmt + dt * fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
-	return et
+	# et = et0*expmt + dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
+	return xi
 	
 ## ====================================================================
 

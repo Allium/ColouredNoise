@@ -89,7 +89,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	me = "LE_Pressure.pressure_pdf_plot_file: "
 	t0 = sysT()
 	
-	IG = False
+	IG = True
 	
 	## Filenames
 	plotfile = os.path.splitext(filepath)[0]+"_P.png"
@@ -102,11 +102,8 @@ def pressure_pdf_plot_file(filepath, verbose):
 	## Load data
 	H = np.load(filepath)
 	
-	## To correct for overcounting from dt
-	# H /= dt
-	
 	## Space -- for axes
-	xmin,xmax = 0.9*X,lookup_xmax(X,alpha)
+	xmin,xmax = 0.9*X,X+1/(10*a*a)#lookup_xmax(X,alpha)
 	ybins = np.linspace(-ymax,ymax,H.shape[0]+1)
 	y = 0.5*(ybins[1:]+ybins[:-1])
 	xbins = calculate_xbin(xmin,X,xmax,H.shape[1])
@@ -134,25 +131,23 @@ def pressure_pdf_plot_file(filepath, verbose):
 		# plt.show(); exit()
 	
 	## Marginalise to PDF in x
-	Hx = np.trapz(H,x=y,axis=0)
 	# Hx = H.sum(axis=0) * (y[1]-y[0])	## Should be dot product with diffy
-	if verbose: print me+"integral of density",np.trapz(Hx,x=x,axis=0)
+	Hx = np.trapz(H,x=y,axis=0)
+	Hx /= np.trapz(Hx,x=x,axis=0)
 	
 	## Calculate pressure
 	force = -alpha*0.5*(np.sign(x-X)+1)
 	press = pressure_x(force,Hx,x,"discrete")
-	if IG:
-		Hx_wn = 0.5*np.exp(-50*alpha*(x-X)); Hx_wn[:len(x)/2]=Hx_wn[len(x)/2]	## Not quite right
-		pressIG = pressure_x(force,Hx_wn,x,"discrete")
+	HxIG, pressIG = ideal_gas(alpha, force, x, X, xmin, dt)
 	
 	fig,ax = plt.subplots(1,2)
 	ax[0].plot(x,Hx,label="")
-	if IG: ax[0].plot(x,Hx_wn,"r--",label="")
+	# ax[0].plot(x,HxIG,"r--",label="")
 	ax[0].set_xlim(left=xmin,right=xmax)
 	ax[0].set_ylim(bottom=0.0,top=np.ceil(Hx[Hx.shape[0]/4:].max()))
 	plot_acco(ax[0],ylabel="PDF p(x)")
 	ax[1].plot(x,press,label="")
-	if IG: ax[1].plot(x,pressIG,"r--",label="")
+	# ax[1].plot(x,pressIG,"r--",label="")
 	ax[1].set_xlim(left=xmin,right=xmax)
 	plot_acco(ax[1], ylabel="Pressure", legloc="")
 	plt.tight_layout()
@@ -182,6 +177,7 @@ def pressure_plot_dir(dirpath, verbose):
 	pressplot = dirpath+"/PressureAlpha.png"
 	Alpha = np.zeros(numfiles)
 	Press = np.zeros(numfiles)
+	PressIG = np.zeros(numfiles)
 		
 	## Loop over files
 	for i,filepath in enumerate(histfiles):
@@ -207,8 +203,13 @@ def pressure_plot_dir(dirpath, verbose):
 		## Calculate pressure
 		force = -Alpha[i]*0.5*(np.sign(x-X)+1)
 		Press[i] = np.trapz(-force*Hx, x)
+		PressIG[i] = 1.0/((X-xmin)/dt+1/alpha)
+		
+	sortind = np.argsort(Alpha)
+	Alpha = Alpha[sortind]; Press = Press[sortind]; PressIG = PressIG[sortind]
 		
 	plt.plot(Alpha,Press,"bo",label=".")
+	plt.plot(Alpha,PressIG,"r--",label=".")
 	plt.ylim(bottom=0.0)
 	plot_acco(plt.gca(), xlabel="$\\alpha$", ylabel="Pressure", legloc="")
 	
@@ -248,6 +249,17 @@ def pressure_x(force,Hx,x, method="interp_prod"):
 	return press
 	
 ##=============================================================================
+def ideal_gas(alpha, force, x, X, xmin, dt):
+	"""
+	Calculate PDF and pressure for ideal gas
+	"""
+	bulklevel = 1/(X-xmin+dt/alpha)
+	HxIG = bulklevel*np.exp(-(1/dt)*alpha*(x-X)); HxIG[:len(x)/2]=HxIG[len(x)/2]
+	pressIG = pressure_x(force,HxIG,x,"discrete")
+	## pressure(inf) = bulklevel*dt
+	return HxIG, pressIG
+
+##=============================================================================
 def filename_pars(filename):
 	"""
 	Scrape filename for parameters
@@ -271,12 +283,10 @@ def filename_pars(filename):
 	return a, X, dt, ymax
 	
 ##=============================================================================
-def av_pd(p,x,x0,X,fac=0.02):
+def av_pd(p,x,x1,x2,fac=0.02):
 	"""
 	Average the probability density between two points
 	"""
-	x1 = x0 + fac*X
-	x2 = X  - fac*X
 	ind1 = np.abs(x-x1).argmin()
 	ind2 = np.abs(x-x2).argmin()
 	return p[ind1:ind2].mean()

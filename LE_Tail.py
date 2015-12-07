@@ -159,7 +159,7 @@ def plot_exp_alpha(dirpath, verbose):
 	plt.plot(Alpha,fit(Alpha),"r--",label=str(fit))
 	## This fit has nonzero intercept
 	# plt.plot(Alpha,np.poly1d(np.polyfit(Alpha,Expon,2))(Alpha),"r--")
-	plot_acco(plt.gca(), title="Wall region: exponential tail of PDF: $\\rho(x)\sim\exp[-m(x-X)]$",
+	plot_acco(plt.gca(), title="Wall region: exponential tail of PDF: $\\rho(x)\sim\exp[+m(x-X)]$",
 		xlabel="$\\alpha$", ylabel="Exponent, $m$", legloc="")
 	
 	plt.savefig(exponplot)
