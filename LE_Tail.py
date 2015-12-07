@@ -105,7 +105,7 @@ def plot_exp_alpha(dirpath, verbose):
 	t0 = sysT()
 	
 	## File discovery
-	histfiles = np.sort(glob.glob(dirpath+"/*.npy"))
+	histfiles = np.sort(glob.glob(dirpath+"/*1.npy"))
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
 	
@@ -116,8 +116,8 @@ def plot_exp_alpha(dirpath, verbose):
 	
 	## Outfile name
 	exponplot = dirpath+"/TailAlpha.png"
-	Alpha = np.zeros(numfiles)
-	Expon = np.zeros(numfiles)
+	Alpha = np.zeros(numfiles+1)
+	Expon = np.zeros(numfiles+1)
 		
 	## Loop over files
 	for i,filepath in enumerate(histfiles):
@@ -145,10 +145,22 @@ def plot_exp_alpha(dirpath, verbose):
 		else: lm=Hx.shape[0]/10
 		fit = np.polyfit(x[lm:],np.log(Hx[lm:]),1)
 		Expon[i] = fit[0]
-		
+	
+	## Sort values in increasing order
+	sortind = np.argsort(Alpha)
+	Alpha = Alpha[sortind]; Expon = Expon[sortind]
+
+	## Plotting
 	plt.plot(Alpha,Expon,"bo")
-	plot_acco(plt.gca(), title="Wall region: exponential tail of PDF",
-		xlabel="$\\alpha$", ylabel="Exponent", legloc="")
+	## Fit to parabola
+	coeff = np.transpose([Alpha*Alpha])
+	((a), _, _, _) = np.linalg.lstsq(coeff, Expon)
+	fit = np.poly1d([a, 0, 0])
+	plt.plot(Alpha,fit(Alpha),"r--",label=str(fit))
+	## This fit has nonzero intercept
+	# plt.plot(Alpha,np.poly1d(np.polyfit(Alpha,Expon,2))(Alpha),"r--")
+	plot_acco(plt.gca(), title="Wall region: exponential tail of PDF: $\\rho(x)\sim\exp[-m(x-X)]$",
+		xlabel="$\\alpha$", ylabel="Exponent, $m$", legloc="")
 	
 	plt.savefig(exponplot)
 	if verbose: print me+"plot saved to",exponplot
