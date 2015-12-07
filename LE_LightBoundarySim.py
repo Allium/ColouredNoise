@@ -91,7 +91,7 @@ def main():
 	tmax = 1e3*timefac
 	
 	## Space
-	xmax = X+1/(10*a*a) #lookup_xmax(X,a)
+	xmax = lookup_xmax(X,a)
 	xmin = 0.8*X	## Simulation cutoff
 	xinit= 0.9*X	## Particle initial x ("line" IC)
 	ymax = 0.5
@@ -139,7 +139,7 @@ def main():
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim(x0y0, a, X, FBW, xmin, tmax, expmt, False)
 			h = np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
-			H += h#*histogram_weight(x0y0[1],y[-1])
+			H += h*histogram_weight(x0y0[1],y[-1])
 	H = (H.T)[::-1]
 	## When normed=False, need to divide by the bin area and the time-step -- or do we?
 	H /= np.outer(np.diff(ybins),np.diff(xbins)) * dt
@@ -180,7 +180,7 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
 	x = np.zeros(nstp); x[0],xt = x0,x0; i,j = 1,0
 	## Euler steps to calculate x(t)
 	while xt > xmin:
-		xt = x[i-1] + dt*(f(x[i-1],1,X) + 1/b*y[i-1])#(f(x[i-1],b,X) + y[i-1])
+		xt = x[i-1] + dt*(f(x[i-1],b,X) + y[i-1])
 		x[i] = xt; i +=1
 		## Extend array if necessary
 		if i == len(x):
@@ -198,8 +198,8 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
 	
 def sim_eta(et0, expmt, dt, npoints):
 	xi = np.sqrt(2) * np.random.normal(0, 1, npoints)
-	# et = et0*expmt + dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
-	return xi
+	et = et0*expmt + dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
+	return et
 	
 ## ====================================================================
 

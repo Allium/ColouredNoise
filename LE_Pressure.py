@@ -103,7 +103,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	H = np.load(filepath)
 	
 	## Space -- for axes
-	xmin,xmax = 0.9*X,X+1/(10*a*a)#lookup_xmax(X,alpha)
+	xmin,xmax = 0.9*X,lookup_xmax(X,alpha)
 	ybins = np.linspace(-ymax,ymax,H.shape[0]+1)
 	y = 0.5*(ybins[1:]+ybins[:-1])
 	xbins = calculate_xbin(xmin,X,xmax,H.shape[1])
