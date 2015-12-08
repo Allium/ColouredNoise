@@ -103,7 +103,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	H = np.load(filepath)
 	
 	## Space -- for axes
-	xmin,xmax = 0.9*X,lookup_xmax(X,alpha)
+	xmin, xmax = 0.9*X, X+10*dt/alpha#lookup_xmax(X,alpha)
 	ybins = np.linspace(-ymax,ymax,H.shape[0]+1)
 	y = 0.5*(ybins[1:]+ybins[:-1])
 	xbins = calculate_xbin(xmin,X,xmax,H.shape[1])
@@ -137,17 +137,17 @@ def pressure_pdf_plot_file(filepath, verbose):
 	
 	## Calculate pressure
 	force = -alpha*0.5*(np.sign(x-X)+1)
-	press = pressure_x(force,Hx,x,"discrete")
+	press = pressure_x(force,Hx,x)
 	HxIG, pressIG = ideal_gas(alpha, force, x, X, xmin, dt)
 	
 	fig,ax = plt.subplots(1,2)
 	ax[0].plot(x,Hx,label="")
-	# ax[0].plot(x,HxIG,"r--",label="")
+	ax[0].plot(x,HxIG,"r--",label="")
 	ax[0].set_xlim(left=xmin,right=xmax)
 	ax[0].set_ylim(bottom=0.0,top=np.ceil(Hx[Hx.shape[0]/4:].max()))
 	plot_acco(ax[0],ylabel="PDF p(x)")
 	ax[1].plot(x,press,label="")
-	# ax[1].plot(x,pressIG,"r--",label="")
+	ax[1].plot(x,pressIG,"r--",label="")
 	ax[1].set_xlim(left=xmin,right=xmax)
 	plot_acco(ax[1], ylabel="Pressure", legloc="")
 	plt.tight_layout()
@@ -188,8 +188,6 @@ def pressure_plot_dir(dirpath, verbose):
 				
 		## Load data
 		H = np.load(filepath)
-		## Overcounting in LE_LBS -- bug
-		# H /= dt
 		
 		## Space
 		xmin,xmax = 0.9*X,lookup_xmax(X,Alpha[i])
@@ -203,11 +201,13 @@ def pressure_plot_dir(dirpath, verbose):
 		## Calculate pressure
 		force = -Alpha[i]*0.5*(np.sign(x-X)+1)
 		Press[i] = np.trapz(-force*Hx, x)
-		PressIG[i] = 1.0/((X-xmin)/dt+1/alpha)
-		
+		PressIG[i] = 1/(X-xmin+dt/alpha)
+	
+	## Sort values
 	sortind = np.argsort(Alpha)
 	Alpha = Alpha[sortind]; Press = Press[sortind]; PressIG = PressIG[sortind]
-		
+	
+	## Plotting
 	plt.plot(Alpha,Press,"bo",label=".")
 	plt.plot(Alpha,PressIG,"r--",label=".")
 	plt.ylim(bottom=0.0)
@@ -221,31 +221,13 @@ def pressure_plot_dir(dirpath, verbose):
 
 ##=============================================================================
 ##=============================================================================
-def pressure_x(force,Hx,x, method="interp_prod"):
+def pressure_x(force,Hx,x):
 	"""
 	Calculate the pressure given an array of forces and densities at positions x.
 	Returns an array of pressure value at every point in x.
 	"""
 	me = "LE_Pressure.pressure: "
-	
-	if method is "discrete":
-		press = np.array([np.trapz((-force*Hx)[:i], x[:i]) for i,xi in enumerate(x)])
-	elif method is "interp_prod":
-		## Very slow; issues with discontinuity
-		# dpress = UnivariateSpline(x,-force*Hx,k=1)
-		# press = np.array([dpress.integral(x[0],xi) for xi in x])
-		dpress = interp1d(x,-force*Hx)
-		# press = np.array([integrate.quad(dpress,x[0],xi, points=[float(xi>1.0)] )[0]\
-			# for xi in x])
-		press =  [integrate.quad(dpress,x[0],xi )[0]	for xi in x[x<1.0]]
-		press += [integrate.quad(dpress,x[0],xi )[0]	for xi in x[x>1.0]]
-		press = np.array(press)
-	elif method is "interp_both":
-		## Not tested
-		force = UnivariateSpline(x,force,k=2)
-		Hx = UnivariateSpline(x,Hx)
-		press = -np.array([(force*Hx).integral(x[0],xi) for xi in x])
-		
+	press = np.array([np.trapz((-force*Hx)[:i], x[:i]) for i,xi in enumerate(x)])
 	return press
 	
 ##=============================================================================
@@ -254,9 +236,9 @@ def ideal_gas(alpha, force, x, X, xmin, dt):
 	Calculate PDF and pressure for ideal gas
 	"""
 	bulklevel = 1/(X-xmin+dt/alpha)
-	HxIG = bulklevel*np.exp(-(1/dt)*alpha*(x-X)); HxIG[:len(x)/2]=HxIG[len(x)/2]
-	pressIG = pressure_x(force,HxIG,x,"discrete")
-	## pressure(inf) = bulklevel*dt
+	HxIG = bulklevel*np.exp(-(alpha/dt)*(x-X)); HxIG[:len(x)/2]=HxIG[len(x)/2]
+	pressIG = pressure_x(force,HxIG,x)
+	## pressure(inf) = bulklevel
 	return HxIG, pressIG
 
 ##=============================================================================
