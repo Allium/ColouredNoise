@@ -91,7 +91,7 @@ def main():
 	tmax = 1e3*timefac
 	
 	## Space
-	xmax = lookup_xmax(X,a)
+	xmax = X+10*dt/a #lookup_xmax(X,a)
 	xmin = 0.8*X	## Simulation cutoff
 	xinit= 0.9*X	## Particle initial x ("line" IC)
 	ymax = 0.5
@@ -142,7 +142,7 @@ def main():
 			H += h*histogram_weight(x0y0[1],y[-1])
 	H = (H.T)[::-1]
 	## When normed=False, need to divide by the bin area and the time-step -- or do we?
-	H /= np.outer(np.diff(ybins),np.diff(xbins)) * dt
+	H /= np.outer(np.diff(ybins),np.diff(xbins))
 	## Normalise by number of particles
 	H /= Nparticles
 	save_data(hisfile, H, vb)
@@ -159,8 +159,6 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
 	Dynamically adds more space to arrays.
 	Same results if end of array not hit.
 	Harder to test other case: random numbers. However, it looks close enough.
-	
-	**BUG** transition not hanled correctly
 	"""
 	me = "LE_BoundarySimPlt.boundary_sim: "
 	t0 = time.time()
