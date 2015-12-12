@@ -10,6 +10,7 @@ import optparse
 import warnings
 from time import time as sysT
 from LE_LightBoundarySim import lookup_xmax, calculate_xbin
+from LE_Utils import FBW
 
 warnings.filterwarnings("ignore",
 	"No labelled objects found. Use label='...' kwarg on individual plots.",
@@ -103,7 +104,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	H = np.load(filepath)
 	
 	## Space -- for axes
-	xmin, xmax = 0.9*X, X+10*dt/alpha#lookup_xmax(X,alpha)
+	xmin, xmax = 0.9*X, lookup_xmax(X,alpha)
 	ybins = np.linspace(-ymax,ymax,H.shape[0]+1)
 	y = 0.5*(ybins[1:]+ybins[:-1])
 	xbins = calculate_xbin(xmin,X,xmax,H.shape[1])
@@ -138,16 +139,20 @@ def pressure_pdf_plot_file(filepath, verbose):
 	## Calculate pressure
 	force = -alpha*0.5*(np.sign(x-X)+1)
 	press = pressure_x(force,Hx,x)
-	HxIG, pressIG = ideal_gas(alpha, force, x, X, xmin, dt)
+	xIG, HxIG, pressIG = ideal_gas(alpha, force, x, X, xmin, dt)
+		
+	# assert np.isclose(np.trapz(Hx,x=x,axis=0), np.trapz(HxIG,x=x,axis=0)), me+"check normalisations of PDFs."
 	
 	fig,ax = plt.subplots(1,2)
 	ax[0].plot(x,Hx,label="")
-	ax[0].plot(x,HxIG,"r--",label="")
+	# plt.show();exit()
+	ax[0].plot(xIG,HxIG,"r--",label="")
 	ax[0].set_xlim(left=xmin,right=xmax)
 	ax[0].set_ylim(bottom=0.0,top=np.ceil(Hx[Hx.shape[0]/4:].max()))
 	plot_acco(ax[0],ylabel="PDF p(x)")
 	ax[1].plot(x,press,label="")
-	ax[1].plot(x,pressIG,"r--",label="")
+	ax[1].plot(xIG,pressIG,"r--",label="")
+	ax[1].plot([xmin,xmax],[dt/(X-xmin+dt/alpha)]*2, "g--")
 	ax[1].set_xlim(left=xmin,right=xmax)
 	plot_acco(ax[1], ylabel="Pressure", legloc="")
 	plt.tight_layout()
@@ -183,8 +188,7 @@ def pressure_plot_dir(dirpath, verbose):
 	for i,filepath in enumerate(histfiles):
 		
 		## Find alpha
-		alpha, X, dt, ymax = filename_pars(filepath)
-		Alpha[i] = alpha
+		Alpha[i], X, dt, ymax = filename_pars(filepath)
 				
 		## Load data
 		H = np.load(filepath)
@@ -197,21 +201,37 @@ def pressure_plot_dir(dirpath, verbose):
 		
 		## Marginalise to PDF in X
 		Hx = np.trapz(H,x=y,axis=0)
+		Hx /= np.trapz(Hx,x=x,axis=0)
 
 		## Calculate pressure
 		force = -Alpha[i]*0.5*(np.sign(x-X)+1)
-		Press[i] = np.trapz(-force*Hx, x)
-		PressIG[i] = 1/(X-xmin+dt/alpha)
+		Press[i] = np.trapz(-force*Hx, x)/dt
+		#PressIG[i] = dt/(X-xmin+dt/Alpha[i])
 	
 	## Sort values
 	sortind = np.argsort(Alpha)
 	Alpha = Alpha[sortind]; Press = Press[sortind]; PressIG = PressIG[sortind]
 	
+	## Calculate IG pressure on a finer grid -- assume X, dt same
+	AlphaIG = np.arange(0.01,Alpha[-1],0.01)
+	PressIG = 1/(X-xmin+dt/AlphaIG)
+		
+	## Linear fit for CN pressure
+	linfit = [round(elem,2) for elem in np.polyfit(Alpha[5:-4], Press[5:-4], 1)]
+	linfit_fn = np.poly1d(linfit)
+	
+	## IG-type fit
+	# from scipy.optimize import curve_fit
+	# fitfunc = lambda z,m,A: A*z/(z*(X-xmin)+m)
+	# popt, pcov = curve_fit(fitfunc, Alpha, Press)
+	
 	## Plotting
-	plt.plot(Alpha,Press,"bo",label=".")
-	plt.plot(Alpha,PressIG,"r--",label=".")
+	plt.errorbar(Alpha,Press,yerr=0.05,fmt='bo', ecolor='grey', capthick=2,label="Simulated")
+	# plt.plot(Alpha,Press,"bo",label="Simulated")
+	plt.plot(Alpha[5:-4],linfit_fn(Alpha[5:-4]),"b--",label="$P="+str(linfit[0])+"\\alpha+"+str(linfit[1])+"$")
+	plt.plot(AlphaIG,PressIG,"r-",label="White noise")
 	plt.ylim(bottom=0.0)
-	plot_acco(plt.gca(), xlabel="$\\alpha$", ylabel="Pressure", legloc="")
+	plot_acco(plt.gca(), xlabel="$\\alpha=f_0^2\\tau/T\\zeta$", ylabel="Pressure")
 	
 	plt.savefig(pressplot)
 	if verbose: print me+"plot saved to",pressplot
@@ -234,12 +254,20 @@ def pressure_x(force,Hx,x):
 def ideal_gas(alpha, force, x, X, xmin, dt):
 	"""
 	Calculate PDF and pressure for ideal gas
+	Upsample space
 	"""
+	## Upsampling
+	up = 6
+	xbinsIG = calculate_xbin(x[0],X,x[-1],up*len(x))
+	xIG = 0.5*(xbinsIG[1:]+xbinsIG[:-1])
+	forceIG = force.repeat(up)
+	## Predicted solution
 	bulklevel = 1/(X-xmin+dt/alpha)
-	HxIG = bulklevel*np.exp(-(alpha/dt)*(x-X)); HxIG[:len(x)/2]=HxIG[len(x)/2]
-	pressIG = pressure_x(force,HxIG,x)
-	## pressure(inf) = bulklevel
-	return HxIG, pressIG
+	HxIG = bulklevel*np.exp(-(alpha/dt)*(xIG-X)); HxIG[:len(xIG)/2]=HxIG[len(xIG)/2]
+	## Pressure
+	pressIG = pressure_x(forceIG,HxIG,xIG)
+	## Note pressure(inf) = bulklevel*dt
+	return xIG, HxIG, pressIG
 
 ##=============================================================================
 def filename_pars(filename):

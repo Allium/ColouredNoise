@@ -33,6 +33,17 @@ def FBW(x,b,X):
 	## Only good for single wall
 	return -b*0.5*(np.sign(x-X)+1)
 	
+def FBW_soft(x,b,X,D):
+	"""
+	Force for bulk + linear wall, but with smooth onset parameterised by Delta.
+	Only good for a single wall
+	"""
+	if D==0:
+		return FBW(x,b,X)
+	else:
+		return -b*0.5*(np.tanh((x-X)/D)+1.0)
+	
+	
 ## Currents
 
 def J_BW(P,b,F,Y):

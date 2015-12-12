@@ -91,7 +91,7 @@ def main():
 	tmax = 1e3*timefac
 	
 	## Space
-	xmax = X+10*dt/a #lookup_xmax(X,a)
+	xmax = lookup_xmax(X,a)
 	xmin = 0.8*X	## Simulation cutoff
 	xinit= 0.9*X	## Particle initial x ("line" IC)
 	ymax = 0.5
@@ -107,7 +107,7 @@ def main():
 		X0Y0 = np.array([[xinit,y0] for y0 in ybins])
 		Nparticles = Nybin*Nrun
 		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/151208X"+str(X)+"r"+str(Nrun)+\
+		hisfile = "Pressure/151209X"+str(X)+"r"+str(Nrun)+\
 				"/BHIS_a"+str(a)+"_X"+str(X)+"_r"+str(Nrun)+"_dt"+str(dt)
 	elif IC == "uniform":
 		X0Y0 = np.array([[x0,y0] for y0 in ybins for x0 in xbins])
@@ -124,10 +124,7 @@ def main():
 	except AssertionError:
 		print me+"directory",os.path.dirname(hisfile),"doesn't exist. Abort."
 		raise AssertionError
-	
-	## If running a pure wall simulation
-	# Nxbin = xbins.size - 1
-	
+		
 	## ----------------------------------------------------------------
 	
 	## Precompute exp(-t) and initialise histogram
@@ -183,7 +180,7 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
 		## Extend array if necessary
 		if i == len(x):
 			x = np.append(x,np.zeros(exstp))
-			y = np.append(y,sim_eta(y[-2],expmt,dt,exstp))
+			y = np.append(y,sim_eta(y[-2],expmt[:exstp],dt,exstp))
 			j += 1
 	if j>0: print me+"trajectory array extended",j,"times."
 	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",len(x),"steps"
@@ -218,7 +215,7 @@ def calculate_xmax(X,a):
 	xmax = round(xmax,3)
 	return xmax
 
-def lookup_xmax(X,a):
+def lookup_xmax_o(X,a):
 	"""
 	Lookup table for xmax
 	Limited testing; X=5.0 only
@@ -234,7 +231,24 @@ def lookup_xmax(X,a):
 	## 15/11/30 changed from 1.002 to 1.003
 	else:			xmax=1.003*X
 	return xmax
-		
+
+def lookup_xmax(X,a):
+	"""
+	2015/12/08 NEW DEFINITIONS
+	Lookup table for xmax
+	Limited testing; X=10.0 only, up to a=1.0
+	"""
+	if a<=0.1:		xmax=1.15*X
+	elif a<=0.2:	xmax=1.04*X
+	elif a<=0.3:	xmax=1.02*X
+	elif a<=0.4:	xmax=1.005*X
+	elif a<=0.5:	xmax=1.003*X
+	elif a<=0.6:	xmax=1.003*X
+	elif a<=0.7:	xmax=1.003*X
+	elif a<=0.8:	xmax=1.002*X
+	elif a<=0.9:	xmax=1.002*X
+	else:			xmax=1.001*X
+	return xmax
 	
 def calculate_xbin(xinit,X,xmax,Nxbin):
 	"""

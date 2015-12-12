@@ -5,7 +5,7 @@ import os, glob
 import optparse
 from time import time as sysT
 from LE_LightBoundarySim import lookup_xmax, calculate_xbin
-from LE_Pressure import plot_acco
+from LE_Pressure import plot_acco, filename_pars
 
 ##=============================================================================
 def main():
@@ -55,10 +55,8 @@ def tail_plot(histfile, verbose):
 	plotfile = os.path.splitext(histfile)[0]+"_t.png"
 
 	## Get alpha and X from filename
-	start = histfile.find("_a") + 2
-	alpha = float(histfile[start:histfile.find("_",start)])
-	start = histfile.find("_X") + 2
-	X = float(histfile[start:histfile.find("_",start)])
+	alpha, X, dt, ymax = filename_pars(histfile)
+	if verbose: print me+"alpha =",alpha,"and X =",X
 	
 	## 2D histogram
 	H = np.load(histfile)
@@ -66,7 +64,7 @@ def tail_plot(histfile, verbose):
 	## Space -- bin edges and centres
 	ybins = np.linspace(-0.5,0.5,H.shape[0]+1)
 	y = 0.5*(ybins[1:]+ybins[:-1])
-	xmin, xmax = 0.9*X, X+10*dt/alpha#lookup_xmax(X,alpha)
+	xmin, xmax = 0.9*X, lookup_xmax(X,alpha)
 	xbins = calculate_xbin(xmin,X,xmax,H.shape[1])[H.shape[1]/2-1:]
 	x = 0.5*(xbins[1:]+xbins[:-1])
 	
@@ -79,15 +77,19 @@ def tail_plot(histfile, verbose):
 	Hx = Hx[Hx!=0]; x = x[Hx!=0]
 
 	## Fit; throw away first portion of data
-	if alpha<=0.2: lm = Hx.shape[0]/6
-	else: lm=Hx.shape[0]/10
+	lm=Hx.shape[0]/10
 	fit = np.polyfit(x[lm:],np.log(Hx[lm:]),1)
 	fit_fn = np.poly1d(fit)
+	
+	## White noise result
+	HxIG = np.exp(fit[1])*np.exp(-alpha/dt*(x-X))
 
 	## Plot (x-X distance into wall)
 	plt.semilogy(x-X,Hx,label="Data")
 	plt.semilogy(x-X,np.exp(fit_fn(x)),"r--",\
 				label="$\exp["+str(round(fit[0]*dt/(alpha),1))+"\\frac{\\alpha}{dt}x]$")
+	## Plot IG result
+	plt.semilogy(x-X,HxIG,label="White noise")
 	plt.xlim(left=0.0)
 	plot_acco(plt.gca(),title="Wall region, $\\alpha="+str(alpha)+"$",
 		xlabel="Distance into wall region",ylabel="PDF $p(x)$")
