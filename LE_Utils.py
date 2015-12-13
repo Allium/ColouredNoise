@@ -41,7 +41,7 @@ def FBW_soft(x,b,X,D):
 	if D==0:
 		return FBW(x,b,X)
 	else:
-		return -b*0.5*(np.tanh((x-X)/D)+1.0)
+		return -b*0.5*(np.tanh((x-X)/(D*X))+1.0)
 	
 	
 ## Currents

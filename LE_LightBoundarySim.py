@@ -5,8 +5,8 @@ import optparse
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import fftconvolve
 from sys import argv
-
-from LE_Utils import *
+from LE_Utils import save_data
+from LE_Utils import FBW_soft as force_x
 
 
 def main():
@@ -23,9 +23,10 @@ def main():
 		
 	FLAGS
 		-a --alpha		0.1		Slope of the potential
+		-X --wallpos	10.0	Position of wall
+		-D --Delta		0.01	Width of wall onset in units of X
 		-r --nruns		100		Number of runs for each (x0,y0)
 		-t --timefac	1.0		Multiply t_max by factor
-		-I --IC			line	The initial condition
 		-v --verbose	False	Print useful information to screen
 		-h --help		False	Print docstring and exit
 	
@@ -55,7 +56,9 @@ def main():
                   dest="potmag",default=0.1,type="float",
 				  help="The steepness of the potential.")
 	parser.add_option('-X','--wallpos',
-                  dest="X",default=1.0,type="float")		
+                  dest="X",default=10.0,type="float")
+	parser.add_option('-D','--Delta',
+                  dest="Delta",default=0.01,type="float")		
 	parser.add_option('-r','--nrun',
                   dest="Nrun",default=100,type="int")
 	parser.add_option('--dt',
@@ -74,6 +77,7 @@ def main():
 	if opt.help: print main.__doc__; return
 	a		= opt.potmag
 	X		= opt.X
+	Delta	= opt.Delta
 	Nrun	= opt.Nrun
 	global dt; dt = opt.dt
 	timefac = opt.timefac
@@ -103,17 +107,11 @@ def main():
 	ybins = np.linspace(-ymax,ymax,Nybin+1)
 		
 	## Initial conditions and outfile
-	if IC is "line":
-		X0Y0 = np.array([[xinit,y0] for y0 in ybins])
-		Nparticles = Nybin*Nrun
-		if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/151209X"+str(X)+"r"+str(Nrun)+\
-				"/BHIS_a"+str(a)+"_X"+str(X)+"_r"+str(Nrun)+"_dt"+str(dt)
-	elif IC == "uniform":
-		X0Y0 = np.array([[x0,y0] for y0 in ybins for x0 in xbins])
-		Nparticles = Nybin*Nxbin
-		if vb: print me+"initial condition uniform; computing",Nparticles,"trajectories"
-		hisfile = "Pressure/uniform_tight_long/BHIS_a"+str(a)+"_Nx"+str(Nxbin)
+	X0Y0 = np.array([[xinit,y0] for y0 in ybins])
+	Nparticles = Nybin*Nrun
+	if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
+	hisfile = "Pressure/151212X"+str(X)+"D"+str(Delta)+"r"+str(Nrun)+\
+			"/BHIS_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
 	
 	## Directory and file existence
 	if os.path.isfile(hisfile):
@@ -122,8 +120,8 @@ def main():
 	try:
 		assert os.path.isdir(os.path.dirname(hisfile))
 	except AssertionError:
-		print me+"directory",os.path.dirname(hisfile),"doesn't exist. Abort."
-		raise AssertionError
+		print me+"directory",os.path.dirname(hisfile),"doesn't exist. Creating."
+		os.mkdir(os.path.dirname(hisfile))
 		
 	## ----------------------------------------------------------------
 	
@@ -134,7 +132,7 @@ def main():
 	for x0y0 in X0Y0:
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
-			x, y = boundary_sim(x0y0, a, X, FBW, xmin, tmax, expmt, False)
+			x, y = boundary_sim(x0y0, a, X, Delta, xmin, tmax, expmt, False)
 			h = np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
 			H += h*histogram_weight(x0y0[1],y[-1])
 	H = (H.T)[::-1]
@@ -150,7 +148,7 @@ def main():
 	
 ## ====================================================================
 
-def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
+def boundary_sim(x0y0, b, X, D, xmin, tmax, expmt, vb=False):
 	"""
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
 	Dynamically adds more space to arrays.
@@ -175,7 +173,7 @@ def boundary_sim(x0y0, b, X, f, xmin, tmax, expmt, vb=False):
 	x = np.zeros(nstp); x[0],xt = x0,x0; i,j = 1,0
 	## Euler steps to calculate x(t)
 	while xt > xmin:
-		xt = x[i-1] + dt*(f(x[i-1],b,X) + y[i-1])
+		xt = x[i-1] + dt*(force_x(x[i-1],b,X,D) + y[i-1])
 		x[i] = xt; i +=1
 		## Extend array if necessary
 		if i == len(x):

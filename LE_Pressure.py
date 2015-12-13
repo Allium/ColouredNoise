@@ -10,7 +10,8 @@ import optparse
 import warnings
 from time import time as sysT
 from LE_LightBoundarySim import lookup_xmax, calculate_xbin
-from LE_Utils import FBW
+from LE_Utils import FBW_soft as force_x
+from LE_Utils import save_data
 
 warnings.filterwarnings("ignore",
 	"No labelled objects found. Use label='...' kwarg on individual plots.",
@@ -90,15 +91,15 @@ def pressure_pdf_plot_file(filepath, verbose):
 	me = "LE_Pressure.pressure_pdf_plot_file: "
 	t0 = sysT()
 	
-	IG = True
+	D = 0.01
 	
 	## Filenames
 	plotfile = os.path.splitext(filepath)[0]+"_P.png"
 	plotfilePDF = os.path.splitext(filepath)[0]+"_PDF.png"
 	
 	## Get alpha and X from filename
-	alpha, X, dt, ymax = filename_pars(filepath)
-	if verbose: print me+"alpha =",alpha,"and X =",X
+	alpha, X, D, dt, ymax = filename_pars(filepath)
+	if verbose: print me+"alpha =",alpha,"and X =",X,"and D =",D
 	
 	## Load data
 	H = np.load(filepath)
@@ -118,7 +119,6 @@ def pressure_pdf_plot_file(filepath, verbose):
 		plot_acco(plt.gca(),xlabel="$x$",ylabel="$\\eta$",title="$\\alpha=$"+str(alpha))
 		plt.savefig(plotfilePDF)
 		if verbose: print me+"2D PDF plot saved to",plotfilePDF
-		# plt.show(); exit()
 	## Plot y-pdfs in the bulk.
 	if 0:
 		plt.clf()
@@ -129,34 +129,31 @@ def pressure_pdf_plot_file(filepath, verbose):
 		plot_acco(plt.gca(),xlabel="$\\eta$",ylabel="$p(\\eta)$",\
 					title="$\\alpha=$"+str(alpha)+". PDF slices in bulk.")
 		plt.savefig(os.path.splitext(filepath)[0]+"_yPDFs.png")
-		# plt.show(); exit()
 	
 	## Marginalise to PDF in x
-	# Hx = H.sum(axis=0) * (y[1]-y[0])	## Should be dot product with diffy
 	Hx = np.trapz(H,x=y,axis=0)
 	Hx /= np.trapz(Hx,x=x,axis=0)
 	
 	## Calculate pressure
-	force = -alpha*0.5*(np.sign(x-X)+1)
+	force = force_x(x,alpha,X,D)
 	press = pressure_x(force,Hx,x)
-	xIG, HxIG, pressIG = ideal_gas(alpha, force, x, X, xmin, dt)
+	xIG, forceIG, HxIG, pressIG = ideal_gas(alpha, x, X, D, xmin, dt)
 		
-	# assert np.isclose(np.trapz(Hx,x=x,axis=0), np.trapz(HxIG,x=x,axis=0)), me+"check normalisations of PDFs."
-	
 	fig,ax = plt.subplots(1,2)
-	ax[0].plot(x,Hx,label="")
-	# plt.show();exit()
-	ax[0].plot(xIG,HxIG,"r--",label="")
+	ax[0].plot(x,Hx,label="Simulation")
+	ax[0].plot(xIG,HxIG,"r--",label="White noise")
+	ax[0].plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	ax[0].set_xlim(left=xmin,right=xmax)
 	ax[0].set_ylim(bottom=0.0,top=np.ceil(Hx[Hx.shape[0]/4:].max()))
-	plot_acco(ax[0],ylabel="PDF p(x)")
+	plot_acco(ax[0],ylabel="PDF p(x)",legloc="best")
 	ax[1].plot(x,press,label="")
 	ax[1].plot(xIG,pressIG,"r--",label="")
-	ax[1].plot([xmin,xmax],[dt/(X-xmin+dt/alpha)]*2, "g--")
+	# ax[1].plot([xmin,xmax],[dt/(X-xmin+dt/alpha)]*2, "g--")
 	ax[1].set_xlim(left=xmin,right=xmax)
 	plot_acco(ax[1], ylabel="Pressure", legloc="")
 	plt.tight_layout()
-	fig.suptitle("$\\alpha=$"+str(alpha),fontsize=16);plt.subplots_adjust(top=0.9)
+	fig.suptitle("$\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
+	plt.subplots_adjust(top=0.9)
 	
 	plt.savefig(plotfile)
 	if verbose: print me+"plot saved to",plotfile
@@ -188,7 +185,7 @@ def pressure_plot_dir(dirpath, verbose):
 	for i,filepath in enumerate(histfiles):
 		
 		## Find alpha
-		Alpha[i], X, dt, ymax = filename_pars(filepath)
+		Alpha[i], X, D, dt, ymax = filename_pars(filepath)
 				
 		## Load data
 		H = np.load(filepath)
@@ -204,7 +201,7 @@ def pressure_plot_dir(dirpath, verbose):
 		Hx /= np.trapz(Hx,x=x,axis=0)
 
 		## Calculate pressure
-		force = -Alpha[i]*0.5*(np.sign(x-X)+1)
+		force = force_x(x,Alpha[i],X,0.01)
 		Press[i] = np.trapz(-force*Hx, x)/dt
 		#PressIG[i] = dt/(X-xmin+dt/Alpha[i])
 	
@@ -251,7 +248,7 @@ def pressure_x(force,Hx,x):
 	return press
 	
 ##=============================================================================
-def ideal_gas(alpha, force, x, X, xmin, dt):
+def ideal_gas(alpha, x, X, D, xmin, dt):
 	"""
 	Calculate PDF and pressure for ideal gas
 	Upsample space
@@ -260,14 +257,14 @@ def ideal_gas(alpha, force, x, X, xmin, dt):
 	up = 6
 	xbinsIG = calculate_xbin(x[0],X,x[-1],up*len(x))
 	xIG = 0.5*(xbinsIG[1:]+xbinsIG[:-1])
-	forceIG = force.repeat(up)
+	forceIG = force_x(xIG,alpha,X,D)
 	## Predicted solution
-	bulklevel = 1/(X-xmin+dt/alpha)
-	HxIG = bulklevel*np.exp(-(alpha/dt)*(xIG-X)); HxIG[:len(xIG)/2]=HxIG[len(xIG)/2]
+	UIG = np.array([np.trapz((-forceIG)[:i], x=xIG[:i]) for i in range(len(xIG))])
+	HxIG = np.exp(-UIG/dt)
+	HxIG /= np.trapz(HxIG,x=xIG)
 	## Pressure
 	pressIG = pressure_x(forceIG,HxIG,xIG)
-	## Note pressure(inf) = bulklevel*dt
-	return xIG, HxIG, pressIG
+	return xIG, forceIG, HxIG, pressIG
 
 ##=============================================================================
 def filename_pars(filename):
@@ -281,6 +278,9 @@ def filename_pars(filename):
 	start = filename.find("_X") + 2
 	X = float(filename[start:filename.find("_",start)])
 	#
+	start = filename.find("_D") + 2
+	D = float(filename[start:filename.find("_",start)])
+	#
 	start = filename.find("_dt") + 3
 	dt = float(filename[start:filename.find(".npy",start)])
 	#
@@ -290,7 +290,7 @@ def filename_pars(filename):
 	except:
 		ymax = 0.5
 	#
-	return a, X, dt, ymax
+	return a, X, D, dt, ymax
 	
 ##=============================================================================
 def av_pd(p,x,x1,x2,fac=0.02):
