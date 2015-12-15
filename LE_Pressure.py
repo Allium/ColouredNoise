@@ -137,19 +137,26 @@ def pressure_pdf_plot_file(filepath, verbose):
 	## Calculate pressure
 	force = force_x(x,alpha,X,D)
 	press = pressure_x(force,Hx,x)
-	xIG, forceIG, HxIG, pressIG = ideal_gas(alpha, x, X, D, xmin, dt)
-		
+	xIG, forceIG, HxIG, pressIG = ideal_gas(alpha, x, X, D, dt)
+	
+	## PLOTTING
 	fig,ax = plt.subplots(1,2)
-	ax[0].plot(x,Hx,label="Simulation")
+	
+	## Density plot
+	ax[0].plot(x,Hx,"b-",label="Simulation")
+	ax[0].plot([x[-1],xIG[-1]],[0]*2,"b-",label="",linewidth=1)
 	ax[0].plot(xIG,HxIG,"r--",label="White noise")
 	ax[0].plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
-	ax[0].set_xlim(left=xmin,right=xmax)
+	ax[0].set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	ax[0].set_ylim(bottom=0.0,top=np.ceil(Hx[Hx.shape[0]/4:].max()))
 	plot_acco(ax[0],ylabel="PDF p(x)",legloc="best")
-	ax[1].plot(x,press,label="")
+	
+	## Pressure plot
+	ax[1].plot(x,press,"b-",label="",linewidth=1)
+	ax[1].plot([x[-1],xIG[-1]],[press[-1]]*2,"b-",label="",linewidth=1)
 	ax[1].plot(xIG,pressIG,"r--",label="")
-	# ax[1].plot([xmin,xmax],[dt/(X-xmin+dt/alpha)]*2, "g--")
-	ax[1].set_xlim(left=xmin,right=xmax)
+	ax[1].plot([xmin,xIG[-1]],[pressIG[-1]]*2, "g--")
+	ax[1].set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	plot_acco(ax[1], ylabel="Pressure", legloc="")
 	plt.tight_layout()
 	fig.suptitle("$\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
@@ -203,18 +210,24 @@ def pressure_plot_dir(dirpath, verbose):
 		## Calculate pressure
 		force = force_x(x,Alpha[i],X,0.01)
 		Press[i] = np.trapz(-force*Hx, x)/dt
-		#PressIG[i] = dt/(X-xmin+dt/Alpha[i])
 	
 	## Sort values
 	sortind = np.argsort(Alpha)
 	Alpha = Alpha[sortind]; Press = Press[sortind]; PressIG = PressIG[sortind]
 	
 	## Calculate IG pressure on a finer grid -- assume X, dt same
-	AlphaIG = np.arange(0.01,Alpha[-1],0.01)
-	PressIG = 1/(X-xmin+dt/AlphaIG)
+	tIG = sysT()
+	if D==0.0:
+		AlphaIG = np.arange(0.01,Alpha[-1],0.01)
+		PressIG = 1/(X-xmin+dt/AlphaIG)
+	else:
+		AlphaIG = Alpha
+		PressIG = [ideal_gas(a,x,X,D,dt)[3][-1]/dt for a in AlphaIG]
+	if verbose: print me+"white noise pressure calculation:",round(sysT()-tIG,2),"seconds."
 		
 	## Linear fit for CN pressure
-	linfit = [round(elem,2) for elem in np.polyfit(Alpha[5:-4], Press[5:-4], 1)]
+	initind = 2
+	linfit = [round(elem,2) for elem in np.polyfit(Alpha[initind:], Press[initind:], 1)]
 	linfit_fn = np.poly1d(linfit)
 	
 	## IG-type fit
@@ -223,9 +236,8 @@ def pressure_plot_dir(dirpath, verbose):
 	# popt, pcov = curve_fit(fitfunc, Alpha, Press)
 	
 	## Plotting
-	plt.errorbar(Alpha,Press,yerr=0.05,fmt='bo', ecolor='grey', capthick=2,label="Simulated")
-	# plt.plot(Alpha,Press,"bo",label="Simulated")
-	plt.plot(Alpha[5:-4],linfit_fn(Alpha[5:-4]),"b--",label="$P="+str(linfit[0])+"\\alpha+"+str(linfit[1])+"$")
+	plt.errorbar(Alpha, Press, yerr=0.05, fmt='bo', ecolor='grey', capthick=2,label="Simulated")
+	plt.plot(Alpha[initind:],linfit_fn(Alpha[initind:]),"b--",label="$P="+str(linfit[0])+"\\alpha+"+str(linfit[1])+"$")
 	plt.plot(AlphaIG,PressIG,"r-",label="White noise")
 	plt.ylim(bottom=0.0)
 	plot_acco(plt.gca(), xlabel="$\\alpha=f_0^2\\tau/T\\zeta$", ylabel="Pressure")
@@ -248,14 +260,13 @@ def pressure_x(force,Hx,x):
 	return press
 	
 ##=============================================================================
-def ideal_gas(alpha, x, X, D, xmin, dt):
+def ideal_gas(alpha, x, X, D, dt, up=6):
 	"""
 	Calculate PDF and pressure for ideal gas
-	Upsample space
+	Upsample space by up
 	"""
-	## Upsampling
-	up = 6
-	xbinsIG = calculate_xbin(x[0],X,x[-1],up*len(x))
+	# xbinsIG = calculate_xbins(x[0],X,x[-1],up*len(x))
+	xbinsIG = np.linspace(x[0],X*(1.0+3*dt/alpha),up*len(x)+1)
 	xIG = 0.5*(xbinsIG[1:]+xbinsIG[:-1])
 	forceIG = force_x(xIG,alpha,X,D)
 	## Predicted solution
@@ -278,8 +289,11 @@ def filename_pars(filename):
 	start = filename.find("_X") + 2
 	X = float(filename[start:filename.find("_",start)])
 	#
-	start = filename.find("_D") + 2
-	D = float(filename[start:filename.find("_",start)])
+	try:
+		start = filename.find("_D") + 2
+		D = float(filename[start:filename.find("_",start)])
+	except ValueError:
+		D = 0.0
 	#
 	start = filename.find("_dt") + 3
 	dt = float(filename[start:filename.find(".npy",start)])
@@ -287,7 +301,7 @@ def filename_pars(filename):
 	try:
 		start = filename.find("_ym") + 2
 		ymax = float(filename[start:filename.find("_",start)])
-	except:
+	except ValueError:
 		ymax = 0.5
 	#
 	return a, X, D, dt, ymax
