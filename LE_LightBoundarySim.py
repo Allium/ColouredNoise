@@ -110,7 +110,7 @@ def main():
 	X0Y0 = np.array([[xinit,y0] for y0 in ybins])
 	Nparticles = Nybin*Nrun
 	if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-	hisfile = "Pressure/151212X"+str(X)+"D"+str(Delta)+"r"+str(Nrun)+\
+	hisfile = "Pressure/151215X"+str(X)+"D"+str(Delta)+"r"+str(Nrun)+\
 			"/BHIS_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
 	
 	## Directory and file existence

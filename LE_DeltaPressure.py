@@ -74,6 +74,15 @@ def main():
 	Alpha_D = np.array(Alpha_D)[sortind];		Press_D = np.array(Press_D)[sortind]
 	AlphaIG_D = np.array(AlphaIG_D)[sortind];	PressIG_D = np.array(PressIG_D)[sortind]
 	
+	## Use IG D=0 result as reference
+	## Should be the same as running again with alpha in different place -- ???
+	## See notes 2015.12.15
+	# X,xmin,dt = 10.0,9.0,0.01
+	# P_ref = 1/(X-xmin+dt/Alpha_D)
+	# PIG_ref = 1/(X-xmin+dt/AlphaIG_D)
+	# Press_D /= P_ref
+	# PressIG_D /= PIG_ref
+	
 	tplot = sysT()
 	## Plot
 	colour = ["b","r","g","m","k"]
