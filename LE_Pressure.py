@@ -265,7 +265,7 @@ def ideal_gas(alpha, x, X, D, dt, up=6):
 	Calculate PDF and pressure for ideal gas
 	Upsample space by up
 	"""
-	# xbinsIG = calculate_xbins(x[0],X,x[-1],up*len(x))
+	# xbinsIG = calculate_xbins(x[0],X,X*(1.0+3*dt/alpha),up*len(x))
 	xbinsIG = np.linspace(x[0],X*(1.0+3*dt/alpha),up*len(x)+1)
 	xIG = 0.5*(xbinsIG[1:]+xbinsIG[:-1])
 	forceIG = force_x(xIG,alpha,X,D)

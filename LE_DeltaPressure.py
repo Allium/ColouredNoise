@@ -163,14 +163,9 @@ def pressureIG_of_alpha(Alpha, Press, x,X,D,dt, verbose):
 	"""
 	me = "LE_DeltaPressure.pressureIG_of_alpha: "
 	tIG = sysT()
-	if D==0.0:
-		AlphaIG = np.arange(0.01,Alpha[-1],0.01)
-		PressIG = 1/(X-x[0]+dt/AlphaIG)
-	else:
-		AlphaIG = Alpha
-		PressIG = [ideal_gas(a,x,X,D,dt,2)[3][-1]/dt for a in AlphaIG]
+	AlphaIG = Alpha
+	PressIG = [ideal_gas(a,x,X,D,dt,2)[3][-1]/dt for a in AlphaIG]
 	if verbose: print me+"white noise pressure calculation:",round(sysT()-tIG,2),"seconds."
-	
 	return AlphaIG, PressIG
 		
 ##=============================================================================
