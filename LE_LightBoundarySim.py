@@ -34,15 +34,13 @@ def main():
 		python LE_LightBoundarySim.py -a 0.5 -r 100 -v
 	
 	NOTES
-		Proper treatment of alpha parameter.
-		Not sure about weight for uniform IC -- assume it's alright.
-		If IC=="uniform", Nrun must be small.
 	
 	BUGS
 		-- xmax is poorly constructed
 	
-	STARTED
+	HISTORY
 		13 November 2015	Adapted from LE_BoundarySimPlt.py
+		01 February 2016	Adopted white noise x variable
 	"""	
 	
 	me = "LE_LightBoundarySim.main: "
@@ -101,8 +99,8 @@ def main():
 	ymax = 0.5
 	
 	## Histogramming; xbins and ybins are bin edges.
-	Nxbin = 200
-	Nybin = 100
+	Nxbin = 100
+	Nybin = 50
 	xbins = calculate_xbin(xinit,X,xmax,Nxbin)#np.linspace(xmin,xmax,Nxbin+1)#
 	ybins = np.linspace(-ymax,ymax,Nybin+1)
 		
@@ -148,7 +146,7 @@ def main():
 	
 ## ====================================================================
 
-def boundary_sim(x0y0, b, X, D, xmin, tmax, expmt, vb=False):
+def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 	"""
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
 	Dynamically adds more space to arrays.
@@ -165,7 +163,7 @@ def boundary_sim(x0y0, b, X, D, xmin, tmax, expmt, vb=False):
 	
 	## Simulate eta
 	if vb: t0 = time.time()
-	y = sim_eta(y0, expmt, dt, nstp)
+	y = sim_eta(y0, expmt, nstp)
 	if vb: print me+"Simulation of eta",round(time.time()-t0,1),"seconds for",nstp,"steps"
 	
 	## Variable of interest
@@ -173,7 +171,7 @@ def boundary_sim(x0y0, b, X, D, xmin, tmax, expmt, vb=False):
 	x = np.zeros(nstp); x[0],xt = x0,x0; i,j = 1,0
 	## Euler steps to calculate x(t)
 	while xt > xmin:
-		xt = x[i-1] + dt*(force_x(x[i-1],b,X,D) + y[i-1])
+		xt = x[i-1] + dt*(force_x(x[i-1],a*a,X,D) + a*y[i-1])
 		x[i] = xt; i +=1
 		## Extend array if necessary
 		if i == len(x):
@@ -189,7 +187,7 @@ def boundary_sim(x0y0, b, X, D, xmin, tmax, expmt, vb=False):
 
 ## ----------------------------------------------------------------------------	
 	
-def sim_eta(et0, expmt, dt, npoints):
+def sim_eta(et0, expmt, npoints):
 	xi = np.sqrt(2) * np.random.normal(0, 1, npoints)
 	et = et0*expmt + dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
 	return et
