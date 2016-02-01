@@ -176,7 +176,7 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 		## Extend array if necessary
 		if i == len(x):
 			x = np.append(x,np.zeros(exstp))
-			y = np.append(y,sim_eta(y[-2],expmt[:exstp],dt,exstp))
+			y = np.append(y,sim_eta(y[-2],expmt[:exstp],exstp))
 			j += 1
 	if j>0: print me+"trajectory array extended",j,"times."
 	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",len(x),"steps"
