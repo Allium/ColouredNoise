@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import os, time
-import optparse
+from datetime import datetime
+import optparse, subprocess
 from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import fftconvolve
 from sys import argv
@@ -24,7 +25,7 @@ def main():
 	FLAGS
 		-a --alpha		0.1		Slope of the potential
 		-X --wallpos	10.0	Position of wall
-		-D --Delta		0.01	Width of wall onset in units of X
+		-D --Delta		0.0		Width of wall onset in units of X
 		-r --nruns		100		Number of runs for each (x0,y0)
 		-t --timefac	1.0		Multiply t_max by factor
 		-v --verbose	False	Print useful information to screen
@@ -56,7 +57,7 @@ def main():
 	parser.add_option('-X','--wallpos',
                   dest="X",default=10.0,type="float")
 	parser.add_option('-D','--Delta',
-                  dest="Delta",default=0.01,type="float")		
+                  dest="Delta",default=0.0,type="float")		
 	parser.add_option('-r','--nrun',
                   dest="Nrun",default=100,type="int")
 	parser.add_option('--dt',
@@ -90,7 +91,7 @@ def main():
 	## Parameters
 	
 	## Simulation time
-	tmax = 1e3*timefac
+	tmax = 1e4*timefac
 	
 	## Space
 	xmax = lookup_xmax(X,a)
@@ -104,27 +105,21 @@ def main():
 	xbins = calculate_xbin(xinit,X,xmax,Nxbin)#np.linspace(xmin,xmax,Nxbin+1)#
 	ybins = np.linspace(-ymax,ymax,Nybin+1)
 		
-	## Initial conditions and outfile
+	## Initial conditions
 	X0Y0 = np.array([[xinit,y0] for y0 in ybins])
 	Nparticles = Nybin*Nrun
 	if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
-	hisfile = "Pressure/151215X"+str(X)+"D"+str(Delta)+"r"+str(Nrun)+\
-			"/BHIS_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
 	
-	## Directory and file existence
-	if os.path.isfile(hisfile):
-		print me+"file",hisfile,"already exists. Not overwriting."
-		raise IOError
-	try:
-		assert os.path.isdir(os.path.dirname(hisfile))
-	except AssertionError:
-		print me+"directory",os.path.dirname(hisfile),"doesn't exist. Creating."
-		os.mkdir(os.path.dirname(hisfile))
+	## Filename; directory and file existence; readme
+	hisfile = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"X"+str(X)+"D"+str(Delta)+"r"+str(Nrun)+\
+			"/BHIS_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
+	check_path(hisfile, vb)
+	create_readme(hisfile, vb)
 		
 	## ----------------------------------------------------------------
 	
 	## Precompute exp(-t) and initialise histogram
-	expmt = np.exp(-np.arange(0,tmax,dt))
+	expmt = np.exp(-np.arange(0,tmax,dt)/(a*a))
 	H = np.zeros((Nxbin,Nybin))
 	## Loop over initial y-position
 	for x0y0 in X0Y0:
@@ -132,9 +127,9 @@ def main():
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim(x0y0, a, X, Delta, xmin, tmax, expmt, False)
 			h = np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
-			H += h*histogram_weight(x0y0[1],y[-1])
+			H += h*histogram_weight(x0y0[1],y[-1], a)
 	H = (H.T)[::-1]
-	## When normed=False, need to divide by the bin area and the time-step -- or do we?
+	## When normed=False, need to divide by the bin area
 	H /= np.outer(np.diff(ybins),np.diff(xbins))
 	## Normalise by number of particles
 	H /= Nparticles
@@ -163,7 +158,7 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 	
 	## Simulate eta
 	if vb: t0 = time.time()
-	y = sim_eta(y0, expmt, nstp)
+	y = sim_eta(y0, expmt, nstp, a)
 	if vb: print me+"Simulation of eta",round(time.time()-t0,1),"seconds for",nstp,"steps"
 	
 	## Variable of interest
@@ -171,12 +166,12 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 	x = np.zeros(nstp); x[0],xt = x0,x0; i,j = 1,0
 	## Euler steps to calculate x(t)
 	while xt > xmin:
-		xt = x[i-1] + dt*(force_x(x[i-1],a*a,X,D) + a*y[i-1])
+		xt = x[i-1] + dt*(force_x(x[i-1],1.0,X,D) + 1.0*y[i-1])
 		x[i] = xt; i +=1
 		## Extend array if necessary
 		if i == len(x):
 			x = np.append(x,np.zeros(exstp))
-			y = np.append(y,sim_eta(y[-2],expmt[:exstp],exstp))
+			y = np.append(y,np.sqrt(2) * np.random.normal(0, 1, exstp))#np.append(y,sim_eta(y[-2],expmt[:exstp],exstp))
 			j += 1
 	if j>0: print me+"trajectory array extended",j,"times."
 	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",len(x),"steps"
@@ -187,19 +182,23 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 
 ## ----------------------------------------------------------------------------	
 	
-def sim_eta(et0, expmt, npoints):
+def sim_eta(et0, expmt, npoints, a=1.0):
+	"""
+	Any alpha-dependence in expmt should already be taken care of.
+	See notes 02/02/2016 for LE / FPE statement.
+	"""
 	xi = np.sqrt(2) * np.random.normal(0, 1, npoints)
-	et = et0*expmt + dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
+	et = et0*expmt + (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
 	return et
 	
 ## ====================================================================
 
-def histogram_weight(yi,yf):
+def histogram_weight(yi,yf,a):
 	"""
 	Weights depend on starting position and finishing position.
 	Probability of y obeys Gaussian with zero mean and variance ???
 	"""
-	return np.exp(-(yi*yi+yf*yf)/(2.0))
+	return np.exp(-0.5*a*a*(yi*yi+yf*yf))
 	
 ## ====================================================================
 def calculate_xmax(X,a):
@@ -255,6 +254,42 @@ def calculate_xbin(xinit,X,xmax,Nxbin):
 	NxbinL = Nxbin/2; NxbinR = Nxbin - NxbinL
 	xbins = np.unique(np.append(np.linspace(xinit,X,NxbinL+1),np.linspace(X,xmax,NxbinR+1)))
 	return xbins
+
+## ====================================================================
+
+def check_path(hisfile, vb):
+	"""
+	Check whether directory exists; and if existing file will be overwritten.
+	"""
+	me = "LE_LignBoundarySim.check_path: "
+	if os.path.isfile(hisfile):
+		raise IOError(me+"file",hisfile,"already exists. Not overwriting.")
+	try:
+		assert os.path.isdir(os.path.dirname(hisfile))
+	except AssertionError:
+		os.mkdir(os.path.dirname(hisfile))
+		if vb: print me+"Created directory",os.path.dirname(hisfile)
+	return
+	
+def create_readme(hisfile, vb):
+	"""
+	If no readme exists, make one.
+	NOTE commit is the LAST COMMIT -- maybe there have been changes since then.
+	Assumes directory exists.
+	"""
+	me = "LE_LignBoundarySim.create_readme: "
+	readmefile = os.path.dirname(hisfile)+"/README.txt"
+	try:
+		assert os.path.isfile(readmefile)
+	except AssertionError:
+		now = str(datetime.now().strftime("%Y-%m-%d %H.%M"))
+		execute = " ".join(argv)
+		commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'])
+		header = "Time:\t"+now+"\nCommit hash:\t"+commit+"\n\n"
+		with open(readmefile,"w") as f:
+			f.write(header)
+		if vb: print me+"Created readme file "+readmefile
+	return
 
 ## ====================================================================
 ## ====================================================================
