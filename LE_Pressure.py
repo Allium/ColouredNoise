@@ -91,8 +91,6 @@ def pressure_pdf_plot_file(filepath, verbose):
 	me = "LE_Pressure.pressure_pdf_plot_file: "
 	t0 = sysT()
 	
-	D = 0.01
-	
 	## Filenames
 	plotfile = os.path.splitext(filepath)[0]+"_P.png"
 	plotfilePDF = os.path.splitext(filepath)[0]+"_PDF.png"
@@ -137,27 +135,29 @@ def pressure_pdf_plot_file(filepath, verbose):
 	## Calculate pressure
 	force = force_x(x,alpha,X,D)
 	press = pressure_x(force,Hx,x)
-	xIG, forceIG, HxIG, pressIG = ideal_gas(alpha, x, X, D, dt)
+	xIG, forceIG, HxIG, pressIG = ideal_gas(x, X, D, dt)
 	
 	## PLOTTING
-	fig,ax = plt.subplots(1,2)
+	fig,axs = plt.subplots(1,2)
 	
 	## Density plot
-	ax[0].plot(x,Hx,"b-",label="Simulation")
-	ax[0].plot([x[-1],xIG[-1]],[0]*2,"b-",label="",linewidth=1)
-	ax[0].plot(xIG,HxIG,"r--",label="White noise")
-	ax[0].plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
-	ax[0].set_xlim(left=xmin,right=max(xmax,xIG[-1]))
-	ax[0].set_ylim(bottom=0.0,top=np.ceil(Hx[Hx.shape[0]/4:].max()))
-	plot_acco(ax[0],ylabel="PDF p(x)",legloc="best")
+	ax = axs[0]
+	ax.plot(x,Hx,"b-",label="Simulation")
+	# ax.axhline(y=0.0,color="b",linestyle="-",linewidth=1)
+	ax.plot(xIG,HxIG,"r--",label="White noise")
+	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
+	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
+	ax.set_ylim(bottom=0.0,top=np.ceil(Hx[Hx.shape[0]/4:].max()))
+	plot_acco(ax,ylabel="PDF p(x)",legloc="best")
 	
 	## Pressure plot
-	ax[1].plot(x,press,"b-",label="",linewidth=1)
-	ax[1].plot([x[-1],xIG[-1]],[press[-1]]*2,"b-",label="",linewidth=1)
-	ax[1].plot(xIG,pressIG,"r--",label="")
-	ax[1].plot([xmin,xIG[-1]],[pressIG[-1]]*2, "g--")
-	ax[1].set_xlim(left=xmin,right=max(xmax,xIG[-1]))
-	plot_acco(ax[1], ylabel="Pressure", legloc="")
+	ax = axs[1]
+	ax.plot(x,press,"b-",label="",linewidth=1)
+	ax.axhline(y=press[-1],color="b",linestyle="-",linewidth=1)
+	ax.plot(xIG,pressIG,"r--",label="")
+	ax.axhline(y=1/(1+X-xmin),color="g",linestyle="--",linewidth=1)
+	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
+	plot_acco(ax, ylabel="Pressure", legloc="")
 	plt.tight_layout()
 	fig.suptitle("$\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
 	plt.subplots_adjust(top=0.9)
@@ -217,24 +217,13 @@ def pressure_plot_dir(dirpath, verbose):
 	
 	## Calculate IG pressure on a finer grid -- assume X, dt same
 	tIG = sysT()
+	AlphaIG = Alpha
 	if D==0.0:
-		AlphaIG = np.arange(0.01,Alpha[-1],0.01)
-		PressIG = 1/(X-xmin+dt/AlphaIG)
+		PressIG = 1.0/(1.0+X-xmin) * np.ones(len(AlphaIG))
 	else:
-		AlphaIG = Alpha
 		PressIG = [ideal_gas(a,x,X,D,dt)[3][-1]/dt for a in AlphaIG]
 	if verbose: print me+"white noise pressure calculation:",round(sysT()-tIG,2),"seconds."
 		
-	## Linear fit for CN pressure
-	initind = 2
-	linfit = [round(elem,2) for elem in np.polyfit(Alpha[initind:], Press[initind:], 1)]
-	linfit_fn = np.poly1d(linfit)
-	
-	## IG-type fit
-	# from scipy.optimize import curve_fit
-	# fitfunc = lambda z,m,A: A*z/(z*(X-xmin)+m)
-	# popt, pcov = curve_fit(fitfunc, Alpha, Press)
-	
 	## Plotting
 	plt.errorbar(Alpha, Press, yerr=0.05, fmt='bo', ecolor='grey', capthick=2,label="Simulated")
 	plt.plot(Alpha[initind:],linfit_fn(Alpha[initind:]),"b--",label="$P="+str(linfit[0])+"\\alpha+"+str(linfit[1])+"$")
@@ -260,18 +249,17 @@ def pressure_x(force,Hx,x):
 	return press
 	
 ##=============================================================================
-def ideal_gas(alpha, x, X, D, dt, up=6):
+def ideal_gas(x, X, D, dt, up=6):
 	"""
 	Calculate PDF and pressure for ideal gas
-	Upsample space by up
+	No alpha in new variables 02.02.2016
 	"""
-	# xbinsIG = calculate_xbins(x[0],X,X*(1.0+3*dt/alpha),up*len(x))
-	xbinsIG = np.linspace(x[0],X*(1.0+3*dt/alpha),up*len(x)+1)
+	xbinsIG = np.linspace(x[0],X+4.0,up*len(x)+1)
 	xIG = 0.5*(xbinsIG[1:]+xbinsIG[:-1])
-	forceIG = force_x(xIG,alpha,X,D)
+	forceIG = force_x(xIG,1.0,X,D)
 	## Predicted solution
 	UIG = np.array([np.trapz((-forceIG)[:i], x=xIG[:i]) for i in range(len(xIG))])
-	HxIG = np.exp(-UIG/dt)
+	HxIG = np.exp(-UIG)
 	HxIG /= np.trapz(HxIG,x=xIG)
 	## Pressure
 	pressIG = pressure_x(forceIG,HxIG,xIG)
