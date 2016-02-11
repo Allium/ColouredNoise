@@ -125,7 +125,7 @@ def main():
 	for x0y0 in X0Y0:
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
-			x, y = boundary_sim(x0y0, a, X, Delta, xmin, tmax, expmt, False)
+			x, y = boundary_sim(x0y0, a, X, Delta, xmin, tmax, expmt, vb)
 			h = np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
 			H += h*histogram_weight(x0y0[1],y[-1], a)
 	H = (H.T)[::-1]
@@ -171,7 +171,7 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 		## Extend array if necessary
 		if i == len(x):
 			x = np.append(x,np.zeros(exstp))
-			y = np.append(y,np.sqrt(2) * np.random.normal(0, 1, exstp))#np.append(y,sim_eta(y[-2],expmt[:exstp],exstp))
+			y = np.append(y,sim_eta(y[-2],expmt[:exstp],exstp))
 			j += 1
 	if j>0: print me+"trajectory array extended",j,"times."
 	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",len(x),"steps"
@@ -184,7 +184,7 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 	
 def sim_eta(et0, expmt, npoints, a=1.0):
 	"""
-	Any alpha-dependence in expmt should already be taken care of.
+	Any alpha-dependence in expmt already taken care of.
 	See notes 02/02/2016 for LE / FPE statement.
 	"""
 	xi = np.sqrt(2) * np.random.normal(0, 1, npoints)
@@ -201,31 +201,6 @@ def histogram_weight(yi,yf,a):
 	return np.exp(-0.5*a*a*(yi*yi+yf*yf))
 	
 ## ====================================================================
-def calculate_xmax(X,a):
-	# xmax = max([(1.0+0.02/(a*a*a)),1.05])*X
-	# xmax = min([xmax,3.0*X])
-	## 19/11/2015 -- in response to explore_pars
-	xmax = X*(1.0+0.02+0.1*(0.1/a))
-	## 25/11/2015
-	xmax = round(xmax,3)
-	return xmax
-
-def lookup_xmax_o(X,a):
-	"""
-	Lookup table for xmax
-	Limited testing; X=5.0 only
-	"""
-	if a<=0.1:		xmax=1.2*X
-	elif a<=0.2:	xmax=1.1*X
-	elif a<=0.3:	xmax=1.04*X
-	elif a<=0.4:	xmax=1.04*X
-	elif a<=0.5:	xmax=1.005*X
-	elif a<=0.6:	xmax=1.005*X
-	elif a<=0.7:	xmax=1.004*X
-	elif a<=0.8:	xmax=1.004*X
-	## 15/11/30 changed from 1.002 to 1.003
-	else:			xmax=1.003*X
-	return xmax
 
 def lookup_xmax(X,a):
 	"""
@@ -233,7 +208,8 @@ def lookup_xmax(X,a):
 	Lookup table for xmax
 	Limited testing; X=10.0 only, up to a=1.0
 	"""
-	if a<=0.1:		xmax=1.15*X
+	if   a<=0.05:	xmax=1.4*X
+	elif a<=0.1:	xmax=1.15*X
 	elif a<=0.2:	xmax=1.04*X
 	elif a<=0.3:	xmax=1.02*X
 	elif a<=0.4:	xmax=1.005*X

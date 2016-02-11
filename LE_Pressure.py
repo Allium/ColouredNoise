@@ -153,7 +153,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	## Pressure plot
 	ax = axs[1]
 	ax.plot(x,press,"b-",label="",linewidth=1)
-	ax.axhline(y=press[-1],color="b",linestyle="-",linewidth=1)
+	ax.axhline(y=press[-1],color="b",linestyle="--",linewidth=1)
 	ax.plot(xIG,pressIG,"r--",label="")
 	ax.axhline(y=1/(1+X-xmin),color="g",linestyle="--",linewidth=1)
 	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
@@ -226,7 +226,6 @@ def pressure_plot_dir(dirpath, verbose):
 		
 	## Plotting
 	plt.errorbar(Alpha, Press, yerr=0.05, fmt='bo', ecolor='grey', capthick=2,label="Simulated")
-	plt.plot(Alpha[initind:],linfit_fn(Alpha[initind:]),"b--",label="$P="+str(linfit[0])+"\\alpha+"+str(linfit[1])+"$")
 	plt.plot(AlphaIG,PressIG,"r-",label="White noise")
 	plt.ylim(bottom=0.0)
 	plot_acco(plt.gca(), xlabel="$\\alpha=f_0^2\\tau/T\\zeta$", ylabel="Pressure")
