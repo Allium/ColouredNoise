@@ -119,7 +119,7 @@ def main():
 	## ----------------------------------------------------------------
 	
 	## Precompute exp(-t) and initialise histogram
-	expmt = np.exp(-np.arange(0,tmax,dt)/(a*a))
+	expmt = 1 if a==0 else np.exp(-np.arange(0,tmax,dt)/(a*a))
 	H = np.zeros((Nxbin,Nybin))
 	## Loop over initial y-position
 	for x0y0 in X0Y0:
@@ -188,8 +188,10 @@ def sim_eta(et0, expmt, npoints, a=1.0):
 	See notes 02/02/2016 for LE / FPE statement.
 	"""
 	xi = np.sqrt(2) * np.random.normal(0, 1, npoints)
-	et = et0*expmt + (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
-	return et
+	if a==0:
+		return xi
+	else:
+		return et0*expmt + (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
 	
 ## ====================================================================
 
