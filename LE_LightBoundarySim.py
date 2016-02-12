@@ -111,7 +111,7 @@ def main():
 	if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
 	
 	## Filename; directory and file existence; readme
-	hisfile = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"X"+str(X)+"D"+str(Delta)+"r"+str(Nrun)+\
+	hisfile = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"X"+str(X)+"D"+str(Delta)+"r"+str(Nrun)+"_dt"+str(dt)+\
 			"/BHIS_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
 	check_path(hisfile, vb)
 	create_readme(hisfile, vb)
@@ -119,13 +119,13 @@ def main():
 	## ----------------------------------------------------------------
 	
 	## Precompute exp(-t) and initialise histogram
-	expmt = 1 if a==0 else np.exp(-np.arange(0,tmax,dt)/(a*a))
+	expmt = np.exp(-np.arange(0,tmax,dt)/(a*a)) if a>0 else np.array([1.]+[0.]*(int(tmax/dt)-1))
 	H = np.zeros((Nxbin,Nybin))
 	## Loop over initial y-position
 	for x0y0 in X0Y0:
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
-			x, y = boundary_sim(x0y0, a, X, Delta, xmin, tmax, expmt, vb)
+			x, y = boundary_sim(x0y0, a, X, Delta, xmin, tmax, expmt, (run%20==0))
 			h = np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
 			H += h*histogram_weight(x0y0[1],y[-1], a)
 	H = (H.T)[::-1]
@@ -155,6 +155,7 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 	x0,y0 = x0y0
 	nstp = int(tmax/dt)
 	exstp = nstp/10
+	if vb: print me+"a = ",a,"; IC =",x0y0
 	
 	## Simulate eta
 	if vb: t0 = time.time()
@@ -174,10 +175,10 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 			y = np.append(y,sim_eta(y[-2],expmt[:exstp],exstp))
 			j += 1
 	if j>0: print me+"trajectory array extended",j,"times."
-	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",len(x),"steps"
+	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",i,"steps"
 	
 	## Clip trailing zeroes from y and x
-	x, y = x[:i+1], y[:i+1]	
+	x, y = x[:i], y[:i]	
 	return np.vstack([x,y])
 
 ## ----------------------------------------------------------------------------	
@@ -189,9 +190,10 @@ def sim_eta(et0, expmt, npoints, a=1.0):
 	"""
 	xi = np.sqrt(2) * np.random.normal(0, 1, npoints)
 	if a==0:
-		return xi
+		eta = xi
 	else:
-		return et0*expmt + (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
+		eta = et0*expmt + (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
+	return eta
 	
 ## ====================================================================
 
@@ -210,9 +212,9 @@ def lookup_xmax(X,a):
 	Lookup table for xmax
 	Limited testing; X=10.0 only, up to a=1.0
 	"""
-	if   a<=0.05:	xmax=1.4*X
+	if   a<=0.08:	xmax=1.4*X
 	elif a<=0.1:	xmax=1.15*X
-	elif a<=0.2:	xmax=1.04*X
+	elif a<=0.2:	xmax=1.1*X
 	elif a<=0.3:	xmax=1.02*X
 	elif a<=0.4:	xmax=1.005*X
 	elif a<=0.5:	xmax=1.003*X

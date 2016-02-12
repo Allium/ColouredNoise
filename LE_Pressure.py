@@ -61,6 +61,8 @@ def main():
 		dest="showfig", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
 		dest="verbose", default=False, action="store_true")
+	parser.add_option('-a','--plotall',
+		dest="plotall", default=False, action="store_true")
 	parser.add_option('-h','--help',
                   dest="help",default=False,action="store_true",
 				  help="Print docstring.")		
@@ -68,8 +70,12 @@ def main():
 	if opt.help: print main.__doc__; return
 	showfig = opt.showfig
 	verbose = opt.verbose
+	plotall = opt.plotall
 	
 	argv[1] = argv[1].replace("\\","/")
+	if plotall and os.path.isdir(argv[1]):
+		showfig = False
+		allfiles(argv[1],verbose)
 	if os.path.isfile(argv[1]):
 		pressure_pdf_plot_file(argv[1],verbose)
 	elif os.path.isdir(argv[1]):
@@ -130,10 +136,11 @@ def pressure_pdf_plot_file(filepath, verbose):
 	
 	## Marginalise to PDF in x
 	Hx = np.trapz(H,x=y,axis=0)
-	Hx /= np.trapz(Hx,x=x,axis=0)
+	Hx /= np.trapz(Hx,x=x)
+	
 	
 	## Calculate pressure
-	force = force_x(x,alpha,X,D)
+	force = force_x(x,1.0,X,D)
 	press = pressure_x(force,Hx,x)
 	xIG, forceIG, HxIG, pressIG = ideal_gas(x, X, D, dt)
 	
@@ -147,7 +154,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	ax.plot(xIG,HxIG,"r--",label="White noise")
 	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
-	ax.set_ylim(bottom=0.0,top=np.ceil(Hx[Hx.shape[0]/4:].max()))
+	ax.set_ylim(bottom=0.0,top=1.1)
 	plot_acco(ax,ylabel="PDF p(x)",legloc="best")
 	
 	## Pressure plot
@@ -157,6 +164,8 @@ def pressure_pdf_plot_file(filepath, verbose):
 	ax.plot(xIG,pressIG,"r--",label="")
 	ax.axhline(y=1/(1+X-xmin),color="g",linestyle="--",linewidth=1)
 	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
+	ax.set_ylim(bottom=0.0)
+	
 	plot_acco(ax, ylabel="Pressure", legloc="")
 	plt.tight_layout()
 	fig.suptitle("$\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
@@ -167,6 +176,13 @@ def pressure_pdf_plot_file(filepath, verbose):
 		
 	return fig
 	
+##=============================================================================
+def allfiles(dirpath, verbose):
+	for filepath in glob.glob(dirpath+"/*.npy"):
+		pressure_pdf_plot_file(filepath, verbose)
+		plt.clf()
+	return
+
 ##=============================================================================
 def pressure_plot_dir(dirpath, verbose):
 	"""
@@ -208,8 +224,8 @@ def pressure_plot_dir(dirpath, verbose):
 		Hx /= np.trapz(Hx,x=x,axis=0)
 
 		## Calculate pressure
-		force = force_x(x,Alpha[i],X,0.01)
-		Press[i] = np.trapz(-force*Hx, x)/dt
+		force = force_x(x,1.0,X,D)
+		Press[i] = np.trapz(-force*Hx, x)
 	
 	## Sort values
 	sortind = np.argsort(Alpha)
@@ -226,7 +242,8 @@ def pressure_plot_dir(dirpath, verbose):
 		
 	## Plotting
 	plt.errorbar(Alpha, Press, yerr=0.05, fmt='bo', ecolor='grey', capthick=2,label="Simulated")
-	plt.plot(AlphaIG,PressIG,"r-",label="White noise")
+	# plt.plot(AlphaIG,PressIG,"r-",label="White noise")
+	plt.axhline(PressIG[0], color="r",linestyle="-",label="White noise")
 	plt.ylim(bottom=0.0)
 	plot_acco(plt.gca(), xlabel="$\\alpha=f_0^2\\tau/T\\zeta$", ylabel="Pressure")
 	
