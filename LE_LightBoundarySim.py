@@ -111,7 +111,7 @@ def main():
 	if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
 	
 	## Filename; directory and file existence; readme
-	hisfile = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"X"+str(X)+"D"+str(Delta)+"r"+str(Nrun)+"_dt"+str(dt)+\
+	hisfile = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"D"+str(Delta)+"r"+str(Nrun)+"_dt"+str(dt)+\
 			"/BHIS_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
 	check_path(hisfile, vb)
 	create_readme(hisfile, vb)
