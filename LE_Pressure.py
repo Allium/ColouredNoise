@@ -299,8 +299,12 @@ def filename_pars(filename):
 	except ValueError:
 		D = 0.0
 	#
-	start = filename.find("_dt") + 3
-	dt = float(filename[start:filename.find(".npy",start)])
+	try:
+		start = filename.find("_dt") + 3
+		dt = float(filename[start:filename.find(".npy",start)])
+	except ValueError:
+		start = filename.find("_dt",start) + 3
+		dt = float(filename[start:filename.find(".npy",start)])
 	#
 	try:
 		start = filename.find("_ym") + 2
