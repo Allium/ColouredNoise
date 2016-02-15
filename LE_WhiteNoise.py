@@ -7,9 +7,9 @@ def main():
 	t0 = time()
 
 	tmax = 100.0
-	dt = 0.005
+	dt = 0.05
 	Nstep = int(tmax/dt)
-	Nrun = 1000
+	Nrun = int(2e5*dt)
 	w = 10.0		## Wall position
 	widx = 100		## Wall index / half-length of xbins
 
@@ -17,7 +17,7 @@ def main():
 	xmax = w+1.0
 	x0 = 0.95*w		## Injection coordinate
 
-	outfile = "Pressure/White_Noise/WhiteNoise_r"+str(Nrun)+"_dt"+str(dt)
+	outfile = "Pressure/White_Noise/WhiteNoise_dt"+str(dt)
 
 	xbins = np.concatenate([np.linspace(xmin,w,widx+1),np.linspace(w,xmax,widx+1)[1:]])
 	ybins = np.linspace(-0.5,0.5,41)
