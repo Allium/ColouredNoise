@@ -9,6 +9,7 @@ from sys import argv
 
 from LE_Utils import save_data
 
+from LE_LightBoundarySim import lookup_xmax, calculate_xbin, calculate_ybin
 from LE_LightBoundarySim import check_path, create_readme
 from LE_LightBoundarySim import sim_eta
 
@@ -68,11 +69,12 @@ def main():
                   dest="R",default=1.0,type="float")
 	parser.add_option('--schematic',
                   dest="schematic",default=False,action="store_true")
+	parser.add_option('--plot-traj',
+                  dest="traj",default=False,action="store_true")
 	parser.add_option('-h','--help',
                   dest="help",default=False,action="store_true",
 				  help="Print docstring.")					  
 	opts, argv = parser.parse_args()
-	# opts = vars(opts)
 	if opts.help: print main.__doc__; return
 	a		= opts.a
 	X		= opts.X
@@ -83,6 +85,7 @@ def main():
 	vb		= opts.vb
 	R = opts.R
 	schematic = opts.schematic
+	traj = opts.traj
 	
 	if Delta!=0.0:
 		print me+"WARNING: Resetting Delta = 0.0"
@@ -109,7 +112,7 @@ def main():
 	Nxbin = 200
 	Nybin = 50
 	xbins = calculate_xbin(xini,X,xmax,Nxbin)
-	ybins = np.linspace(0.0,ymax,Nybin+1)
+	ybins = calculate_ybin(0.0,ymax,Nybin+1)
 	
 	## Particles	
 	Nparticles = 1*len(ybins)*Nrun
@@ -130,9 +133,8 @@ def main():
 		
 	## ----------------------------------------------------------------
 	## SCHEMATIC IMAGE
-	if schematic:
-		draw_schematic(xmin,xbins,ybins,c,R,hisdir+"Schematic_"+hisfile+".png",vb)
-	exit()
+
+	draw_schematic(xmin,xbins,ybins,c,R, hisdir+"Schematic"+hisfile[4:]+".png",True)
 	
 	## ----------------------------------------------------------------
 	## SIMULATION
@@ -152,7 +154,8 @@ def main():
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim((xini,yini), eIC[i], a, X,Delta, xmin,ymax,
-				R2,c, tmax,expmt, (run%50==0))
+				R2,c, tmax,expmt, (vb and run%50==0))
+			if traj and run==0: plot_traj(x,y,xmin,X,xmax,ymax, hisdir+"Trajectory"+str(i)+hisfile[4:]+".png")
 			H += np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
 			i += 1
 	H = (H.T)[::-1]
@@ -179,7 +182,7 @@ def boundary_sim(x0y0, exy0, a, X,D, xmin,ymax, R2,c, tmax,expmt, vb=False):
 	x0,y0 = x0y0
 	nstp = int(tmax/dt)
 	exstp = nstp/10
-	if vb: print me+"a = ",a,"; IC =",x0y0
+	if vb: print me+"a = ",a,"; (xo,y0) =",np.around(x0y0,2)
 	
 	## Simulate eta
 	if vb: t0 = time.time()
@@ -198,7 +201,7 @@ def boundary_sim(x0y0, exy0, a, X,D, xmin,ymax, R2,c, tmax,expmt, vb=False):
 	i,j = 0,0
 	## Euler steps to calculate x(t)
 	while x[i] > xmin:
-		x[i+1] = x[i] + dt*( force_2D(x[i],y[i],R2,c[0]) + ex[i] )
+		x[i+1] = x[i] + dt*( force_2D(x[i],y[i],R2,c) + ex[i] )
 		i +=1
 		## Extend array if necessary
 		if i == len(x):
@@ -233,45 +236,28 @@ def calculate_y(y0,ey,ymax):
 	
 ## ====================================================================
 
-def force_2D(x,y,R2,cx):
+def force_2D(x,y,R2,c):
 	"""
 	The force for a curved wall.
 	"""
 	f = 0.0
-	if x*x + y*y > R2 and x > cx:
+	x = x-c[0]; y = y-c[1]
+	if x*x + y*y > R2 and x > 0.0:
 		f = -1.0
 	return f
 	
 ## ====================================================================
 
-def lookup_xmax(X,a):
-	"""
-	2015/12/08 NEW DEFINITIONS
-	Lookup table for xmax
-	Limited testing; X=10.0 only, up to a=1.0
-	"""
-	if   a<=0.08:	xmax=1.4*X
-	elif a<=0.1:	xmax=1.15*X
-	elif a<=0.2:	xmax=1.1*X
-	elif a<=0.3:	xmax=1.02*X
-	elif a<=0.4:	xmax=1.005*X
-	elif a<=0.5:	xmax=1.003*X
-	elif a<=0.6:	xmax=1.003*X
-	elif a<=0.7:	xmax=1.003*X
-	elif a<=0.8:	xmax=1.002*X
-	elif a<=0.9:	xmax=1.002*X
-	else:			xmax=1.001*X
-	return xmax
-	
-def calculate_xbin(xinit,X,xmax,Nxbin):
-	"""
-	Return histogram bins in x
-	"""
-	# xbins = np.linspace(xinit,xmax,Nxbin+1)
-	## Extra bins for detail in wall region
-	NxbinL = Nxbin/2; NxbinR = Nxbin - NxbinL
-	xbins = np.unique(np.append(np.linspace(xinit,X,NxbinL+1),np.linspace(X,xmax,NxbinR+1)))
-	return xbins
+def plot_traj(x,y,xmin,X,xmax,ymax,outfile):
+	plt.plot(x,y,".-")
+	plt.vlines(X,0,ymax,linestyle="--")
+	plt.xlim([xmin,xmax])
+	plt.xlabel("$x$")
+	plt.ylabel("$y$")
+	plt.title("Trajectory "+str(i)+" for "+hisfile)
+	plt.savefig(outfile)
+	plt.clf()
+	return
 
 ## ====================================================================
 
@@ -280,13 +266,14 @@ def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 	A schematic of the simulation space
 	"""
 	me = "LE_2DLBS.draw_schematic: "
+	t0 = time.time()
 	if os.path.isfile(outfile):
 		if vb: print me+"Schematic exists. Not overwriting."
 		return
 	loff = 1.0
 	## Get spatial parameters
 	xini = xbins[0]
-	X	 = xbins[len(xbins)/2]
+	X = xbins[len(xbins)/2]
 	xmax = xbins[-1]
 	ymax = ybins[-1]
 	## Wall region
@@ -295,8 +282,7 @@ def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 	circle = plt.Circle(c,R,facecolor='w',lw=2,edgecolor='r',zorder=1)
 	plt.gcf().gca().add_artist(circle)
 	## Remove left arc
-	plt.axvspan(xmin-loff,X-0.1, color="w",zorder=2)
-	# plt.gcf().gca().fill_between(xmin-1.0,X-0.1, 0)
+	plt.axvspan(xmin-loff,X, color="w",zorder=2)
 	## Lines
 	plt.hlines([-ymax,ymax],0.0,xmax,
 		colors='k', linestyles='-', linewidth=2.0,zorder=3)
@@ -304,10 +290,13 @@ def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 		colors='k', linestyles=["-","--",":"], linewidth=2.0,zorder=3)
 	## Outside simulation
 	plt.axvspan(xmin,xmin-loff, color="k",alpha=0.1,zorder=2)
+	# plt.vlines(0.0,0.0,xmax,
+	# 	colors='k', linestyles='-', linewidth=2.0,zorder=3)
+	# plt.axhspan(-ymax,0.0, color="k",alpha=0.1,zorder=2)
 	## Annotations
 	plt.annotate("Not simulated",xy=(xmin-0.5*loff,0.0),xycoords="data",
 			horizontalalignment='center', verticalalignment='center')
-	plt.annotate("Wall region",xy=(0.5*(X+xmax),0.0),xycoords="data",
+	plt.annotate("Wall region",xy=(0.5*(c[0]+R+xmax),0.0),xycoords="data",
 			horizontalalignment='center', verticalalignment='center')
 	plt.annotate("Simulation boundary",xy=(xmin,-0.5*ymax),xycoords="data",
 			horizontalalignment='center', verticalalignment='center')
@@ -326,7 +315,9 @@ def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 	plt.title("Schematic of simulation space")
 	## Save and close
 	plt.savefig(outfile)
-	if vb: print me+"Figure saved to",outfile
+	if vb:
+		print me+"Figure saved to "+outfile
+		print me+"Time",round(time.time()-t0,1),"seconds."
 	plt.clf()
 	return
 

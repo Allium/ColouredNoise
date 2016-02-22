@@ -102,8 +102,8 @@ def main():
 	## Histogramming; xbins and ybins are bin edges.
 	Nxbin = 100
 	Nybin = 50
-	xbins = calculate_xbin(xinit,X,xmax,Nxbin)#np.linspace(xmin,xmax,Nxbin+1)#
-	ybins = np.linspace(-ymax,ymax,Nybin+1)
+	xbins = calculate_xbin(xinit,X,xmax,Nxbin)
+	ybins = calculate_ybin(-ymax,ymax,Nybin+1)
 		
 	## Initial conditions
 	X0Y0 = np.array([[xinit,y0] for y0 in ybins])
@@ -234,6 +234,10 @@ def calculate_xbin(xinit,X,xmax,Nxbin):
 	NxbinL = Nxbin/2; NxbinR = Nxbin - NxbinL
 	xbins = np.unique(np.append(np.linspace(xinit,X,NxbinL+1),np.linspace(X,xmax,NxbinR+1)))
 	return xbins
+
+
+def calculate_ybin(yi,yf,N):
+	return np.linspace(yi,yf,N)
 
 ## ====================================================================
 

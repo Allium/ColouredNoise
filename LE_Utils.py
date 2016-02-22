@@ -95,3 +95,47 @@ def save_data(outfile,data,vb=False):
 	np.save(outfile,data)
 	if vb:	print me+"Data saved to",outfile+".npy. Time",round(time.time()-t0,1),"seconds."	
 	return outfile+".npy"
+
+
+def filename_pars(filename):
+	"""
+	Scrape filename for parameters and return a dict.
+	"""
+	## a
+	start = filename.find("_a") + 2
+	a = float(filename[start:filename.find("_",start)])
+	## X
+	start = filename.find("_X") + 2
+	X = float(filename[start:filename.find("_",start)])
+	## D
+	try:
+		start = filename.find("_D") + 2
+		D = float(filename[start:filename.find("_",start)])
+	except ValueError:
+		D = 0.0
+	## dt
+	try:
+		start = filename.find("_dt") + 3
+		dt = float(filename[start:filename.find(".npy",start)])
+	except ValueError:
+		start = filename.find("_dt",start) + 3
+		dt = float(filename[start:filename.find(".npy",start)])
+	## ymax
+	try:
+		start = filename.find("_ym") + 2
+		ymax = float(filename[start:filename.find("_",start)])
+	except ValueError:
+		ymax = 0.5
+	## R
+	try:
+		start = filename.find("_R") + 2
+		R = float(filename[start:filename.find("_",start)])
+	except ValueError:
+		R = None
+	## Collect into lists
+	names = ["a","X","D","dt","ymax","R"]
+	pars  = [a,X,D,dt,ymax,R]
+	##
+	return dict(zip(names,pars))
+
+
