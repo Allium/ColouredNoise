@@ -65,7 +65,7 @@ def main():
                   dest="vb",default=False,action="store_true",
 				  help="Print useful information to screen.")	
 	parser.add_option('-R','--radius',
-                  dest="R",default=1.0,type="int")
+                  dest="R",default=1.0,type="float")
 	parser.add_option('--schematic',
                   dest="schematic",default=False,action="store_true")
 	parser.add_option('-h','--help',
@@ -100,6 +100,8 @@ def main():
 	xmax = lookup_xmax(X,a)
 	xmin = 0.8*X	## Simulation cutoff
 	ymax = 0.5
+	try: assert R>=ymax
+	except AssertionError: raise AssertionError("me+The wall must enclose the volume.")
 			
 	## Injection x coordinate
 	xini = 0.9*X
@@ -121,7 +123,7 @@ def main():
 	c = [X-np.sqrt(R2-ymax*ymax),0.0]
 	
 	## Filename; directory and file existence; readme
-	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_2D_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
+	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_2D_X"+str(X)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
 	hisfile = "BHIS_2D_a"+str(a)+"_X"+str(X)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
@@ -150,7 +152,7 @@ def main():
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim((xini,yini), eIC[i], a, X,Delta, xmin,ymax,
-				R2,c, tmax,expmt, (run%25==0))
+				R2,c, tmax,expmt, (run%50==0))
 			H += np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
 			i += 1
 	H = (H.T)[::-1]
@@ -181,8 +183,8 @@ def boundary_sim(x0y0, exy0, a, X,D, xmin,ymax, R2,c, tmax,expmt, vb=False):
 	
 	## Simulate eta
 	if vb: t0 = time.time()
-	ex = sim_eta(exy0[0], expmt, nstp, a, dt=dt)
-	ey = sim_eta(exy0[1], expmt, nstp, a, dt=dt)
+	ex = sim_eta(exy0[0], expmt, nstp, a, dt)
+	ey = sim_eta(exy0[1], expmt, nstp, a, dt)
 	if vb: print me+"Simulation of eta",round(time.time()-t0,1),"seconds for",nstp,"steps"
 	
 	## Spatial variables
