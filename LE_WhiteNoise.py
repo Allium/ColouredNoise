@@ -4,6 +4,9 @@ from scipy.optimize import curve_fit
 from time import time
 
 def main():
+	"""
+	Presumably this runs a white noise simulation in WN variables.
+	"""
 	t0 = time()
 
 	tmax = 100.0

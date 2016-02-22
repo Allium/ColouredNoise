@@ -1,0 +1,1 @@
+I don't remember what any of these things really do... But I'm not using them at the moment so here they are. I am sure they are all useful!

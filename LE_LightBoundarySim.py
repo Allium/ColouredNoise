@@ -257,7 +257,7 @@ def create_readme(hisfile, vb):
 	NOTE commit is the LAST COMMIT -- maybe there have been changes since then.
 	Assumes directory exists.
 	"""
-	me = "LE_LignBoundarySim.create_readme: "
+	me = "LE_LightBoundarySim.create_readme: "
 	readmefile = os.path.dirname(hisfile)+"/README.txt"
 	try:
 		assert os.path.isfile(readmefile)
