@@ -183,7 +183,7 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 
 ## ----------------------------------------------------------------------------	
 	
-def sim_eta(et0, expmt, npoints, a=1.0):
+def sim_eta(et0, expmt, npoints, a, dt=dt):
 	"""
 	Any alpha-dependence in expmt already taken care of.
 	See notes 02/02/2016 for LE / FPE statement.
