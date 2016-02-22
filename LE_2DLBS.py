@@ -100,8 +100,7 @@ def main():
 	xmax = lookup_xmax(X,a)
 	xmin = 0.8*X	## Simulation cutoff
 	ymax = 0.5
-	try: assert R>=ymax
-	except AssertionError: raise AssertionError("me+The wall must enclose the volume.")
+	assert (R>=ymax), me+"The wall must enclose the volume."
 			
 	## Injection x coordinate
 	xini = 0.9*X
@@ -132,7 +131,8 @@ def main():
 	## ----------------------------------------------------------------
 	## SCHEMATIC IMAGE
 	if schematic:
-		draw_schematic(xmin,xini,X,xmax,ymax,c,R,hisdir+"Schematic_"+hisfile+".png",vb)
+		draw_schematic(xmin,xbins,ybins,c,R,hisdir+"Schematic_"+hisfile+".png",vb)
+	exit()
 	
 	## ----------------------------------------------------------------
 	## SIMULATION
@@ -275,7 +275,7 @@ def calculate_xbin(xinit,X,xmax,Nxbin):
 
 ## ====================================================================
 
-def draw_schematic(xmin,xini,X,xmax,ymax,c,R,outfile,vb=False):
+def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 	"""
 	A schematic of the simulation space
 	"""
@@ -284,6 +284,11 @@ def draw_schematic(xmin,xini,X,xmax,ymax,c,R,outfile,vb=False):
 		if vb: print me+"Schematic exists. Not overwriting."
 		return
 	loff = 1.0
+	## Get spatial parameters
+	xini = xbins[0]
+	X	 = xbins[len(xbins)/2]
+	xmax = xbins[-1]
+	ymax = ybins[-1]
 	## Wall region
 	plt.axvspan(X,xmax, color="r",alpha=0.05,zorder=0)
 	## Wall boundary
@@ -310,6 +315,9 @@ def draw_schematic(xmin,xini,X,xmax,ymax,c,R,outfile,vb=False):
 			horizontalalignment='center', verticalalignment='center')
 	plt.annotate("Wall boundary",xy=(X,-0.5*ymax),xycoords="data",
 			horizontalalignment='center', verticalalignment='center')
+	## Show bins
+	# plt.hlines(ybins,xini,xmax, colors='k', linestyles="-",linewidth=0.2,zorder=2.1)
+	# plt.vlines(xbins,-ymax,ymax,colors='k', linestyles="-",linewidth=0.2,zorder=2.1)
 	## Clip image, name axes, title
 	plt.xlim([xmin-loff,xmax])
 	plt.ylim([-ymax,ymax])
