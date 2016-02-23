@@ -107,7 +107,7 @@ def main():
 	## SETUP CALCULATIONS
 	
 	## Simulation time
-	tmax = 1e4*timefac
+	tmax = 1e3*timefac
 	
 	## Space: y, circle, x
 	ymax = 0.5
