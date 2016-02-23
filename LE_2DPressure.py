@@ -90,7 +90,7 @@ def main():
 	return
 	
 ##=============================================================================
-def pressure_pdf_plot_file(filepath, verbose):
+def pressure_pdf_plot_file(histfile, verbose):
 	"""
 	Make plot for a single file
 	"""
@@ -98,66 +98,74 @@ def pressure_pdf_plot_file(filepath, verbose):
 	t0 = sysT()
 	
 	## Filenames
-	plotfile = os.path.splitext(filepath)[0]+"_P.png"
+	plotfile = os.path.dirname(histfile)+"/PRES"+os.path.basename(histfile)[4:-4]+".png"
 	
 	## Get pars from filename
-	pars = filename_pars(filepath)
+	pars = filename_pars(histfile)
 	[alpha,X,D,dt,ymax,R] = [pars[key] for key in ["a","X","D","dt","ymax","R"]]
 	assert (R is not None), me+"You are using the wrong program. R should be defined."
 	assert (D == 0.0), me+"Cannot yet handle soft potential. D should be 0.0."
 	if verbose: print me+"alpha =",alpha,"and X =",X,"and D =",D
 	
-	## Load data
-	H = np.load(filepath)
+	## Load data and normalise
+	H = np.load(histfile)
 	H /= H.sum()
-	
-	## Space (for axes)
-	xmin, xmax = 0.9*X, lookup_xmax(X,alpha)
-	ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
-	y = 0.5*(ybins[1:]+ybins[:-1])
-	xbins = calculate_xbin(xmin,X,xmax,H.shape[1])
-	x = 0.5*(xbins[1:]+xbins[:-1])
-	
+		
 	## Centre of circle for curved boundary
 	c = [X-np.sqrt(R*R-ymax*ymax),0.0]
+	## Space (for axes)
+	xini, xmax = 0.9*X, lookup_xmax(c[0]+R,alpha)
+	ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
+	y = 0.5*(ybins[1:]+ybins[:-1])
+	xbins = calculate_xbin(xini,X,xmax,H.shape[1])
+	x = 0.5*(xbins[1:]+xbins[:-1])
 		
 	
 	## Set up plot
 	fig,axs = plt.subplots(1,2)
-		
+	fs = 14
 		
 	## pdf plot
 	ax = axs[0]
 	Xm,Ym = np.meshgrid(x,y)
-	ax.contourf(Xm,Ym[::-1],H,6)
-	ax.colorbar()
+	CS = ax.contourf(Xm,Ym[::-1],H,10)
+	cbar = fig.colorbar(CS, ax=ax, ticks=[H.min(), H.mean(), H.max()])
+	cbar.ax.set_yticklabels(["Low", "Mean", "High"])
 	## Plot wall
-	newx = np.linspace(X,X+R,201)
-	ax.plot(newx,c[1]+np.sqrt(R*R-(newx-c[0])**2), "r--",linewidth=2)
+	wallx = np.linspace(X,c[0]+R,201)
+	wally = c[1]+np.sqrt(R*R-(wallx-c[0])**2)
+	ax.plot(wallx,wally, "r--",linewidth=2)
 	## Accoutrements
+	ax.set_xlim([xini,xmax])
 	ax.set_ylim([0.0,ymax])
-	ax.set_xlabel("$x$")
-	ax.set_ylabel("$y$")
+	ax.set_xlabel("$x$", fontsize=fs)
+	ax.set_ylabel("$y$", fontsize=fs)
 		
 
-	## Calculate force -- rough for now!
-	force = -1.0*( (Xm-c[0])**2 + (Ym-c[1])**2 > R*R )*(Xm-c[0]>0.0)
-	## Pressure
-	press = -(force*H).sum(axis=0).cumsum(axis=0)
+	## Calculate force array (2d)
+	force = -1.0 * ( (Xm-c[0])**2 + (Ym-c[1])**2 > R*R ) * ( Xm-c[0]>0.0 )
+	## Pressure array (2d) -- sum rather than trapz
+	press = -1.0*(force*H).sum(axis=0).cumsum(axis=0)
 	
 	## Pressure plot
 	ax = axs[1]
 	ax.plot(x,press,label="CN simulation")
+	## Bulk and wall regions
+	plt.axvspan(xini,X, color="b",alpha=0.1) 
+	plt.axvspan(X,c[0]+R, color="m",alpha=0.05)
+	plt.axvspan(R,xmax, color="r",alpha=0.05)
 	## Ideal gas result
-	ax.hlines(pressIG(ymax,R,c[0]),xmin,xmax,linestyle="-",color="g",label="WN theory")
+	ax.hlines(pressIG(ymax,R,c[0]),xini,xmax,linestyle="-",color="g",label="WN theory")
 	## Accoutrements
-	ax.set_xlabel("$x$")
-	ax.set_ylabel("$P$")
+	ax.set_xlim([xini,xmax])
+	ax.set_xlabel("$x$", fontsize=fs)
+	ax.set_ylabel("Pressure, $P$", fontsize=fs)
+	ax.grid()
 	ax.legend(loc="best",fontsize=11)
 	
 	
 	## Tidy figure
-	fig.suptitle(os.path.basename(filepath))
+	fig.suptitle(os.path.basename(plotfile))
 	fig.tight_layout()
 	plt.subplots_adjust(top=0.9)	
 		
@@ -168,7 +176,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	
 ##=============================================================================
 def allfiles(dirpath, verbose):
-	for filepath in glob.glob(dirpath+"/*.npy"):
+	for filepath in glob.glob(dirpath+"/BHIS_2D_*.npy"):
 		pressure_pdf_plot_file(filepath, verbose)
 		plt.clf()
 	return
@@ -182,9 +190,10 @@ def pressure_plot_dir(dirpath, verbose):
 	"""
 	me = "LE_Pressure.pressure_plot_dir: "
 	t0 = sysT()
+	return
 	
 	## File discovery
-	histfiles = np.sort(glob.glob(dirpath+"/*.npy"))
+	histfiles = np.sort(glob.glob(dirpath+"/BHIS_2D_*.npy"))
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
 	

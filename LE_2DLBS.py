@@ -109,11 +109,14 @@ def main():
 	## Simulation time
 	tmax = 1e4*timefac
 	
-	## Space
-	xmax = lookup_xmax(X,a)
-	xmin = 0.8*X	## Simulation cutoff
+	## Space: y, circle, x
 	ymax = 0.5
-	assert (R>=ymax), me+"The wall must enclose the volume."
+	assert (R>=ymax), me+"The wall must enclose the volume."	
+	## Centre of circle for curved boundary
+	R2 = R*R
+	c = [X-np.sqrt(R2-ymax*ymax),0.0]
+	xmax = lookup_xmax(c[0]+R,a)
+	xmin = 0.8*X	## Simulation cutoff
 			
 	## Injection x coordinate
 	xini = 0.9*X
@@ -134,6 +137,7 @@ def main():
 	R2 = R*R
 	c = [X-np.sqrt(R2-ymax*ymax),0.0]
 	
+	
 	## Filename; directory and file existence; readme
 	BCstr = "PBC" if PBC else "IBC"
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
@@ -146,7 +150,9 @@ def main():
 	## ----------------------------------------------------------------
 	## SCHEMATIC IMAGE
 
-	draw_schematic(xmin,xbins,ybins,c,R, hisdir+"Schematic"+hisfile[4:]+".png",True)
+	if schematic:
+		draw_schematic(xmin,xbins,ybins,c,R, hisdir+"SCHM"+hisfile[4:]+".png",True)
+		return
 	
 	## ----------------------------------------------------------------
 	## SIMULATION
@@ -167,7 +173,7 @@ def main():
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim((xini,yini), eIC[i], a, X,Delta, xmin,ymax,
 				R2,c, tmax,expmt, PBC, (vb and run%50==0))
-			if traj and run==0: plot_traj(x,y,xmin,X,xmax,ymax, hisdir+"Trajectory"+str(i)+hisfile[4:]+".png")
+			if traj and run==0: plot_traj(x,y,xmin,X,xmax,ymax, hisdir+"TRAJ"+str(i)+hisfile[4:]+".png")
 			H += np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
 			i += 1
 	H = (H.T)[::-1]
@@ -245,9 +251,9 @@ def calculate_y(y0,ey,ymax,PBC=True):
 		idl = (y<0.0)
 		y[idl] *= -1.0
 	return y
-	
-## ====================================================================
+		
 
+## ====================================================================
 def force_2D(x,y,R2,c):
 	"""
 	The force for a curved wall.
@@ -282,12 +288,12 @@ def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 	if os.path.isfile(outfile):
 		if vb: print me+"Schematic exists. Not overwriting."
 		return
-	loff = 1.0
 	## Get spatial parameters
 	xini = xbins[0]
 	X = xbins[len(xbins)/2]
 	xmax = xbins[-1]
 	ymax = ybins[-1]
+	loff = 1.0
 	## Wall region
 	plt.axvspan(X,xmax, color="r",alpha=0.05,zorder=0)
 	## Wall boundary
@@ -297,7 +303,7 @@ def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 	plt.axvspan(xmin-loff,X, color="w",zorder=2)
 	## Lines
 	plt.hlines([-ymax,ymax],0.0,xmax,
-		colors='k', linestyles='-', linewidth=2.0,zorder=3)
+		colors='k', linestyles='-', linewidth=5.0,zorder=3)
 	plt.vlines([xmin,xini,X],-ymax,ymax,
 		colors='k', linestyles=["-","--",":"], linewidth=2.0,zorder=3)
 	## Outside simulation
@@ -315,6 +321,8 @@ def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 	plt.annotate("Injection line",xy=(xini,+0.5*ymax),xycoords="data",
 			horizontalalignment='center', verticalalignment='center')
 	plt.annotate("Wall boundary",xy=(X,-0.5*ymax),xycoords="data",
+			horizontalalignment='center', verticalalignment='center')
+	plt.annotate("Periodic boundary",xy=(0.5*(xini-loff+xmax),0.95*ymax),xycoords="data",
 			horizontalalignment='center', verticalalignment='center')
 	## Show bins
 	# plt.hlines(ybins,xini,xmax, colors='k', linestyles="-",linewidth=0.2,zorder=2.1)
