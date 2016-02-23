@@ -32,6 +32,10 @@ def main():
 		-t --timefac	1.0		Multiply t_max by factor
 		-v --verbose	False	Print useful information to screen
 		-h --help		False	Print docstring and exit
+		-R --radius	1.0	Radius of wall curvature
+		   --BC-impenetrable	Change BC to impenetrable rather then periodic
+		   --schematic		Plot a schematic of the simulation space
+		   --trajectory		Output some trajectory plots
 	
 	EXAMPLE
 	
@@ -67,10 +71,15 @@ def main():
 				  help="Print useful information to screen.")	
 	parser.add_option('-R','--radius',
                   dest="R",default=1.0,type="float")
+	parser.add_option('--BC-impenetrable',
+                  dest="PBC",default=True,action="store_false")
 	parser.add_option('--schematic',
                   dest="schematic",default=False,action="store_true")
-	parser.add_option('--plot-traj',
+	parser.add_option('--trajectory',
                   dest="traj",default=False,action="store_true")
+	parser.add_option('-v','--verbose',
+                  dest="vb",default=False,action="store_true",
+				  help="Print useful information to screen.")
 	parser.add_option('-h','--help',
                   dest="help",default=False,action="store_true",
 				  help="Print docstring.")					  
@@ -86,6 +95,7 @@ def main():
 	R = opts.R
 	schematic = opts.schematic
 	traj = opts.traj
+	PBC = opts.PBC
 	
 	if Delta!=0.0:
 		print me+"WARNING: Resetting Delta = 0.0"
@@ -125,8 +135,10 @@ def main():
 	c = [X-np.sqrt(R2-ymax*ymax),0.0]
 	
 	## Filename; directory and file existence; readme
-	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_2D_X"+str(X)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
-	hisfile = "BHIS_2D_a"+str(a)+"_X"+str(X)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)
+	BCstr = "PBC" if PBC else "IBC"
+	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
+			"_2D_"+BCstr+"_X"+str(X)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
+	hisfile = "BHIS_2D_"+BCstr+"_a"+str(a)+"_X"+str(X)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
 	create_readme(filepath, vb)
@@ -139,7 +151,7 @@ def main():
 	## ----------------------------------------------------------------
 	## SIMULATION
 	
-	if vb: print me+"Computing",Nparticles,"trajectories"
+	if vb: print me+"Computing",Nparticles,"trajectories."
 	
 	## Precompute exp(-t/a^2)
 	expmt = np.exp(-np.arange(0,tmax,dt)/(a*a)) if a>0 else np.array([1.]+[0.]*(int(tmax/dt)-1))
@@ -154,7 +166,7 @@ def main():
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim((xini,yini), eIC[i], a, X,Delta, xmin,ymax,
-				R2,c, tmax,expmt, (vb and run%50==0))
+				R2,c, tmax,expmt, PBC, (vb and run%50==0))
 			if traj and run==0: plot_traj(x,y,xmin,X,xmax,ymax, hisdir+"Trajectory"+str(i)+hisfile[4:]+".png")
 			H += np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
 			i += 1
@@ -171,7 +183,7 @@ def main():
 	
 ## ====================================================================
 
-def boundary_sim(x0y0, exy0, a, X,D, xmin,ymax, R2,c, tmax,expmt, vb=False):
+def boundary_sim(x0y0, exy0, a, X,D, xmin,ymax, R2,c, tmax,expmt, PBC, vb=False):
 	"""
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
 	Dynamically adds more space to arrays.
@@ -194,7 +206,7 @@ def boundary_sim(x0y0, exy0, a, X,D, xmin,ymax, R2,c, tmax,expmt, vb=False):
 	if vb: t0 = time.time()
 	
 	## Construct y with periodic boundaries
-	y = calculate_y(y0,ey,ymax)
+	y = calculate_y(y0,ey,ymax,PBC)
 	
 	## Iteratively compute x
 	x = np.zeros(nstp); x[0] = x0
@@ -209,7 +221,7 @@ def boundary_sim(x0y0, exy0, a, X,D, xmin,ymax, R2,c, tmax,expmt, vb=False):
 			x = np.append(x,np.zeros(exstp))
 			ey_2 = sim_eta(ey[-1],expmt[:exstp],exstp)
 			ey = np.append(ey,ey_2)
-			y = np.append(y,calculate_y(y[-1],ey_2,ymax))
+			y = np.append(y,calculate_y(y[-1],ey_2,ymax,PBC))
 			j += 1
 	if j>0: print me+"trajectory array extended",j,"times."
 	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",i,"steps"
@@ -220,7 +232,7 @@ def boundary_sim(x0y0, exy0, a, X,D, xmin,ymax, R2,c, tmax,expmt, vb=False):
 	
 ## ====================================================================
 
-def calculate_y(y0,ey,ymax):
+def calculate_y(y0,ey,ymax,PBC=True):
 	"""
 	Calculate y trajectory.
 	No force -- independent of position.
@@ -229,7 +241,7 @@ def calculate_y(y0,ey,ymax):
 	y = y0 + dt*np.cumsum(ey)
 	while (y>ymax).any() or (y<0.0).any():
 		idg = (y>ymax)
-		y[idg] = 2*ymax - y[idg]
+		y[idg] = 2*ymax - y[idg] if PBC else ymax
 		idl = (y<0.0)
 		y[idl] *= -1.0
 	return y

@@ -130,9 +130,11 @@ def pressure_pdf_plot_file(filepath, verbose):
 	ax = axs[0]
 	Xm,Ym = np.meshgrid(x,y)
 	ax.contourf(Xm,Ym[::-1],H,6)
+	ax.colorbar()
 	## Plot wall
 	newx = np.linspace(X,X+R,201)
 	ax.plot(newx,c[1]+np.sqrt(R*R-(newx-c[0])**2), "r--",linewidth=2)
+	## Accoutrements
 	ax.set_ylim([0.0,ymax])
 	ax.set_xlabel("$x$")
 	ax.set_ylabel("$y$")
@@ -148,6 +150,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	ax.plot(x,press,label="CN simulation")
 	## Ideal gas result
 	ax.hlines(pressIG(ymax,R,c[0]),xmin,xmax,linestyle="-",color="g",label="WN theory")
+	## Accoutrements
 	ax.set_xlabel("$x$")
 	ax.set_ylabel("$P$")
 	ax.legend(loc="best",fontsize=11)
