@@ -4,6 +4,7 @@ from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import interp1d
 from scipy import integrate
 from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from sys import argv
 import os, glob
 import optparse
@@ -129,7 +130,11 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax = axs[0]
 	Xm,Ym = np.meshgrid(x,y)
 	CS = ax.contourf(Xm,Ym[::-1],H,10)
-	cbar = fig.colorbar(CS, ax=ax, orientation="horizontal", ticks=[H.min(),H.mean(),H.max()])
+	
+	divider = make_axes_locatable(ax)
+	cax = divider.append_axes("top", size="5%", pad=0.4)
+	cbar = fig.colorbar(CS, cax=cax, ax=ax, orientation="horizontal",
+		use_gridspec=True, ticks=[H.min(),H.mean(),H.max()])
 	cbar.ax.set_xticklabels(["Low", "Mean", "High"])
 	### http://stackoverflow.com/questions/13310594/positioning-the-colorbar
 	## Plot wall
@@ -156,7 +161,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	plt.axvspan(X,c[0]+R, color="m",alpha=0.05)
 	plt.axvspan(R,xmax, color="r",alpha=0.05)
 	## Ideal gas result
-	ax.hlines(pressIG(ymax,R,c[0]),xini,xmax,linestyle="-",color="g",label="WN theory")
+	ax.hlines(pressure_IG(ymax,R,c[0]),xini,xmax,linestyle="-",color="g",label="WN theory")
 	## Accoutrements
 	ax.set_xlim([xini,xmax])
 	ax.set_xlabel("$x$", fontsize=fs)
@@ -191,62 +196,70 @@ def pressure_plot_dir(dirpath, verbose):
 	"""
 	me = "LE_Pressure.pressure_plot_dir: "
 	t0 = sysT()
-	return
 	
 	## File discovery
 	histfiles = np.sort(glob.glob(dirpath+"/BHIS_2D_*.npy"))
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
 	
-	## Outfile name
-	pressplot = dirpath+"/PressureAlpha.png"
+	## Initialise
 	Alpha = np.zeros(numfiles)
 	Press = np.zeros(numfiles)
-	PressIG = np.zeros(numfiles)
 		
 	## Loop over files
-	for i,filepath in enumerate(histfiles):
-		
-		## Find alpha
-		Alpha[i], X, D, dt, ymax = filename_pars(filepath)
-				
-		## Load data
-		H = np.load(filepath)
-		
-		## Space
-		xmin,xmax = 0.9*X,lookup_xmax(X,Alpha[i])
-		ymax = 0.5
-		x = calculate_xbin(xmin,X,xmax,H.shape[1]-1)
-		y = np.linspace(-ymax,ymax,H.shape[0])
-		
-		## Marginalise to PDF in X
-		Hx = np.trapz(H,x=y,axis=0)
-		Hx /= np.trapz(Hx,x=x,axis=0)
-
-		## Calculate pressure
-		force = force_x(x,1.0,X,D)
-		Press[i] = np.trapz(-force*Hx, x)
+	for i,histfile in enumerate(histfiles):
 	
+		## Get pars from filename
+		pars = filename_pars(histfile)
+		[Alpha[i],X,D,dt,ymax,R] = [pars[key] for key in ["a","X","D","dt","ymax","R"]]
+		assert (R is not None), me+"You are using the wrong program. R should be defined."
+		assert (D == 0.0), me+"Cannot yet handle soft potential. D should be 0.0."
+	
+		## Load data and normalise
+		H = np.load(histfile)
+		H /= H.sum()
+		
+		## Centre of circle for curved boundary
+		c = [X-np.sqrt(R*R-ymax*ymax),0.0]
+		## Space (for axes)
+		xini, xmax = 0.9*X, lookup_xmax(c[0]+R,Alpha[i])
+		ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
+		y = 0.5*(ybins[1:]+ybins[:-1])
+		xbins = calculate_xbin(xini,X,xmax,H.shape[1])
+		x = 0.5*(xbins[1:]+xbins[:-1])	
+	
+		## Calculate force array (2D)
+		Xm,Ym = np.meshgrid(x,y)
+		force = -1.0 * ( (Xm-c[0])**2 + (Ym-c[1])**2 > R*R ) * ( Xm-c[0]>0.0 )
+		## Pressure array (2d) -- sum rather than trapz
+		Press[i] = -1.0*(force*H).sum(axis=0).cumsum(axis=0)[-1]
+	
+		
 	## Sort values
 	sortind = np.argsort(Alpha)
-	Alpha = Alpha[sortind]; Press = Press[sortind]; PressIG = PressIG[sortind]
+	Alpha = Alpha[sortind]; Press = Press[sortind]
 	
 	## Calculate IG pressure on a finer grid -- assume X, dt same
 	tIG = sysT()
-	AlphaIG = Alpha
-	if D==0.0:
-		PressIG = 1.0/(1.0+X-xmin) * np.ones(len(AlphaIG))
-	else:
-		PressIG = [ideal_gas(a,x,X,D,dt)[3][-1]/dt for a in AlphaIG]
+	PreIG = pressure_IG(ymax,R,c[0])
+	try:
+		assert Press.shape == PreIG.shape
+	except (AssertionError or AttributeError):
+		PreIG *= np.ones(Press.shape[0])		
 	if verbose: print me+"white noise pressure calculation:",round(sysT()-tIG,2),"seconds."
 		
 	## Plotting
 	plt.errorbar(Alpha, Press, yerr=0.05, fmt='bo', ecolor='grey', capthick=2,label="Simulated")
-	# plt.plot(AlphaIG,PressIG,"r-",label="White noise")
-	plt.axhline(PressIG[0], color="r",linestyle="-",label="White noise")
+	plt.plot(Alpha,PreIG,"r-",label="White noise")
+	#plt.axhline(PreIG[0], color="r",linestyle="-",label="White noise")
 	plt.ylim(bottom=0.0)
-	plot_acco(plt.gca(), xlabel="$\\alpha=f_0^2\\tau/T\\zeta$", ylabel="Pressure")
+	plt.xlabel("$\\alpha=f_0^2\\tau/T\\zeta$")
+	plt.ylabel("Pressure")
+	plt.grid()
+	plt.legend(loc="best")
 	
+	## Outfile
+	pressplot = dirpath+"/ALPH_2D_X"+str(X)+"_R"+str(R)+"_dt"+str(dt)+".png"
 	plt.savefig(pressplot)
 	if verbose: print me+"plot saved to",pressplot
 	
@@ -256,7 +269,7 @@ def pressure_plot_dir(dirpath, verbose):
 ##=============================================================================
 	
 ##=============================================================================
-def pressIG(ym,R,cx):
+def pressure_IG(ym,R,cx):
 	"""
 	Theoretical pressure of a white noise gas.
 	See notes 22/02/2016

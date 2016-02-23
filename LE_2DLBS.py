@@ -107,7 +107,7 @@ def main():
 	## SETUP CALCULATIONS
 	
 	## Simulation time
-	tmax = 5e2*timefac
+	tmax = 1e3*timefac
 	
 	## Space: y, circle, x
 	ymax = 0.5
@@ -222,10 +222,10 @@ def boundary_sim(x0y0, exy0, a, X,D, xmin,ymax, R2,c, tmax,expmt, PBC, vb=False)
 		x[i+1] = x[i] + dt*( force_2D(x[i],y[i],R2,c) + ex[i] )
 		i +=1
 		## Extend array if necessary
-		if i == len(x):
-			ex = np.append(ex,sim_eta(ex[-1],expmt[:exstp],exstp))
+		if i == len(x)-1:
+			ex = np.append(ex,sim_eta(ex[-1],expmt[:exstp],exstp,a,dt))
 			x = np.append(x,np.zeros(exstp))
-			ey_2 = sim_eta(ey[-1],expmt[:exstp],exstp)
+			ey_2 = sim_eta(ey[-1],expmt[:exstp],exstp,a,dt)
 			ey = np.append(ey,ey_2)
 			y = np.append(y,calculate_y(y[-1],ey_2,ymax,PBC))
 			j += 1
