@@ -107,7 +107,7 @@ def main():
 	## SETUP CALCULATIONS
 	
 	## Simulation time
-	tmax = 1e3*timefac
+	tmax = 5e2*timefac
 	
 	## Space: y, circle, x
 	ymax = 0.5
@@ -200,7 +200,7 @@ def boundary_sim(x0y0, exy0, a, X,D, xmin,ymax, R2,c, tmax,expmt, PBC, vb=False)
 	x0,y0 = x0y0
 	nstp = int(tmax/dt)
 	exstp = nstp/10
-	if vb: print me+"a = ",a,"; (xo,y0) =",np.around(x0y0,2)
+	if vb: print me+"a = ",a,"; (x0,y0) =",np.around(x0y0,2)
 	
 	## Simulate eta
 	if vb: t0 = time.time()
@@ -322,7 +322,7 @@ def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 			horizontalalignment='center', verticalalignment='center')
 	plt.annotate("Wall boundary",xy=(X,-0.5*ymax),xycoords="data",
 			horizontalalignment='center', verticalalignment='center')
-	plt.annotate("Periodic boundary",xy=(0.5*(xini-loff+xmax),0.95*ymax),xycoords="data",
+	plt.annotate("Periodic boundary",xy=(0.5*(xmin-loff+xmax),0.95*ymax),xycoords="data",
 			horizontalalignment='center', verticalalignment='center')
 	## Show bins
 	# plt.hlines(ybins,xini,xmax, colors='k', linestyles="-",linewidth=0.2,zorder=2.1)
