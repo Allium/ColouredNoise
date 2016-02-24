@@ -102,11 +102,11 @@ def main():
 	## Histogramming; xbins and ybins are bin edges.
 	Nxbin = 100
 	Nybin = 50
-	xbins = calculate_xbin(xinit,X,xmax,Nxbin)
+	xbins = calculate_xbin(xini,X,xmax,Nxbin)
 	ybins = calculate_ybin(-ymax,ymax,Nybin+1)
 		
 	## Initial conditions
-	X0Y0 = np.array([[xinit,y0] for y0 in ybins])
+	X0Y0 = np.array([[xini,y0] for y0 in ybins])
 	Nparticles = Nybin*Nrun
 	if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
 	
@@ -159,7 +159,7 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 	
 	## Simulate eta
 	if vb: t0 = time.time()
-	y = sim_eta(y0, expmt, nstp, a)
+	y = sim_eta(y0, expmt, nstp, a, dt)
 	if vb: print me+"Simulation of eta",round(time.time()-t0,1),"seconds for",nstp,"steps"
 	
 	## Variable of interest
@@ -172,7 +172,7 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 		## Extend array if necessary
 		if i == len(x):
 			x = np.append(x,np.zeros(exstp))
-			y = np.append(y,sim_eta(y[-2],expmt[:exstp],exstp))
+			y = np.append(y,sim_eta(y[-2],expmt[:exstp],exstp, a, dt))
 			j += 1
 	if j>0: print me+"trajectory array extended",j,"times."
 	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",i,"steps"
@@ -237,14 +237,14 @@ def lookup_xmax(X,a):
 	else:			xmax=1.001*X
 	return xmax
 	
-def calculate_xbin(xinit,X,xmax,Nxbin):
+def calculate_xbin(xini,X,xmax,Nxbin):
 	"""
 	Return histogram bins in x
 	"""
-	# xbins = np.linspace(xinit,xmax,Nxbin+1)
+	# xbins = np.linspace(xini,xmax,Nxbin+1)
 	## Extra bins for detail in wall region
 	NxbinL = Nxbin/2; NxbinR = Nxbin - NxbinL
-	xbins = np.unique(np.append(np.linspace(xinit,X,NxbinL+1),np.linspace(X,xmax,NxbinR+1)))
+	xbins = np.unique(np.append(np.linspace(xini,X,NxbinL+1),np.linspace(X,xmax,NxbinR+1)))
 	return xbins
 
 	
