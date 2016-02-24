@@ -9,9 +9,10 @@ from sys import argv
 
 from LE_Utils import save_data
 
-from LE_LightBoundarySim import lookup_xmax, calculate_xbin, calculate_ybin
-from LE_LightBoundarySim import check_path, create_readme
-from LE_LightBoundarySim import sim_eta
+from LE_LightBoundarySim import lookup_xmax, calculate_xmin, calculate_xini,\
+				calculate_xbin, calculate_ybin,\
+				check_path, create_readme,\
+				sim_eta
 
 
 def main():
@@ -98,7 +99,7 @@ def main():
 	PBC = opts.PBC
 	
 	if Delta!=0.0:
-		print me+"WARNING: Resetting Delta = 0.0"
+		print me+"WARNING: Resetting Delta = 0.0."
 		Delta = 0.0
 	
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
@@ -117,11 +118,11 @@ def main():
 	## Centre of circle for curved boundary
 	R2 = R*R
 	c = [X-np.sqrt(R2-ymax*ymax),0.0]
+	## Simulation limits
 	xmax = lookup_xmax(c[0]+R,a)
-	xmin = 0.8*X	## Simulation cutoff
-			
+	xmin = calculate_xmin(X,a)	## Simulation cutoff
 	## Injection x coordinate
-	xini = 0.9*X
+	xini = calculate_xini(X,a)
 		
 	## Histogramming; bin edges
 	Nxbin = 200

@@ -91,12 +91,12 @@ def main():
 	## Parameters
 	
 	## Simulation time
-	tmax = 1e4*timefac
+	tmax = 5e2*timefac
 	
 	## Space
 	xmax = lookup_xmax(X,a)
-	xmin = 0.8*X	## Simulation cutoff
-	xinit= 0.9*X	## Particle initial x ("line" IC)
+	xmin = calculate_xmin(X,a)	## Simulation cutoff
+	xini = calculate_xini(X,a)	## Particle initial x
 	ymax = 0.5
 	
 	## Histogramming; xbins and ybins are bin edges.
@@ -206,6 +206,18 @@ def histogram_weight(yi,yf,a):
 	
 ## ====================================================================
 
+def calculate_xmin(X,a):
+	"""
+	Want to have sufficient space in the bulk for forgetting.
+	"""
+	me = "LE_LightBoundarySim.calculate_xmin: "
+	if X>=a:
+		xmin = 0.8*(X-a)
+	else:
+		xmin = 0.0
+		print me+"Bulk approximation violated."
+	return xmin
+	
 def lookup_xmax(X,a):
 	"""
 	2015/12/08 NEW DEFINITIONS
@@ -235,6 +247,9 @@ def calculate_xbin(xinit,X,xmax,Nxbin):
 	xbins = np.unique(np.append(np.linspace(xinit,X,NxbinL+1),np.linspace(X,xmax,NxbinR+1)))
 	return xbins
 
+	
+def calculate_xini(X,a):
+	return 0.5*(calculate_xmin(X,a)+X)
 
 def calculate_ybin(yi,yf,N):
 	return np.linspace(yi,yf,N)
