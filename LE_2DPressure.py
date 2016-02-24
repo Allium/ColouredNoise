@@ -157,11 +157,12 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax = axs[1]
 	ax.plot(x,press,label="CN simulation")
 	## Bulk and wall regions
-	plt.axvspan(xini,X, color="b",alpha=0.1) 
-	plt.axvspan(X,c[0]+R, color="m",alpha=0.05)
-	plt.axvspan(R,xmax, color="r",alpha=0.05)
+	ax.axvspan(xini,X, color="b",alpha=0.1) 
+	ax.axvspan(X,c[0]+R, color="m",alpha=0.05)
+	ax.axvspan(R,xmax, color="r",alpha=0.05)
 	## Ideal gas result
-	ax.hlines(pressure_IG(ymax,R,c[0]),xini,xmax,linestyle="-",color="g",label="WN theory")
+	ax.hlines(pressure_IG(ymax,R,c[0]),xini,xmax,linestyle="-",color="g",label="WN theory") 
+	ax.hlines(0.5/ymax/(1.0+X),xini,xmax,linestyle="--",color="g",label="WN flat theory")
 	## Accoutrements
 	ax.set_xlim([xini,xmax])
 	ax.set_xlabel("$x$", fontsize=fs)
@@ -252,8 +253,9 @@ def pressure_plot_dir(dirpath, verbose):
 	plt.errorbar(Alpha, Press, yerr=0.05, fmt='bo', ecolor='grey', capthick=2,label="Simulated")
 	plt.plot(Alpha,PreIG,"r-",label="White noise")
 	#plt.axhline(PreIG[0], color="r",linestyle="-",label="White noise")
+	plt.xlim([Alpha[0],Alpha[-1]])
 	plt.ylim(bottom=0.0)
-	plt.xlabel("$\\alpha=f_0^2\\tau/T\\zeta$")
+	plt.xlabel("$\\alpha=\\sqrt{f_0^2\\tau/T\\zeta}$")
 	plt.ylabel("Pressure")
 	plt.grid()
 	plt.legend(loc="best")

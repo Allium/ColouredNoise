@@ -107,11 +107,13 @@ def main():
 	## SETUP CALCULATIONS
 	
 	## Simulation time
-	tmax = 1e3*timefac
+	tmax = 5e2*timefac
 	
 	## Space: y, circle, x
 	ymax = 0.5
-	assert (R>=ymax), me+"The wall must enclose the volume."	
+	assert (R>=ymax), me+"The wall must enclose the volume."
+	if (vb and ymax<=2*a):
+		print me+"Warning: the width of the space is comparable to or smaller than the memory length-scale."
 	## Centre of circle for curved boundary
 	R2 = R*R
 	c = [X-np.sqrt(R2-ymax*ymax),0.0]
