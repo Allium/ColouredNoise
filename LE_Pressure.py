@@ -9,6 +9,8 @@ import os, glob
 import optparse
 import warnings
 from time import time as sysT
+from itertools import chain
+
 from LE_LightBoundarySim import lookup_xmax, calculate_xbin
 from LE_Utils import FBW_soft as force_x
 from LE_Utils import save_data
@@ -36,8 +38,11 @@ def main():
 	OPTIONS
 	
 	FLAGS
-		-v --verbose
 		-s --show
+		-v --verbose
+		-a --plotall	Plot each individual file in directory and then do dirplot
+		-n --normIG		Divide pressure by corresponding IG result
+		-2 --twod		Plot in two dimensions (rather than overlaid 1D plots)
 	
 	EXAMPLE
 		python LE_Pressure.py dat_LE_stream\b=0.01\BHIS_y0.5bi50r5000b0.01X1seed65438.npy
@@ -46,11 +51,13 @@ def main():
 	
 	BUGS / TODO
 		-- 2D PDF doen't work with unequal bin width
+		-- D!=0 has been left behind
 	
 	HISTORY
 		12 November 2015	Started
 		15 November 2015	Pressure versus alpha functionality
 		30 November 2015	Added IG result
+		24 February 2016	Merged P_Xa: plotting multiple Xs in 1D or 2D
 	"""
 	me = "LE_Pressure.main: "
 	t0 = sysT()
@@ -63,6 +70,10 @@ def main():
 		dest="verbose", default=False, action="store_true")
 	parser.add_option('-a','--plotall',
 		dest="plotall", default=False, action="store_true")
+	parser.add_option('-2','--twod',
+		dest="twod", default=False, action="store_true")
+	parser.add_option('-n','--normIG',
+		dest="normIG", default=False, action="store_true")
 	parser.add_option('-h','--help',
                   dest="help",default=False,action="store_true",
 				  help="Print docstring.")		
@@ -71,6 +82,8 @@ def main():
 	showfig = opt.showfig
 	verbose = opt.verbose
 	plotall = opt.plotall
+	twod 	= opt.twod
+	normIG	= opt.normIG
 	
 	argv[1] = argv[1].replace("\\","/")
 	if plotall and os.path.isdir(argv[1]):
@@ -79,7 +92,7 @@ def main():
 	if os.path.isfile(argv[1]):
 		pressure_pdf_plot_file(argv[1],verbose)
 	elif os.path.isdir(argv[1]):
-		pressure_plot_dir(argv[1],verbose)
+		pressure_plot_dir(argv[1],verbose, twod, normIG)
 	else:
 		print me+"you gave me rubbish. Abort."
 		exit()
@@ -154,7 +167,7 @@ def pressure_pdf_plot_file(filepath, verbose):
 	ax.plot(xIG,HxIG,"r--",label="White noise")
 	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
-	ax.set_ylim(bottom=0.0,top=1.1)
+	ax.set_ylim(bottom=0.0,top=1.0/(X-xmin)+0.1)
 	plot_acco(ax,ylabel="PDF p(x)",legloc="best")
 	
 	## Pressure plot
@@ -163,12 +176,12 @@ def pressure_pdf_plot_file(filepath, verbose):
 	ax.axhline(y=press[-1],color="b",linestyle="--",linewidth=1)
 	ax.plot(xIG,pressIG,"r--",label="")
 	ax.axhline(y=1/(1+X-xmin),color="g",linestyle="--",linewidth=1)
-	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
+	# ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0)
 	
 	plot_acco(ax, ylabel="Pressure", legloc="")
 	plt.tight_layout()
-	fig.suptitle("$\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
+	fig.suptitle("$x_{w}=$"+str(X)+", $\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
 	plt.subplots_adjust(top=0.9)
 	
 	plt.savefig(plotfile)
@@ -180,11 +193,12 @@ def pressure_pdf_plot_file(filepath, verbose):
 def allfiles(dirpath, verbose):
 	for filepath in glob.glob(dirpath+"/*.npy"):
 		pressure_pdf_plot_file(filepath, verbose)
-		plt.clf()
+		plt.clf(); plt.close()
 	return
-
+	
 ##=============================================================================
-def pressure_plot_dir(dirpath, verbose):
+##=============================================================================
+def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 	"""
 	Plot pressure at "infinity" against alpha for all files in directory.
 	
@@ -199,53 +213,135 @@ def pressure_plot_dir(dirpath, verbose):
 	if verbose: print me+"found",numfiles,"files"
 	
 	## Outfile name
-	pressplot = dirpath+"/PressureAlpha.png"
+	pressplot = dirpath+"/PressureAlphaX.png"
+		
+	## ----------------------------------------------------
+
+	## Initialise
 	Alpha = np.zeros(numfiles)
+	X = np.zeros(numfiles)
 	Press = np.zeros(numfiles)
+	xmin, xmax = np.zeros([2,numfiles])
 	PressIG = np.zeros(numfiles)
 		
 	## Loop over files
 	for i,filepath in enumerate(histfiles):
 		
-		## Find alpha
-		Alpha[i], X, D, dt, ymax = filename_pars(filepath)
+		## Find pars; assume D and dt and ymax fixed
+		Alpha[i], X[i], D,dt,ymax = filename_pars(filepath)
 				
 		## Load data
 		H = np.load(filepath)
 		
 		## Space
-		xmin,xmax = 0.9*X,lookup_xmax(X,Alpha[i])
-		ymax = 0.5
-		x = calculate_xbin(xmin,X,xmax,H.shape[1]-1)
+		xmin[i],xmax[i] = 0.9*X[i],lookup_xmax(X[i],Alpha[i])
+		x = calculate_xbin(xmin[i],X[i],xmax[i],H.shape[1]-1)
 		y = np.linspace(-ymax,ymax,H.shape[0])
 		
-		## Marginalise to PDF in X
+		## Marginalise to PDF in x and normalise
 		Hx = np.trapz(H,x=y,axis=0)
 		Hx /= np.trapz(Hx,x=x,axis=0)
 
 		## Calculate pressure
-		force = force_x(x,1.0,X,D)
+		force = force_x(x,1.0,X[i],D)
 		Press[i] = np.trapz(-force*Hx, x)
 	
+	## ----------------------------------------------------
 	## Sort values
 	sortind = np.argsort(Alpha)
-	Alpha = Alpha[sortind]; Press = Press[sortind]; PressIG = PressIG[sortind]
+	Alpha = Alpha[sortind]
+	Press = Press[sortind]
+	X = X[sortind]
+	# xmin = xmin[sortind]
 	
-	## Calculate IG pressure on a finer grid -- assume X, dt same
-	tIG = sysT()
-	AlphaIG = Alpha
-	if D==0.0:
-		PressIG = 1.0/(1.0+X-xmin) * np.ones(len(AlphaIG))
-	else:
-		PressIG = [ideal_gas(a,x,X,D,dt)[3][-1]/dt for a in AlphaIG]
-	if verbose: print me+"white noise pressure calculation:",round(sysT()-tIG,2),"seconds."
+	if verbose: print me+"data collection",round(sysT()-t0,2),"seconds."
+	
+	
+	## ----------------------------------------------------
+	## Choose plot type
+	
+	## 1D
+	if twod is False or ((X==X[0]).all() and (Alpha!=Alpha[0]).any()):
+	
+		XX = np.unique(X)
+		Ncurv = XX.shape[0]
 		
-	## Plotting
-	plt.errorbar(Alpha, Press, yerr=0.05, fmt='bo', ecolor='grey', capthick=2,label="Simulated")
-	# plt.plot(AlphaIG,PressIG,"r-",label="White noise")
-	plt.axhline(PressIG[0], color="r",linestyle="-",label="White noise")
-	plt.ylim(bottom=0.0)
-	plot_acco(plt.gca(), xlabel="$\\alpha=f_0^2\\tau/T\\zeta$", ylabel="Pressure")
+		## Allocate to new arrays -- one for each X in the directory
+		AA = [[]]*Ncurv
+		PP = [[]]*Ncurv
+		for i in range(Ncurv):
+			idxs = (X==XX[i])
+			AA[i] = Alpha[idxs]
+			PP[i] = Press[idxs]
+				
+		labels = ["X = "+str(XX[i]) for i in range(Ncurv)]
+			
+		## Calculate IG on finer grid, assuming same X, xmin and dt
+		AAIG = AA
+		if D==0.0:
+			PPIG = 1.0/(1.0+XX-0.9*XX)
+		else:
+			## Needs update!
+			PPIG = [ideal_gas(a,x,X,D,dt)[3][-1]/dt for a in AAIG]
+
+		if normIG: PP = [PP[i]/PPIG[i] for i in range(Ncurv)]
+			
+		for i in range(Ncurv):
+			plt.plot(AA[i], PP[i], 'o-', label=labels[i])
+			# plt.errorbar(AA[i], PP[i], yerr=0.05, color=plt.gca().lines[-1].get_color(), fmt='.', ecolor='grey', capthick=2)
+			if not normIG: plt.axhline(PressIG[i], color=plt.gca().lines[-1].get_color(), linestyle="--")
+		plt.xlim(right=max(chain.from_iterable(AA)))
+		plt.ylim(bottom=0.0)
+		plot_acco(plt.gca(), xlabel="$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$", ylabel="Pressure")
+	
+	## 2D
+	else:
+		pressplot = pressplot[:-4]+"2D.png"
+		
+		## IMSHOW
+		## Normalise Press by WN value
+		Pim = [Press *(1.0+0.1*X) if normIG else Press]
+		## Restructure dara, assuming sorted by alpha value
+		Aim = np.unique(Alpha)
+		
+		## Create 2D array of pressures
+		## There must be a nicer way of doing this
+		Xim = np.unique(X)
+		Pim = -np.ones((Xim.shape[0],Aim.shape[0]))
+		for k in range(Press.shape[0]):
+			for i in range(Xim.shape[0]):
+				for j in range(Aim.shape[0]):
+					if Aim[j]==Alpha[k] and Xim[i]==X[k]:
+						Pim[i,j]=Press[k]
+		## Mask zeros
+		Pim[Pim<0.0]=np.nan
+						
+		## Make plot
+		plt.imshow(Pim[::-1],aspect='auto',extent=[Aim[0],Aim[-1],Xim[0],Xim[-1]],interpolation="none")
+		
+		# ## CONTOUR
+		# ## Messily normalise by WN result
+		# Pmesh = Press * (1.0+0.1*X)
+		# ## Create coordinate mesh
+		# Amesh,Xmesh = np.meshgrid(Alpha,X)
+		# Pmesh = np.empty(Xmesh.shape)
+		# ## Messily create corresponding pressure mesh
+		# mask = []
+		# for k in range(Press.shape[0]):
+			# for i in range(Xmesh.shape[0]):
+				# for j in range(Xmesh.shape[1]):
+					# if Amesh[i,j]==Alpha[k] and Xmesh[i,j]==X[k]:
+						# Pmesh[i,j]=Press[k]
+		# ## Plot using contours
+		# plt.contour(Amesh,Xmesh,Pmesh,5)
+				
+		## ACCOUTREMENTS
+		plt.title("Pressure normalised by WN result")
+		plot_acco(plt.gca(), xlabel="$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$", ylabel="Wall separation")
+		plt.grid(None)
+		plt.colorbar()
+	
+	## --------------------------------------------------------
 	
 	plt.savefig(pressplot)
 	if verbose: print me+"plot saved to",pressplot
@@ -313,15 +409,6 @@ def filename_pars(filename):
 		ymax = 0.5
 	#
 	return a, X, D, dt, ymax
-	
-##=============================================================================
-def av_pd(p,x,x1,x2,fac=0.02):
-	"""
-	Average the probability density between two points
-	"""
-	ind1 = np.abs(x-x1).argmin()
-	ind2 = np.abs(x-x2).argmin()
-	return p[ind1:ind2].mean()
 
 ##=============================================================================
 def plot_acco(ax, **kwargs):
