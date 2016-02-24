@@ -12,7 +12,8 @@ import warnings
 from time import time as sysT
 
 from LE_Utils import save_data, filename_pars
-from LE_LightBoundarySim import lookup_xmax, calculate_xbin, calculate_ybin
+from LE_LightBoundarySim import lookup_xmax, calculate_xmin, calculate_xini,\
+				calculate_xbin, calculate_ybin
 from LE_2DLBS import force_2D
 
 warnings.filterwarnings("ignore",
@@ -115,12 +116,12 @@ def pressure_pdf_plot_file(histfile, verbose):
 	## Centre of circle for curved boundary
 	c = [X-np.sqrt(R*R-ymax*ymax),0.0]
 	## Space (for axes)
-	xini, xmax = 0.9*X, lookup_xmax(c[0]+R,alpha)
+	xini = calculate_xini(X,alpha)
+	xmax = lookup_xmax(c[0]+R,alpha)
 	ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
 	y = 0.5*(ybins[1:]+ybins[:-1])
 	xbins = calculate_xbin(xini,X,xmax,H.shape[1])
 	x = 0.5*(xbins[1:]+xbins[:-1])
-		
 	
 	## Set up plot
 	fig,axs = plt.subplots(1,2)
@@ -223,7 +224,8 @@ def pressure_plot_dir(dirpath, verbose):
 		## Centre of circle for curved boundary
 		c = [X-np.sqrt(R*R-ymax*ymax),0.0]
 		## Space (for axes)
-		xini, xmax = 0.9*X, lookup_xmax(c[0]+R,Alpha[i])
+		xini = calculate_xini(X[i],Alpha[i])
+		xmax = lookup_xmax(c[0]+R,Alpha[i])
 		ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
 		y = 0.5*(ybins[1:]+ybins[:-1])
 		xbins = calculate_xbin(xini,X,xmax,H.shape[1])

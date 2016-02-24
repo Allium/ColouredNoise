@@ -11,9 +11,9 @@ import warnings
 from time import time as sysT
 from itertools import chain
 
-from LE_LightBoundarySim import lookup_xmax, calculate_xbin
+from LE_LightBoundarySim import lookup_xmax,calculate_xmin,calculate_xini,calculate_xbin
 from LE_Utils import FBW_soft as force_x
-from LE_Utils import save_data
+from LE_Utils import save_data, filename_pars
 
 warnings.filterwarnings("ignore",
 	"No labelled objects found. Use label='...' kwarg on individual plots.",
@@ -103,7 +103,7 @@ def main():
 	return
 	
 ##=============================================================================
-def pressure_pdf_plot_file(filepath, verbose):
+def pressure_pdf_plot_file(histfile, verbose):
 	"""
 	Make plot for a single file
 	"""
@@ -111,18 +111,21 @@ def pressure_pdf_plot_file(filepath, verbose):
 	t0 = sysT()
 	
 	## Filenames
-	plotfile = os.path.splitext(filepath)[0]+"_P.png"
-	plotfilePDF = os.path.splitext(filepath)[0]+"_PDF.png"
-	
-	## Get alpha and X from filename
-	alpha, X, D, dt, ymax = filename_pars(filepath)
+	plotfile = os.path.splitext(histfile)[0]+"_P.png"
+	plotfilePDF = os.path.splitext(histfile)[0]+"_PDF.png"
+		
+	## Get pars from filename
+	pars = filename_pars(histfile)
+	[alpha,X,D,dt,ymax,R] = [pars[key] for key in ["a","X","D","dt","ymax","R"]]
+	assert (R is None), me+"You are using the wrong program. R should not enter."
 	if verbose: print me+"alpha =",alpha,"and X =",X,"and D =",D
 	
 	## Load data
-	H = np.load(filepath)
+	H = np.load(histfile)
 	
 	## Space -- for axes
-	xmin, xmax = 0.9*X, lookup_xmax(X,alpha)
+	xmin = calculate_xmin(X,alpha)
+	xmax = lookup_xmax(X,alpha)
 	ybins = np.linspace(-ymax,ymax,H.shape[0]+1)
 	y = 0.5*(ybins[1:]+ybins[:-1])
 	xbins = calculate_xbin(xmin,X,xmax,H.shape[1])
@@ -168,7 +171,9 @@ def pressure_pdf_plot_file(filepath, verbose):
 	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0,top=1.0/(X-xmin)+0.1)
-	plot_acco(ax,ylabel="PDF p(x)",legloc="best")
+	ax.set_ylabel("PDF p(x)")
+	ax.grid()
+	ax.legend(loc="best")
 	
 	## Pressure plot
 	ax = axs[1]
@@ -178,8 +183,9 @@ def pressure_pdf_plot_file(filepath, verbose):
 	ax.axhline(y=1/(1+X-xmin),color="g",linestyle="--",linewidth=1)
 	# ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0)
+	ax.set_ylabel("Pressure")
+	ax.grid()
 	
-	plot_acco(ax, ylabel="Pressure", legloc="")
 	plt.tight_layout()
 	fig.suptitle("$x_{w}=$"+str(X)+", $\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
 	plt.subplots_adjust(top=0.9)
@@ -225,16 +231,19 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 	PressIG = np.zeros(numfiles)
 		
 	## Loop over files
-	for i,filepath in enumerate(histfiles):
+	for i,histfile in enumerate(histfiles):
 		
-		## Find pars; assume D and dt and ymax fixed
-		Alpha[i], X[i], D,dt,ymax = filename_pars(filepath)
+		## Get pars from filename
+		pars = filename_pars(histfile)
+		[Alpha[i],X[i],D,dt,ymax,R] = [pars[key] for key in ["a","X","D","dt","ymax","R"]]
+		assert (R is None), me+"You are using the wrong program. R should not enter."
 				
 		## Load data
-		H = np.load(filepath)
+		H = np.load(histfile)
 		
 		## Space
-		xmin[i],xmax[i] = 0.9*X[i],lookup_xmax(X[i],Alpha[i])
+		xmin[i] = calculate_xmin(X[i],Alpha[i])
+		xmax[i] = lookup_xmax(X[i],Alpha[i])
 		x = calculate_xbin(xmin[i],X[i],xmax[i],H.shape[1]-1)
 		y = np.linspace(-ymax,ymax,H.shape[0])
 		
@@ -292,7 +301,9 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 			if not normIG: plt.axhline(PressIG[i], color=plt.gca().lines[-1].get_color(), linestyle="--")
 		plt.xlim(right=max(chain.from_iterable(AA)))
 		plt.ylim(bottom=0.0)
-		plot_acco(plt.gca(), xlabel="$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$", ylabel="Pressure")
+		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$")
+		plt.ylabel("Pressure")
+		plt.grid()
 	
 	## 2D
 	else:
@@ -337,7 +348,8 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 				
 		## ACCOUTREMENTS
 		plt.title("Pressure normalised by WN result")
-		plot_acco(plt.gca(), xlabel="$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$", ylabel="Wall separation")
+		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$")
+		plt.ylabel("Wall separation")
 		plt.grid(None)
 		plt.colorbar()
 	
@@ -377,38 +389,6 @@ def ideal_gas(x, X, D, dt, up=6):
 	pressIG = pressure_x(forceIG,HxIG,xIG)
 	return xIG, forceIG, HxIG, pressIG
 
-##=============================================================================
-def filename_pars(filename):
-	"""
-	Scrape filename for parameters
-	"""
-	#
-	start = filename.find("_a") + 2
-	a = float(filename[start:filename.find("_",start)])
-	#
-	start = filename.find("_X") + 2
-	X = float(filename[start:filename.find("_",start)])
-	#
-	try:
-		start = filename.find("_D") + 2
-		D = float(filename[start:filename.find("_",start)])
-	except ValueError:
-		D = 0.0
-	#
-	try:
-		start = filename.find("_dt") + 3
-		dt = float(filename[start:filename.find(".npy",start)])
-	except ValueError:
-		start = filename.find("_dt",start) + 3
-		dt = float(filename[start:filename.find(".npy",start)])
-	#
-	try:
-		start = filename.find("_ym") + 2
-		ymax = float(filename[start:filename.find("_",start)])
-	except ValueError:
-		ymax = 0.5
-	#
-	return a, X, D, dt, ymax
 
 ##=============================================================================
 def plot_acco(ax, **kwargs):
