@@ -144,7 +144,7 @@ def main():
 	## Filename; directory and file existence; readme
 	BCstr = "PBC" if PBC else "IBC"
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_2D_"+BCstr+"_X"+str(X)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
+			"_2D_"+BCstr+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
 	hisfile = "BHIS_2D_"+BCstr+"_a"+str(a)+"_X"+str(X)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
