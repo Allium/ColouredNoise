@@ -62,6 +62,8 @@ def main():
 		dest="showfig", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
 		dest="verbose", default=False, action="store_true")
+	parser.add_option('--rawp',
+		dest="rawp", default=False, action="store_true")
 	parser.add_option('-a','--plotall',
 		dest="plotall", default=False, action="store_true")
 	parser.add_option('-h','--help',
@@ -71,6 +73,7 @@ def main():
 	if opt.help: print main.__doc__; return
 	showfig = opt.showfig
 	verbose = opt.verbose
+	rawp	= opt.rawp
 	plotall = opt.plotall
 	
 	argv[1] = argv[1].replace("\\","/")
@@ -205,7 +208,9 @@ def pressure_plot_dir(dirpath, verbose):
 	if verbose: print me+"found",numfiles,"files"
 	
 	## Initialise
-	Alpha = np.zeros(numfiles)
+	Alpha = np.zeros(numfiles) 
+	X = np.zeros(numfiles)
+	R = np.zeros(numfiles)
 	Press = np.zeros(numfiles)
 		
 	## Loop over files
@@ -213,71 +218,118 @@ def pressure_plot_dir(dirpath, verbose):
 	
 		## Get pars from filename
 		pars = filename_pars(histfile)
-		[Alpha[i],X,D,dt,ymax,R] = [pars[key] for key in ["a","X","D","dt","ymax","R"]]
-		assert (R is not None), me+"You are using the wrong program. R should be defined."
+		[Alpha[i],X[i],D,dt,ymax,R[i]] = [pars[key] for key in ["a","X","D","dt","ymax","R"]]
+		assert (R[i] is not None), me+"You are using the wrong program. R should be defined."
 		assert (D == 0.0), me+"Cannot yet handle soft potential. D should be 0.0."
-	
+
 		## Load data and normalise
 		H = np.load(histfile)
 		H /= H.sum()
 		
 		## Centre of circle for curved boundary
-		c = [X-np.sqrt(R*R-ymax*ymax),0.0]
+		c = circle_centre(X[i],R[i],ymax)
 		## Space (for axes)
-		xini = calculate_xini(X,Alpha[i])
-		xmax = lookup_xmax(c[0]+R,Alpha[i])
+		xini = calculate_xini(X[i],Alpha[i])
+		xmax = lookup_xmax(c[0]+R[i],Alpha[i])
 		ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
 		y = 0.5*(ybins[1:]+ybins[:-1])
-		xbins = calculate_xbin(xini,X,xmax,H.shape[1])
+		xbins = calculate_xbin(xini,X[i],xmax,H.shape[1])
 		x = 0.5*(xbins[1:]+xbins[:-1])	
 	
 		## Calculate force array (2D)
 		Xm,Ym = np.meshgrid(x,y)
-		force = -1.0 * ( (Xm-c[0])**2 + (Ym-c[1])**2 > R*R ) * ( Xm-c[0]>0.0 )
+		force = -1.0 * ( (Xm-c[0])**2 + (Ym-c[1])**2 > R[i]*R[i] ) * ( Xm-c[0]>0.0 )
 		## Pressure array (2d) -- sum rather than trapz
 		Press[i] = -1.0*(force*H).sum(axis=0).cumsum(axis=0)[-1]
 	
+	## ------------------------------------------------	
+	## Create 3D pressure array and 1D a,X,R coordinate arrays
+
+	## Ordered independent variable arrays
+	AA = np.unique(Alpha)
+	XX = np.unique(X)
+	RR = np.unique(R)
+	
+	## 3D pressure array: [X,R,A]
+	PP = np.zeros([XX.size,RR.size,AA.size])
+	PPWN = np.zeros(PP.shape)
+	for i in range(XX.size):
+		Xidx = (X==XX[i])
+		for j in range(RR.size):
+			Ridx = (R==RR[j])
+			for k in range(AA.size):
+				try: PP[i,j,k] = Press[Xidx*Ridx*(Alpha==AA[k])]
+				except ValueError: PP[i,j,k] = -1
+				PPWN[i,j,k] = pressure_IG(XX[i],RR[j],ymax)
+	
+	## Normalise by WN result
+	if 1: PP /= PPWN
+	
+	## ------------------------------------------------
+	## 1D plots
+	
+	## Which plots to make (abcissa,multiline,subplot,dimension)
+	[ARX1,AXR1,XAR1,XRA1,RXA1,RAX1] = [1,0,0,0,0,0]
+	
+	if ARX1:
+		fig, axs = plt.subplots(1,2,sharey=True)
+		for i in range(RR.size):
+			axs[0].plot(AA,PP[0,i,:],  "o-", label="$R = "+str(RR[i])+"$") 
+			axs[1].plot(AA,PP[-1,i,:], "o-", label="$R = "+str(RR[i])+"$")
+		for j in range(len(axs)):
+			axs[j].set_xlim((AA[0],AA[-1]))
+			axs[j].set_ylim((0.0,np.array([PP[0,:,:],PP[-1,:,:]]).max()))
+			axs[j].set_xlabel("$\\alpha$")
+			axs[j].set_title("$X = "+str(XX[0-j])+"$")
+			axs[j].grid()
+		axs[0].set_ylabel("Pressure")
+		axs[1].legend(loc="best")
+		plt.tight_layout()
+		pressplot = dirpath+"/PARX1_dt"+str(dt)+".png"
+		plt.savefig(pressplot)
+		if verbose: print me+"plot saved to",pressplot
 		
-	## Sort values
-	sortind = np.argsort(Alpha)
-	Alpha = Alpha[sortind]; Press = Press[sortind]
+
+	## ------------------------------------------------
+	## 2D plots
 	
-	## Calculate IG pressure on a finer grid -- assume X, dt same
-	tIG = sysT()
-	PreIG = pressure_IG(ymax,R,c[0])
-	try:
-		assert Press.shape == PreIG.shape
-	except (AssertionError or AttributeError):
-		PreIG *= np.ones(Press.shape[0])		
-	if verbose: print me+"white noise pressure calculation:",round(sysT()-tIG,2),"seconds."
+	## Which plots to make (abcissa,ordinate,subplot,dimension)
+	[ARX2,AXR2,XAR2,XRA2,RXA2,RAX2] = [0,0,0,0,0,0]
+	
+	if ARX2:
+		fig, axs = plt.subplots(1,2,sharey=True)
+		for i in range(RR.size):
+			axs[0].contourf(AA,RR,PP[0,:,:],  vmin=0.0) 
+			axs[1].contourf(AA,RR,PP[-1,:,:], vmin=0.0)
+		for j in range(len(axs)):
+			axs[j].set_xlim((AA[0],AA[-1]))
+			axs[j].set_ylim((RR[0],RR[-1]))
+			axs[j].set_xlabel("$\\alpha$")
+			axs[j].set_title("$X = "+str(X[0-j])+"$")
+		axs[0].set_ylabel("$R$")
+		plt.tight_layout()
+		pressplot = dirpath+"/PARX2_dt"+str(dt)+".png"
+		plt.savefig(pressplot)
+		if verbose: print me+"plot saved to",pressplot
+	
+	
+	## ------------------------------------------------	
 		
-	## Plotting
-	plt.errorbar(Alpha, Press, yerr=0.05, fmt='bo', ecolor='grey', capthick=2,label="Simulated")
-	plt.plot(Alpha,PreIG,"r-",label="White noise")
-	#plt.axhline(PreIG[0], color="r",linestyle="-",label="White noise")
-	plt.xlim([Alpha[0],Alpha[-1]])
-	plt.ylim(bottom=0.0)
-	plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$")
-	plt.ylabel("Pressure")
-	plt.grid()
-	plt.legend(loc="best")
-	
-	## Outfile
-	pressplot = dirpath+"/ALPH_2D_X"+str(X)+"_R"+str(R)+"_dt"+str(dt)+".png"
-	plt.savefig(pressplot)
-	if verbose: print me+"plot saved to",pressplot
-	
-	return pressplot
+	return
 
 
 ##=============================================================================
+def circle_centre(X,R,ymax):
+	return [X-np.sqrt(R*R-ymax*ymax),0.0]
+
 	
 ##=============================================================================
-def pressure_IG(ym,R,cx):
+def pressure_IG(X,R,ym):
 	"""
 	Theoretical pressure of a white noise gas.
 	See notes 22/02/2016
 	"""
+	cx = circle_centre(X,R,ym)[0]
 	return 1.0/(2*ym*(1+cx)+ym*np.sqrt(R*R-ym*ym)+R*R*np.arcsin(ym/R))
 
 
