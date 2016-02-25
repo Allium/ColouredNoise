@@ -111,8 +111,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	t0 = sysT()
 	
 	## Filenames
-	plotfile = os.path.splitext(histfile)[0]+"_P.png"
-	plotfilePDF = os.path.splitext(histfile)[0]+"_PDF.png"
+	plotfile = os.path.dirname(histfile)+"/PRES"+os.path.basename(histfile)[4:-4]+".png"
 		
 	## Get pars from filename
 	pars = filename_pars(histfile)
@@ -133,6 +132,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	
 	## 2D PDF plot. Cannot do unequal bin widths.
 	if 0:
+		plotfilePDF = os.path.splitext(histfile)[0]+"_PDF.png"
 		plt.imshow(H, extent=[xmin,xmax,-ymax,ymax], aspect="auto")
 		plt.plot([X,X],[-ymax,ymax],"m:",linewidth=2)
 		plt.xlim(xmin,xmax); plt.ylim(-ymax,ymax)
@@ -171,6 +171,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0,top=1.0/(X-xmin)+0.1)
+	ax.set_xlabel("$x$")
 	ax.set_ylabel("PDF p(x)")
 	ax.grid()
 	ax.legend(loc="best")
@@ -183,6 +184,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.axhline(y=1/(1+X-xmin),color="g",linestyle="--",linewidth=1)
 	# ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0)
+	ax.set_xlabel("$x$")
 	ax.set_ylabel("Pressure")
 	ax.grid()
 	
@@ -217,9 +219,6 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 	histfiles = np.sort(glob.glob(dirpath+"/*.npy"))
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
-	
-	## Outfile name
-	pressplot = dirpath+"/PressureAlphaX.png"
 		
 	## ----------------------------------------------------
 
@@ -265,6 +264,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 	
 	if verbose: print me+"data collection",round(sysT()-t0,2),"seconds."
 	
+	pressplot = dirpath+"/ALPH_X"+"_dt"+str(dt)+".png"
 	
 	## ----------------------------------------------------
 	## Choose plot type
@@ -304,10 +304,11 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$")
 		plt.ylabel("Pressure")
 		plt.grid()
+		plt.legend(loc="best")
 	
 	## 2D
 	else:
-		pressplot = pressplot[:-4]+"2D.png"
+		pressplot = pressplot[:-4]+"_2.png"
 		
 		## IMSHOW
 		## Normalise Press by WN value
@@ -328,7 +329,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		Pim[Pim<0.0]=np.nan
 						
 		## Make plot
-		plt.imshow(Pim[::-1],aspect='auto',extent=[Aim[0],Aim[-1],Xim[0],Xim[-1]],interpolation="none")
+		im = plt.imshow(Pim[::-1],aspect='auto',extent=[Aim[0],Aim[-1],Xim[0],Xim[-1]],interpolation="none")
 		
 		# ## CONTOUR
 		# ## Messily normalise by WN result
@@ -351,7 +352,9 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$")
 		plt.ylabel("Wall separation")
 		plt.grid(None)
-		plt.colorbar()
+		
+		cbar = plt.colorbar(im, ax=plt.gca(), ticks=[Pim.min(),Pim.mean(),Pim.max()], orientation="vertical")
+		cbar.ax.set_yticklabels(["Low", "Mean", "High"])
 	
 	## --------------------------------------------------------
 	
@@ -389,29 +392,6 @@ def ideal_gas(x, X, D, dt, up=6):
 	pressIG = pressure_x(forceIG,HxIG,xIG)
 	return xIG, forceIG, HxIG, pressIG
 
-
-##=============================================================================
-def plot_acco(ax, **kwargs):
-	"""
-	Plot accoutrements.
-	kwargs: title, subtitle, xlabel, ylabel, plotfile
-	"""
-	me = "HopfieldPlotter.plot_acco: "
-	try: ax.set_title(kwargs["title"])
-	except: pass
-	try: ax.suptitle(kawrgs["subtitle"])
-	except: pass
-	try: ax.set_xlabel(kwargs["xlabel"], fontsize=14)
-	except: ax.set_xlabel("$x$ position", fontsize=14)
-	try: ax.set_ylabel(kwargs["ylabel"], fontsize=14)
-	except: pass
-	ax.grid(True)
-	try:
-		if kwargs["legloc"]!="":	ax.legend(loc=kwargs["legloc"], fontsize=11)
-		else: pass
-	except KeyError: ax.legend(loc="best", fontsize=11)
-	return
-	
 ##=============================================================================
 ##=============================================================================
 if __name__=="__main__":

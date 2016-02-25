@@ -111,7 +111,7 @@ def main():
 	if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
 	
 	## Filename; directory and file existence; readme
-	hisfile = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"D"+str(Delta)+"r"+str(Nrun)+"_dt"+str(dt)+\
+	hisfile = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)+\
 			"/BHIS_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
 	check_path(hisfile, vb)
 	create_readme(hisfile, vb)
@@ -235,7 +235,7 @@ def lookup_xmax(X,a):
 	elif a<=0.8:	xmax=1.002*X
 	elif a<=0.9:	xmax=1.002*X
 	else:			xmax=1.001*X
-	return xmax
+	return max(xmax,X+0.1)
 	
 def calculate_xbin(xini,X,xmax,Nxbin):
 	"""

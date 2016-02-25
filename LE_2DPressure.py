@@ -131,7 +131,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax = axs[0]
 	Xm,Ym = np.meshgrid(x,y)
 	CS = ax.contourf(Xm,Ym[::-1],H,10)
-	
+	## Colourbar
 	divider = make_axes_locatable(ax)
 	cax = divider.append_axes("top", size="5%", pad=0.4)
 	cbar = fig.colorbar(CS, cax=cax, ax=ax, orientation="horizontal",
@@ -224,7 +224,7 @@ def pressure_plot_dir(dirpath, verbose):
 		## Centre of circle for curved boundary
 		c = [X-np.sqrt(R*R-ymax*ymax),0.0]
 		## Space (for axes)
-		xini = calculate_xini(X[i],Alpha[i])
+		xini = calculate_xini(X,Alpha[i])
 		xmax = lookup_xmax(c[0]+R,Alpha[i])
 		ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
 		y = 0.5*(ybins[1:]+ybins[:-1])
@@ -257,7 +257,7 @@ def pressure_plot_dir(dirpath, verbose):
 	#plt.axhline(PreIG[0], color="r",linestyle="-",label="White noise")
 	plt.xlim([Alpha[0],Alpha[-1]])
 	plt.ylim(bottom=0.0)
-	plt.xlabel("$\\alpha=\\sqrt{f_0^2\\tau/T\\zeta}$")
+	plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$")
 	plt.ylabel("Pressure")
 	plt.grid()
 	plt.legend(loc="best")
