@@ -23,6 +23,10 @@ warnings.filterwarnings("ignore",
 	"invalid value encountered in sign",
 	RuntimeWarning)
 
+## Global variables
+from LE_Utils import plot_fontsizes
+fsa,fsl,fst = plot_fontsizes()
+
 def main():
 	"""
 	NAME
@@ -106,7 +110,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	t0 = sysT()
 	
 	## Filenames
-	plotfile = os.path.dirname(histfile)+"/PRES"+os.path.basename(histfile)[4:-4]+".png"
+	plotfile = os.path.dirname(histfile)+"/PDFP"+os.path.basename(histfile)[4:-4]+".png"
 	
 	## Get pars from filename
 	pars = filename_pars(histfile)
@@ -131,7 +135,6 @@ def pressure_pdf_plot_file(histfile, verbose):
 	
 	## Set up plot
 	fig,axs = plt.subplots(1,2)
-	fs = 14
 		
 	## pdf plot
 	ax = axs[0]
@@ -151,8 +154,8 @@ def pressure_pdf_plot_file(histfile, verbose):
 	## Accoutrements
 	ax.set_xlim([xini,xmax])
 	ax.set_ylim([0.0,ymax])
-	ax.set_xlabel("$x$", fontsize=fs)
-	ax.set_ylabel("$y$", fontsize=fs)
+	ax.set_xlabel("$x$", fontsize=fsa)
+	ax.set_ylabel("$y$", fontsize=fsa)
 		
 
 	## Calculate force array (2d)
@@ -172,14 +175,14 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.hlines(0.5/ymax/(1.0+X),xini,xmax,linestyle="--",color="g",label="WN flat theory")
 	## Accoutrements
 	ax.set_xlim([xini,xmax])
-	ax.set_xlabel("$x$", fontsize=fs)
-	ax.set_ylabel("Pressure, $P$", fontsize=fs)
+	ax.set_xlabel("$x$", fontsize=fsa)
+	ax.set_ylabel("Pressure", fontsize=fsa)
 	ax.grid()
-	ax.legend(loc="best",fontsize=11)
+	ax.legend(loc="best",fontsize=fsl)
 	
 	
 	## Tidy figure
-	fig.suptitle(os.path.basename(plotfile))
+	fig.suptitle(os.path.basename(plotfile),fontsize=fst)
 	fig.tight_layout()
 	plt.subplots_adjust(top=0.9)	
 		
@@ -287,11 +290,11 @@ def pressure_plot_dir(dirpath, verbose):
 		for j in range(len(axs)):
 			axs[j].set_xlim((AA[0],AA[-1]))
 			axs[j].set_ylim((0.0,np.array([PP[0,:,:],PP[-1,:,:]]).max()))
-			axs[j].set_xlabel("$\\alpha$")
-			axs[j].set_title("$X = "+str(XX[0-j])+"$")
+			axs[j].set_xlabel("$\\alpha$",fontsize=fsa)
+			axs[j].set_title("$X = "+str(XX[0-j])+"$",fontsize=fsa)
 			axs[j].grid()
-		axs[0].set_ylabel("Pressure")
-		axs[1].legend(loc="best")
+		axs[0].set_ylabel("Pressure",fontsize=fsa)
+		axs[1].legend(loc="best",fontsize=fsl)
 		plt.tight_layout()
 		pressplot = dirpath+"/PARX1_dt"+str(dt)+".png"
 		plt.savefig(pressplot)
@@ -312,9 +315,9 @@ def pressure_plot_dir(dirpath, verbose):
 		for j in range(len(axs)):
 			axs[j].set_xlim((AA[0],AA[-1]))
 			axs[j].set_ylim((RR[0],RR[-1]))
-			axs[j].set_xlabel("$\\alpha$")
-			axs[j].set_title("$X = "+str(X[0-j])+"$")
-		axs[0].set_ylabel("$R$")
+			axs[j].set_xlabel("$\\alpha$",fontsize=fsa)
+			axs[j].set_title("$X = "+str(X[0-j])+"$",fontsize=fsa)
+		axs[0].set_ylabel("$R$",fontsize=fsa)
 		plt.tight_layout()
 		pressplot = dirpath+"/PARX2_dt"+str(dt)+".png"
 		plt.savefig(pressplot)

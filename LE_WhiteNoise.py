@@ -5,6 +5,9 @@ from time import time
 import os
 from sys import argv
 
+from LE_Utils import plot_fontsizes
+fsa,fsl,fst = plot_fontsizes()
+
 def main():
 	"""
 	Presumably this runs a white noise simulation in WN variables.
@@ -13,17 +16,17 @@ def main():
 	t0 = time()
 
 	tmax = 100.0
-	dt = 0.01
+	dt = 0.05
 	Nstep = int(tmax/dt)
 	Nrun = int(3e6*dt)
 	w = 10.0		## Wall position
 	widx = 100		## Wall index / half-length of xbins
 
 	xmin = 0.9*w
-	xmax = w+1.0
+	xmax = w+4.0
 	x0 = 0.95*w		## Injection coordinate
 
-	outfile = "Pressure/WhiteNoise/WhiteNoise_r"+str(int(Nrun))+"_dt"+str(dt)
+	outfile = "Pressure/160229_WhiteNoise/WhiteNoise_r"+str(int(Nrun))+"_dt"+str(dt)
 	assert os.path.isdir(os.path.dirname(outfile))
 
 	xbins = np.concatenate([np.linspace(xmin,w,widx+1),np.linspace(w,xmax,widx+1)[1:]])
@@ -85,28 +88,33 @@ def pdf_plot(X,Y,xbins,ybins,outfile):
 	
 	xmin = xbins[0]
 	xmax = xbins[-1]
-	widx = xbins.size/2-1
+	widx = xbins.size/2
 	w = xbins[widx]
+	x0idx = widx/2
 	
 	fig, axs = plt.subplots(2,sharex=True)
 
-	h2d,xe,ye,im = axs[0].hist2d(X,Y,[xbins,ybins],normed=True)
+	h2d,xe,ye,im = axs[0].hist2d(X,Y,[xbins,ybins],cmax=0.8, normed=True)
 	h1d,xe,pa = axs[1].hist(X,xbins,normed=True,stacked=True)
 	
 	print "Histogram",round(time()-t1,1),"seconds."
 	t1 = time()
 	
+	axs[0].axvline(w,color="k",linestyle="-",linewidth="3")
+	axs[0].axvline(xbins[x0idx+1],color="k",linestyle="-",linewidth="3")
 	axs[0].set_xlim(left=xmin,right=xmax)
-	axs[0].set_ylabel("$\\eta$")
-	axs[0].axvline(w,color="k",linestyle="-",linewidth="2")
-
-	axs[1].plot(xbins[:widx],0.5*np.ones(widx),"r-")
-	axs[1].plot(xbins[widx:],0.5*np.exp(w-xbins[widx:]),"r-")
-	axs[1].axvline(w,color="k",linestyle="-",linewidth="2")
+	axs[0].set_ylabel("$\\eta$",fontsize=fsa)
+	
+	h = 1.0/(0.75+1-np.exp(w-xmax))
+	axs[1].plot(xbins[:x0idx],h*np.linspace(0.0,1.0,x0idx),"r-")
+	axs[1].plot(xbins[x0idx:widx],h*np.ones(widx-x0idx),"r-")
+	axs[1].plot(xbins[widx:],h*np.exp(w-xbins[widx:]),"r-")
+	axs[1].axvline(w,color="k",linestyle="-",linewidth="3")
+	axs[1].axvline(xbins[x0idx],color="k",linestyle="-",linewidth="3")
 	axs[1].set_xlim(left=xmin,right=xmax)
-	axs[1].set_ylim(bottom=0.0,top=1.1)
-	axs[1].set_xlabel("$x$")
-	axs[1].set_ylabel("$\\rho$")
+	axs[1].set_ylim(bottom=0.0,top=1.0)
+	axs[1].set_xlabel("$x$",fontsize=fsa)
+	axs[1].set_ylabel("$\\rho$",fontsize=fsa)
 	axs[1].grid()
 	
 	print "Plot",round(time()-t1,1),"seconds."

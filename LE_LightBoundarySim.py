@@ -217,10 +217,9 @@ def calculate_xmin(X,a):
 	Want to have sufficient space in the bulk for forgetting.
 	"""
 	me = "LE_LightBoundarySim.calculate_xmin: "
-	if X>=a:
-		xmin = 0.8*(X-a)
-	else:
-		xmin = 0.0
+	xmin = 0.8*(X-a)
+	if (xmin<0.0).any():
+		xmin[xmin<0.0]=0.0
 		print me+"Bulk approximation violated."
 	return xmin
 	

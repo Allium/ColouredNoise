@@ -19,6 +19,11 @@ warnings.filterwarnings("ignore",
 	"No labelled objects found. Use label='...' kwarg on individual plots.",
 	UserWarning)
 
+## Global variables
+from LE_Utils import plot_fontsizes
+fsa,fsl,fst = plot_fontsizes()
+
+
 def main():
 	"""
 	NAME
@@ -72,8 +77,8 @@ def main():
 		dest="plotall", default=False, action="store_true")
 	parser.add_option('-2','--twod',
 		dest="twod", default=False, action="store_true")
-	parser.add_option('-n','--normIG',
-		dest="normIG", default=False, action="store_true")
+	parser.add_option('--rawP',
+		dest="rawP", default=False, action="store_true")
 	parser.add_option('-h','--help',
                   dest="help",default=False,action="store_true",
 				  help="Print docstring.")		
@@ -83,7 +88,7 @@ def main():
 	verbose = opt.verbose
 	plotall = opt.plotall
 	twod 	= opt.twod
-	normIG	= opt.normIG
+	normIG	= not opt.rawP
 	
 	argv[1] = argv[1].replace("\\","/")
 	if plotall and os.path.isdir(argv[1]):
@@ -111,7 +116,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	t0 = sysT()
 	
 	## Filenames
-	plotfile = os.path.dirname(histfile)+"/PRES"+os.path.basename(histfile)[4:-4]+".png"
+	plotfile = os.path.dirname(histfile)+"/PDFP"+os.path.basename(histfile)[4:-4]+".png"
 		
 	## Get pars from filename
 	pars = filename_pars(histfile)
@@ -171,10 +176,10 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0,top=1.0/(X-xmin)+0.1)
-	ax.set_xlabel("$x$")
-	ax.set_ylabel("PDF p(x)")
+	ax.set_xlabel("$x$",fontsize=fsa)
+	ax.set_ylabel("PDF $\\rho(x)$",fontsize=fsa)
 	ax.grid()
-	ax.legend(loc="best",fontsize=12)
+	ax.legend(loc="best",fontsize=fsl)
 	
 	## Pressure plot
 	ax = axs[1]
@@ -184,10 +189,10 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.axhline(y=1/(1+X-xmin),color="r",linestyle="--",linewidth=1)
 	# ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0)
-	ax.set_xlabel("$x$")
-	ax.set_ylabel("Pressure")
+	ax.set_xlabel("$x$",fontsize=fsa)
+	ax.set_ylabel("Pressure",fontsize=fsa)
 	ax.grid()
-	# ax.legend(loc="best",fontsize=12)
+	# ax.legend(loc="best",fontsize=fsl)
 	
 	plt.tight_layout()
 	fig.suptitle("$x_{w}=$"+str(X)+", $\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
@@ -281,19 +286,21 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		PP = [[]]*Ncurv
 		for i in range(Ncurv):
 			idxs = (X==XX[i])
-			AA[i] = Alpha[idxs]
-			PP[i] = Press[idxs]
+			AA[i] = np.array(Alpha[idxs])
+			PP[i] = np.array(Press[idxs])
 				
 		labels = ["X = "+str(XX[i]) for i in range(Ncurv)]
 			
 		## Calculate IG on finer grid, assuming same X, xmin and dt
 		AAIG = AA
+		PPIG = [[]]*Ncurv
 		if D==0.0:
-			PPIG = 1.0/(1.0+XX-0.9*XX)
+			PPIG = [1.0/(1.0+XX[i]-calculate_xmin(XX[i],AA[i])) for i in range(Ncurv)]
 		else:
 			## Needs update!
+			raise AttributeError, me+"no can do."
 			PPIG = [ideal_gas(a,x,X,D,dt)[3][-1]/dt for a in AAIG]
-
+			
 		if normIG: PP = [PP[i]/PPIG[i] for i in range(Ncurv)]
 			
 		for i in range(Ncurv):
@@ -302,11 +309,11 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 			if not normIG: plt.axhline(PressIG[i], color=plt.gca().lines[-1].get_color(), linestyle="--")
 		plt.xlim(right=max(chain.from_iterable(AA)))
 		plt.ylim(bottom=0.0)
-		plt.title("Pressure normalised by WN result")
-		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$")
-		plt.ylabel("Pressure")
+		plt.title("Pressure normalised by WN result",fontsize=fst)
+		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$",fontsize=fsa)
+		plt.ylabel("Pressure",fontsize=fsa)
 		plt.grid()
-		plt.legend(loc="best")
+		plt.legend(loc="best",fontsize=fsl)
 	
 	## 2D
 	else:
@@ -350,13 +357,13 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		# plt.contour(Amesh,Xmesh,Pmesh,5)
 				
 		## ACCOUTREMENTS
-		plt.title("Pressure normalised by WN result")
-		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$")
-		plt.ylabel("Wall separation")
+		plt.title("Pressure normalised by WN result",fontsize=fst)
+		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$",fontsize=fsa)
+		plt.ylabel("Wall separation",fontsize=fsa)
 		plt.grid(None)
 		
 		cbar = plt.colorbar(im, ticks=[Pim.min(),Pim.mean(),Pim.max()], orientation="vertical")
-		cbar.ax.set_yticklabels(["Low", "Mean", "High"])
+		cbar.ax.set_yticklabels(["Low", "Mean", "High"],fontsize=fsl)
 	
 	## --------------------------------------------------------
 	
