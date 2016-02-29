@@ -19,6 +19,9 @@ from LE_2DLBS import force_2D
 warnings.filterwarnings("ignore",
 	"No labelled objects found. Use label='...' kwarg on individual plots.",
 	UserWarning)
+warnings.filterwarnings("ignore",
+	"invalid value encountered in sign",
+	RuntimeWarning)
 
 def main():
 	"""
@@ -48,7 +51,7 @@ def main():
 	NOTES
 	
 	BUGS / TODO
-		Dir plot still to come
+		Using masked array breaks contour plot.
 	
 	HISTORY
 		21 February 2016	Adapted from LE_Pressure
@@ -250,6 +253,8 @@ def pressure_plot_dir(dirpath, verbose):
 	XX = np.unique(X)
 	RR = np.unique(R)
 	
+	# print AA,XX,RR;exit()
+	
 	## 3D pressure array: [X,R,A]
 	PP = np.zeros([XX.size,RR.size,AA.size])
 	PPWN = np.zeros(PP.shape)
@@ -259,11 +264,14 @@ def pressure_plot_dir(dirpath, verbose):
 			Ridx = (R==RR[j])
 			for k in range(AA.size):
 				try: PP[i,j,k] = Press[Xidx*Ridx*(Alpha==AA[k])]
-				except ValueError: PP[i,j,k] = -1
+				except ValueError: pass
 				PPWN[i,j,k] = pressure_IG(XX[i],RR[j],ymax)
 	
 	## Normalise by WN result
 	if 1: PP /= PPWN
+	
+	## Mask zeros
+	PP = np.ma.array(PP, mask = PP==0.0)
 	
 	## ------------------------------------------------
 	## 1D plots

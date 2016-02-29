@@ -167,26 +167,27 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax = axs[0]
 	ax.plot(x,Hx,"b-",label="Simulation")
 	# ax.axhline(y=0.0,color="b",linestyle="-",linewidth=1)
-	ax.plot(xIG,HxIG,"r--",label="White noise")
+	ax.plot(xIG,HxIG,"r-",label="White noise")
 	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0,top=1.0/(X-xmin)+0.1)
 	ax.set_xlabel("$x$")
 	ax.set_ylabel("PDF p(x)")
 	ax.grid()
-	ax.legend(loc="best")
+	ax.legend(loc="best",fontsize=12)
 	
 	## Pressure plot
 	ax = axs[1]
-	ax.plot(x,press,"b-",label="",linewidth=1)
+	ax.plot(x,press,"b-",linewidth=1, label="CN")
 	ax.axhline(y=press[-1],color="b",linestyle="--",linewidth=1)
-	ax.plot(xIG,pressIG,"r--",label="")
-	ax.axhline(y=1/(1+X-xmin),color="g",linestyle="--",linewidth=1)
+	ax.plot(xIG,pressIG,"r-",label="WN")
+	ax.axhline(y=1/(1+X-xmin),color="r",linestyle="--",linewidth=1)
 	# ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0)
 	ax.set_xlabel("$x$")
 	ax.set_ylabel("Pressure")
 	ax.grid()
+	# ax.legend(loc="best",fontsize=12)
 	
 	plt.tight_layout()
 	fig.suptitle("$x_{w}=$"+str(X)+", $\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
@@ -301,6 +302,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 			if not normIG: plt.axhline(PressIG[i], color=plt.gca().lines[-1].get_color(), linestyle="--")
 		plt.xlim(right=max(chain.from_iterable(AA)))
 		plt.ylim(bottom=0.0)
+		plt.title("Pressure normalised by WN result")
 		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$")
 		plt.ylabel("Pressure")
 		plt.grid()
@@ -326,7 +328,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 					if Aim[j]==Alpha[k] and Xim[i]==X[k]:
 						Pim[i,j]=Press[k]
 		## Mask zeros
-		Pim[Pim<0.0]=np.nan
+		Pim = np.ma.array(Pim, mask = Pim<0.0)
 						
 		## Make plot
 		im = plt.imshow(Pim[::-1],aspect='auto',extent=[Aim[0],Aim[-1],Xim[0],Xim[-1]],interpolation="none")
@@ -353,7 +355,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		plt.ylabel("Wall separation")
 		plt.grid(None)
 		
-		cbar = plt.colorbar(im, ax=plt.gca(), ticks=[Pim.min(),Pim.mean(),Pim.max()], orientation="vertical")
+		cbar = plt.colorbar(im, ticks=[Pim.min(),Pim.mean(),Pim.max()], orientation="vertical")
 		cbar.ax.set_yticklabels(["Low", "Mean", "High"])
 	
 	## --------------------------------------------------------

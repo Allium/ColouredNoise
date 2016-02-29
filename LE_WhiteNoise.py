@@ -2,17 +2,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from time import time
+import os
 
 def main():
 	"""
 	Presumably this runs a white noise simulation in WN variables.
+	1D -- x and eta.
 	"""
 	t0 = time()
 
 	tmax = 100.0
 	dt = 0.05
 	Nstep = int(tmax/dt)
-	Nrun = int(2e5*dt)
+	Nrun = int(5e6*dt)
 	w = 10.0		## Wall position
 	widx = 100		## Wall index / half-length of xbins
 
@@ -20,7 +22,8 @@ def main():
 	xmax = w+1.0
 	x0 = 0.95*w		## Injection coordinate
 
-	outfile = "Pressure/White_Noise/WhiteNoise_dt"+str(dt)
+	outfile = "Pressure/WhiteNoise/WhiteNoise_r"+str(int(Nrun))+"_dt"+str(dt)
+	assert os.path.isdir(os.path.dirname(outfile))
 
 	xbins = np.concatenate([np.linspace(xmin,w,widx+1),np.linspace(w,xmax,widx+1)[1:]])
 	ybins = np.linspace(-0.5,0.5,41)
@@ -29,32 +32,27 @@ def main():
 	
 	X = []
 	Y = []
+	
+	sd = np.sqrt(1.0/dt)
 
 	for j in range(Nrun):
 
-		xi = np.sqrt(2) * np.random.normal(0.0, 1.0, Nstep)
+		xi = np.sqrt(2) * np.random.normal(0.0, sd, Nstep)
 		x = np.zeros(Nstep)
 		x[0] = x0
 		xt = x[0]
-		i = 1
+		i = 0
 		
-		while xt>xmin:
-			x[i] = x[i-1] + dt*(-0.5*(1.0+np.sign(x[i-1]-w)) +xi[i-1])
-			xt = x[i]
+		while x[i]>xmin:
 			i += 1
-			if i%Nstep==0:
+			x[i] = x[i-1] + dt*(-0.5*(1.0+np.sign(x[i-1]-w)) +xi[i-1])
+			if (i+1)%Nstep==0:
 				print "Run",[j],"extending"
 				x = np.append(x,np.zeros(Nstep))
-				xi = np.append(xi,np.sqrt(2)*np.random.normal(0.0, 1.0, Nstep))
+				xi = np.append(xi,np.sqrt(2)*np.random.normal(0.0, sd, Nstep))
 		x = x[:i]
 		xi = xi[:i]
 		
-		# if (x>w).any():
-			# plt.plot(dt*np.arange(0,len(x)),x)
-			# plt.axhline(w)
-			# plt.show()
-			# plt.clf()
-			
 		X = np.append(X,x)
 		Y = np.append(Y,xi)
 
@@ -72,6 +70,7 @@ def main():
 	t1 = time()
 	
 	axs[0].set_xlim(left=xmin,right=xmax)
+	axs[0].set_ylabel("$\\eta$")
 	axs[0].axvline(w,color="k",linestyle="-",linewidth="2")
 
 	axs[1].plot(xbins[:widx],0.5*np.ones(widx),"r-")
@@ -80,6 +79,7 @@ def main():
 	axs[1].set_xlim(left=xmin,right=xmax)
 	axs[1].set_ylim(bottom=0.0,top=1.5)
 	axs[1].set_xlabel("$x$")
+	axs[1].set_ylabel("$\\rho$")
 	axs[1].grid()
 
 	np.save(outfile,h2d)

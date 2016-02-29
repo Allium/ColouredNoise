@@ -188,7 +188,8 @@ def sim_eta(et0, expmt, npoints, a, dt):
 	Any alpha-dependence in expmt already taken care of.
 	See notes 02/02/2016 for LE / FPE statement.
 	"""
-	xi = np.sqrt(2) * np.random.normal(0, 1, npoints)
+	nsd = np.sqrt(1.0/dt)
+	xi = np.sqrt(2) * np.random.normal(0, nsd, npoints)
 	if a==0:
 		eta = xi
 	else:
