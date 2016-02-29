@@ -133,8 +133,8 @@ def main():
 	## Particles	
 	Nparticles = 1*len(ybins)*Nrun
 
-	## Initial noise drawn from Gaussian
-	eIC = np.random.normal(0.0,1.0/a,[Nparticles,2])
+	## Initial noise drawn from Gaussian 
+	eIC = np.random.normal(0.0,1.0/a,[Nparticles,2]) if a>0.0 else 100*(np.random.random([Nparticles,2])-0.5)
 	
 	## Centre of circle for curved boundary
 	R2 = R*R
