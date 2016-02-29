@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from time import time
 import os
+from sys import argv
 
 def main():
 	"""
@@ -12,9 +13,9 @@ def main():
 	t0 = time()
 
 	tmax = 100.0
-	dt = 0.05
+	dt = 0.01
 	Nstep = int(tmax/dt)
-	Nrun = int(5e6*dt)
+	Nrun = int(3e6*dt)
 	w = 10.0		## Wall position
 	widx = 100		## Wall index / half-length of xbins
 
@@ -27,9 +28,24 @@ def main():
 
 	xbins = np.concatenate([np.linspace(xmin,w,widx+1),np.linspace(w,xmax,widx+1)[1:]])
 	ybins = np.linspace(-0.5,0.5,41)
-
-	## ----------------------------------------------------
 	
+	try:
+		X,Y = np.load(argv[1])
+		pdf_plot(X,Y,xbins,ybins,outfile)
+	except (IndexError, IOError):
+		t0 = time()
+		X,Y = sim(Nrun,Nstep,dt,xmin,x0,w,outfile)
+		print "Simulate",round(time()-t0,1),"seconds."
+		pdf_plot(X,Y,xbins,ybins,outfile)
+	
+	plt.show() 
+	
+	return
+
+
+##=============================================================================
+def sim(Nrun,Nstep,dt,xmin,x0,w,outfile):
+
 	X = []
 	Y = []
 	
@@ -55,11 +71,22 @@ def main():
 		
 		X = np.append(X,x)
 		Y = np.append(Y,xi)
-
-	print "Simulate",round(time()-t0,1),"seconds."
-	t1 = time()
+	
+	np.save(outfile,np.vstack([X,Y]))
+	
+	return X,Y
 
 	## ----------------------------------------------------
+	
+##=============================================================================
+def pdf_plot(X,Y,xbins,ybins,outfile):
+	
+	t1 = time()
+	
+	xmin = xbins[0]
+	xmax = xbins[-1]
+	widx = xbins.size/2-1
+	w = xbins[widx]
 	
 	fig, axs = plt.subplots(2,sharex=True)
 
@@ -77,27 +104,13 @@ def main():
 	axs[1].plot(xbins[widx:],0.5*np.exp(w-xbins[widx:]),"r-")
 	axs[1].axvline(w,color="k",linestyle="-",linewidth="2")
 	axs[1].set_xlim(left=xmin,right=xmax)
-	axs[1].set_ylim(bottom=0.0,top=1.5)
+	axs[1].set_ylim(bottom=0.0,top=1.1)
 	axs[1].set_xlabel("$x$")
 	axs[1].set_ylabel("$\\rho$")
 	axs[1].grid()
-
-	np.save(outfile,h2d)
+	
+	print "Plot",round(time()-t1,1),"seconds."
 	plt.savefig(outfile+".png")
-
-	print "Plot 1",round(time()-t1,1),"seconds."
-	t1 = time()
-	
-	## ----------------------------------------------------
-	
-	# tail_plot(xbins, h1d, w, outfile)
-
-	print "Plot 2",round(time()-t1,1),"seconds."
-	t1 = time()
-
-	## ----------------------------------------------------
-
-	plt.show() 
 
 	return
 
