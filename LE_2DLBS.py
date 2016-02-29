@@ -14,6 +14,8 @@ from LE_LightBoundarySim import lookup_xmax, calculate_xmin, calculate_xini,\
 				check_path, create_readme,\
 				sim_eta
 
+from LE_Utils import plot_fontsizes
+fsa,fsl,fst = plot_fontsizes()
 
 def main():
 	"""
@@ -146,9 +148,13 @@ def main():
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
 			"_2D_"+BCstr+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
 	hisfile = "BHIS_2D_"+BCstr+"_a"+str(a)+"_X"+str(X)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)
+	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
 	create_readme(filepath, vb)
+	
+	## Save bins
+	np.savez(hisdir+binfile,xbins=xbins,ybins=ybins)
 		
 	## ----------------------------------------------------------------
 	## SCHEMATIC IMAGE
@@ -294,13 +300,13 @@ def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 	## Get spatial parameters
 	xini = xbins[0]
 	X = xbins[len(xbins)/2]
-	xmax = xbins[-1]
+	xmax = 12#xbins[-1]1.0
 	ymax = ybins[-1]
 	loff = 1.0
 	## Wall region
 	plt.axvspan(X,xmax, color="r",alpha=0.05,zorder=0)
 	## Wall boundary
-	circle = plt.Circle(c,R,facecolor='w',lw=2,edgecolor='r',zorder=1)
+	circle = plt.Circle(c,R,facecolor='w',lw=3,edgecolor='r',zorder=1)
 	plt.gcf().gca().add_artist(circle)
 	## Remove left arc
 	plt.axvspan(xmin-loff,X, color="w",zorder=2)
@@ -319,12 +325,15 @@ def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 			horizontalalignment='center', verticalalignment='center')
 	plt.annotate("Wall region",xy=(0.5*(c[0]+R+xmax),0.0),xycoords="data",
 			horizontalalignment='center', verticalalignment='center')
-	plt.annotate("Simulation boundary",xy=(xmin,-0.5*ymax),xycoords="data",
-			horizontalalignment='center', verticalalignment='center')
-	plt.annotate("Injection line",xy=(xini,+0.5*ymax),xycoords="data",
-			horizontalalignment='center', verticalalignment='center')
-	plt.annotate("Wall boundary",xy=(X,-0.5*ymax),xycoords="data",
-			horizontalalignment='center', verticalalignment='center')
+	# plt.annotate("Simulation boundary",xy=(xmin,-0.5*ymax),xycoords="data",
+			# horizontalalignment='center', verticalalignment='center')
+	# plt.annotate("Injection line",xy=(xini,+0.5*ymax),xycoords="data",
+			# horizontalalignment='center', verticalalignment='center')
+	# plt.annotate("Wall boundary",xy=(X,-0.5*ymax),xycoords="data",
+			# horizontalalignment='center', verticalalignment='center')
+	plt.text(xmin,-0.25*ymax,"Simulation boundary",rotation=270)
+	plt.text(xini,-0.25*ymax,"Injection line",rotation=270)
+	plt.text(0.5*(X+c[0]+R),-0.25*ymax,"Wall boundary",rotation=270)
 	plt.annotate("Periodic boundary",xy=(0.5*(xmin-loff+xmax),0.95*ymax),xycoords="data",
 			horizontalalignment='center', verticalalignment='center')
 	## Show bins
@@ -333,9 +342,9 @@ def draw_schematic(xmin,xbins,ybins,c,R,outfile,vb=False):
 	## Clip image, name axes, title
 	plt.xlim([xmin-loff,xmax])
 	plt.ylim([-ymax,ymax])
-	plt.xlabel("$x$")
-	plt.ylabel("$y$")
-	plt.title("Schematic of simulation space")
+	plt.xlabel("$x$",fontsize=fsa)
+	plt.ylabel("$y$",fontsize=fsa)
+	plt.title("Schematic of simulation space. $R = "+str(R)+"$",fontsize=fst)
 	## Save and close
 	plt.savefig(outfile)
 	if vb:

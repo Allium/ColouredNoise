@@ -111,11 +111,16 @@ def main():
 	if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
 	
 	## Filename; directory and file existence; readme
-	hisfile = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_1D_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)+\
-			"/BHIS_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
+	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_1D_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
+	hisfile = "BHIS_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
+	binfile = "BHISBIN"+hisfile[4:]
+	hisfile = hisdir+hisfile
 	check_path(hisfile, vb)
 	create_readme(hisfile, vb)
-		
+	
+	## Save bins
+	np.savez(hisdir+binfile,xbins=xbins,ybins=ybins)
+	
 	## ----------------------------------------------------------------
 	
 	## Precompute exp(-t) and initialise histogram
@@ -236,7 +241,8 @@ def lookup_xmax(X,a):
 	elif a<=0.8:	xmax=1.002*X
 	elif a<=0.9:	xmax=1.002*X
 	else:			xmax=1.001*X
-	return max(xmax,X+0.1)
+	# return max(xmax,X+0.1)
+	return X+4.0
 	
 def calculate_xbin(xini,X,xmax,Nxbin):
 	"""
