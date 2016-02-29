@@ -72,6 +72,13 @@ def Px_WBratio(Px,x,X):
 	avbulk = Px[-Xloc:Xloc].mean()
 	avspke = np.sort(Px)[-2:].mean()
 	return round(avspke/avbulk,2)
+	
+
+def plot_fontsizes():
+	"""
+	Axes, legend, title
+	"""
+	return 16,12,18
 
 	
 ##==========================================
