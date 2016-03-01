@@ -158,7 +158,6 @@ def pressure_pdf_plot_file(histfile, verbose):
 	## Density plot
 	ax = axs[0]
 	ax.plot(x,Hx,"b-",label="Simulation")
-	# ax.axhline(y=0.0,color="b",linestyle="-",linewidth=1)
 	ax.plot(xIG,HxIG,"r-",label="White noise")
 	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	ax.set_xlim(left=xini,right=max(xmax,xIG[-1]))
@@ -173,7 +172,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.plot(x,press,"b-",linewidth=1, label="CN")
 	ax.axhline(y=press[-1],color="b",linestyle="--",linewidth=1)
 	ax.plot(xIG,pressIG,"r-",label="WN")
-	ax.axhline(y=1/(1+X-xmin),color="r",linestyle="--",linewidth=1)
+	ax.axhline(y=1/(1+X-xini),color="r",linestyle="--",linewidth=1)
 	ax.set_xlim(left=xbins[0],right=xbins[-1])
 	ax.set_ylim(bottom=0.0)
 	ax.set_xlabel("$x$",fontsize=fsa)
@@ -290,7 +289,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		AAIG = AA
 		PPIG = [[]]*Ncurv
 		if D==0.0:
-			PPIG = [1.0/(1.0-np.exp(-4.0)+XX[i]-calculate_xmin(XX[i],AA[i])) for i in range(Ncurv)]
+			PPIG = [1.0/(1.0-np.exp(-4.0)+XX[i]-calculate_xini(XX[i],AA[i])) for i in range(Ncurv)]
 		else:
 			## Needs update!
 			raise AttributeError, me+"no can do."

@@ -147,15 +147,15 @@ def pressure_pdf_plot_file(histfile, verbose):
 	H[:,0]=H[:,1]
 	Xm,Ym = np.meshgrid(x,y)
 	CS = ax.contourf(Xm,Ym[::-1],H,10)
-	## Colourbar
 	
+	## Colourbar
 	divider = make_axes_locatable(ax)
 	cax = divider.append_axes("top", size="5%", pad=0.4)
 	cbar = fig.colorbar(CS, cax=cax, ax=ax, orientation="horizontal",
 		use_gridspec=True, ticks=[H.min(),H.mean(),H.max()])
 	cbar.ax.set_xticklabels(["Low", "Mean", "High"])
 	### http://stackoverflow.com/questions/13310594/positioning-the-colorbar
-	## Plot wall
+	## Plot curved wall
 	wallx = np.linspace(X,c[0]+R,201)
 	wally = c[1]+np.sqrt(R*R-(wallx-c[0])**2)
 	ax.plot(wallx,wally, "r--",linewidth=2)
@@ -178,7 +178,8 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.axvspan(X,c[0]+R, color="m",alpha=0.05)
 	ax.axvspan(R,xmax, color="r",alpha=0.05)
 	## Ideal gas result
-	ax.hlines(pressure_IG(ymax,R,c[0],alpha),xini,xmax,linestyle="-",color="g",label="WN theory") 
+	# ax.hlines(pressure_IG(ymax,R,c[0],alpha),xini,xmax,linestyle="-",color="g",label="WN theory") 
+	ax.hlines(pressure_IG(X,R,ymax,alpha),xini,xmax,linestyle="-",color="g",label="WN theory") 
 	ax.hlines(0.5/ymax/(1.0+X-xini),xini,xmax,linestyle="--",color="g",label="WN flat theory")
 	## Accoutrements
 	ax.set_xlim([xini,xmax])
