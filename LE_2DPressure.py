@@ -178,7 +178,6 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.axvspan(X,c[0]+R, color="m",alpha=0.05)
 	ax.axvspan(R,xmax, color="r",alpha=0.05)
 	## Ideal gas result
-	# ax.hlines(pressure_IG(ymax,R,c[0],alpha),xini,xmax,linestyle="-",color="g",label="WN theory") 
 	ax.hlines(pressure_IG(X,R,ymax,alpha),xini,xmax,linestyle="-",color="g",label="WN theory") 
 	ax.hlines(0.5/ymax/(1.0+X-xini),xini,xmax,linestyle="--",color="g",label="WN flat theory")
 	## Accoutrements

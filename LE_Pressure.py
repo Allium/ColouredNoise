@@ -384,7 +384,7 @@ def ideal_gas(x, X, D, dt, up=6):
 	Calculate PDF and pressure for ideal gas
 	No alpha in new variables 02.02.2016
 	"""
-	xbinsIG = np.linspace(x[0],X+4.0,up*len(x)+1)
+	xbinsIG = np.linspace(x[0],x[-1],up*len(x)+1)
 	xIG = 0.5*(xbinsIG[1:]+xbinsIG[:-1])
 	forceIG = force_x(xIG,1.0,X,D)
 	## Predicted solution
