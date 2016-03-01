@@ -124,23 +124,31 @@ def pressure_pdf_plot_file(histfile, verbose):
 	H /= H.sum()
 		
 	## Centre of circle for curved boundary
-	c = [X-np.sqrt(R*R-ymax*ymax),0.0]
+	c = circle_centre(X,R,ymax)
+	
 	## Space (for axes)
 	xini = calculate_xini(X,alpha)
 	xmax = lookup_xmax(c[0]+R,alpha)
-	ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
-	y = 0.5*(ybins[1:]+ybins[:-1])
-	xbins = calculate_xbin(xini,X,xmax,H.shape[1])
+	try:
+		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+		xbins = bins["xbins"]
+		ybins = bins["ybins"]
+	except (IOError, KeyError):
+		xbins = calculate_xbin(xini,X,xmax,H.shape[1])
+		ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
 	x = 0.5*(xbins[1:]+xbins[:-1])
+	y = 0.5*(ybins[1:]+ybins[:-1])
 	
 	## Set up plot
 	fig,axs = plt.subplots(1,2)
 		
 	## pdf plot
 	ax = axs[0]
+	H[:,0]=H[:,1]
 	Xm,Ym = np.meshgrid(x,y)
 	CS = ax.contourf(Xm,Ym[::-1],H,10)
 	## Colourbar
+	
 	divider = make_axes_locatable(ax)
 	cax = divider.append_axes("top", size="5%", pad=0.4)
 	cbar = fig.colorbar(CS, cax=cax, ax=ax, orientation="horizontal",
@@ -157,7 +165,6 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.set_xlabel("$x$", fontsize=fsa)
 	ax.set_ylabel("$y$", fontsize=fsa)
 		
-
 	## Calculate force array (2d)
 	force = -1.0 * ( (Xm-c[0])**2 + (Ym-c[1])**2 > R*R ) * ( Xm-c[0]>0.0 )
 	## Pressure array (2d) -- sum rather than trapz
@@ -171,15 +178,14 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.axvspan(X,c[0]+R, color="m",alpha=0.05)
 	ax.axvspan(R,xmax, color="r",alpha=0.05)
 	## Ideal gas result
-	ax.hlines(pressure_IG(ymax,R,c[0]),xini,xmax,linestyle="-",color="g",label="WN theory") 
-	ax.hlines(0.5/ymax/(1.0+X),xini,xmax,linestyle="--",color="g",label="WN flat theory")
+	ax.hlines(pressure_IG(ymax,R,c[0],alpha),xini,xmax,linestyle="-",color="g",label="WN theory") 
+	ax.hlines(0.5/ymax/(1.0+X-xini),xini,xmax,linestyle="--",color="g",label="WN flat theory")
 	## Accoutrements
 	ax.set_xlim([xini,xmax])
 	ax.set_xlabel("$x$", fontsize=fsa)
 	ax.set_ylabel("Pressure", fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="best",fontsize=fsl)
-	
 	
 	## Tidy figure
 	fig.suptitle(os.path.basename(plotfile),fontsize=fst)
@@ -234,13 +240,19 @@ def pressure_plot_dir(dirpath, verbose):
 		
 		## Centre of circle for curved boundary
 		c = circle_centre(X[i],R[i],ymax)
+		
 		## Space (for axes)
 		xini = calculate_xini(X[i],Alpha[i])
 		xmax = lookup_xmax(c[0]+R[i],Alpha[i])
-		ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
-		y = 0.5*(ybins[1:]+ybins[:-1])
-		xbins = calculate_xbin(xini,X[i],xmax,H.shape[1])
+		try:
+			bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+			xbins = bins["xbins"]
+			ybins = bins["ybins"]
+		except (IOError, KeyError):
+			xbins = calculate_xbin(xini,X[i],xmax,H.shape[1])
+			ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
 		x = 0.5*(xbins[1:]+xbins[:-1])	
+		y = 0.5*(ybins[1:]+ybins[:-1])
 	
 		## Calculate force array (2D)
 		Xm,Ym = np.meshgrid(x,y)
@@ -268,7 +280,7 @@ def pressure_plot_dir(dirpath, verbose):
 			for k in range(AA.size):
 				try: PP[i,j,k] = Press[Xidx*Ridx*(Alpha==AA[k])]
 				except ValueError: pass
-				PPWN[i,j,k] = pressure_IG(XX[i],RR[j],ymax)
+				PPWN[i,j,k] = pressure_IG(XX[i],RR[j],ymax,AA[k])
 	
 	## Normalise by WN result
 	if 1: PP /= PPWN
@@ -335,12 +347,12 @@ def circle_centre(X,R,ymax):
 
 	
 ##=============================================================================
-def pressure_IG(X,R,ym):
+def pressure_IG(X,R,ym,a):
 	"""
 	Theoretical pressure of a white noise gas.
 	See notes 22/02/2016
 	"""
-	cx = circle_centre(X,R,ym)[0]
+	cx = circle_centre(X,R,ym)[0] - calculate_xini(X,a)
 	return 1.0/(2*ym*(1+cx)+ym*np.sqrt(R*R-ym*ym)+R*R*np.arcsin(ym/R))
 
 

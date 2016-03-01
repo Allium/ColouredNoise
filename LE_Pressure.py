@@ -11,7 +11,8 @@ import warnings
 from time import time as sysT
 from itertools import chain
 
-from LE_LightBoundarySim import lookup_xmax,calculate_xmin,calculate_xini,calculate_xbin
+from LE_LightBoundarySim import lookup_xmax,calculate_xmin,calculate_xini,\
+		calculate_xbin,calculate_ybin
 from LE_Utils import FBW_soft as force_x
 from LE_Utils import save_data, filename_pars
 
@@ -130,31 +131,17 @@ def pressure_pdf_plot_file(histfile, verbose):
 	## Space -- for axes
 	xmin = calculate_xmin(X,alpha)
 	xmax = lookup_xmax(X,alpha)
-	ybins = np.linspace(-ymax,ymax,H.shape[0]+1)
+	xini = calculate_xini(X,alpha)
+	try:
+		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+		xbins = bins["xbins"]
+		ybins = bins["ybins"]
+	except (IOError, KeyError):
+		xbins = calculate_xbin(xini,X,xmax,H.shape[1])
+		ybins = calculate_ybin(-ymax,ymax,H.shape[0]+1)
+	x = 0.5*(xbins[1:]+xbins[:-1])	
 	y = 0.5*(ybins[1:]+ybins[:-1])
-	xbins = calculate_xbin(xmin,X,xmax,H.shape[1])
-	x = 0.5*(xbins[1:]+xbins[:-1])
-	
-	## 2D PDF plot. Cannot do unequal bin widths.
-	if 0:
-		plotfilePDF = os.path.splitext(histfile)[0]+"_PDF.png"
-		plt.imshow(H, extent=[xmin,xmax,-ymax,ymax], aspect="auto")
-		plt.plot([X,X],[-ymax,ymax],"m:",linewidth=2)
-		plt.xlim(xmin,xmax); plt.ylim(-ymax,ymax)
-		plot_acco(plt.gca(),xlabel="$x$",ylabel="$\\eta$",title="$\\alpha=$"+str(alpha))
-		plt.savefig(plotfilePDF)
-		if verbose: print me+"2D PDF plot saved to",plotfilePDF
-	## Plot y-pdfs in the bulk.
-	if 0:
-		plt.clf()
-		for i in range(0,H.shape[1]/2,H.shape[1]/20):
-			plt.plot(y,H[:,i]/np.trapz(H[:,i],x=y))
-		var = 0.05
-		plt.plot(y,1/np.sqrt(2*np.pi*var)*np.exp(-y*y/(2*var)),"k--",linewidth=3)
-		plot_acco(plt.gca(),xlabel="$\\eta$",ylabel="$p(\\eta)$",\
-					title="$\\alpha=$"+str(alpha)+". PDF slices in bulk.")
-		plt.savefig(os.path.splitext(filepath)[0]+"_yPDFs.png")
-	
+		
 	## Marginalise to PDF in x
 	Hx = np.trapz(H,x=y,axis=0)
 	Hx /= np.trapz(Hx,x=x)
@@ -174,7 +161,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	# ax.axhline(y=0.0,color="b",linestyle="-",linewidth=1)
 	ax.plot(xIG,HxIG,"r-",label="White noise")
 	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
-	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
+	ax.set_xlim(left=xini,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0,top=1.0/(X-xmin)+0.1)
 	ax.set_xlabel("$x$",fontsize=fsa)
 	ax.set_ylabel("PDF $\\rho(x)$",fontsize=fsa)
@@ -187,7 +174,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.axhline(y=press[-1],color="b",linestyle="--",linewidth=1)
 	ax.plot(xIG,pressIG,"r-",label="WN")
 	ax.axhline(y=1/(1+X-xmin),color="r",linestyle="--",linewidth=1)
-	# ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
+	ax.set_xlim(left=xbins[0],right=xbins[-1])
 	ax.set_ylim(bottom=0.0)
 	ax.set_xlabel("$x$",fontsize=fsa)
 	ax.set_ylabel("Pressure",fontsize=fsa)
@@ -249,8 +236,16 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		## Space
 		xmin[i] = calculate_xmin(X[i],Alpha[i])
 		xmax[i] = lookup_xmax(X[i],Alpha[i])
-		x = calculate_xbin(xmin[i],X[i],xmax[i],H.shape[1]-1)
-		y = np.linspace(-ymax,ymax,H.shape[0])
+		xini = calculate_xini(X[i],Alpha[i])
+		try:
+			bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+			xbins = bins["xbins"]
+			ybins = bins["ybins"]
+		except (IOError, KeyError):
+			xbins = calculate_xbin(xini,X[i],xmax[i],H.shape[1])
+			ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
+		x = 0.5*(xbins[1:]+xbins[:-1])	
+		y = 0.5*(ybins[1:]+ybins[:-1])
 		
 		## Marginalise to PDF in x and normalise
 		Hx = np.trapz(H,x=y,axis=0)
@@ -295,7 +290,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		AAIG = AA
 		PPIG = [[]]*Ncurv
 		if D==0.0:
-			PPIG = [1.0/(1.0+XX[i]-calculate_xmin(XX[i],AA[i])) for i in range(Ncurv)]
+			PPIG = [1.0/(1.0-np.exp(-4.0)+XX[i]-calculate_xmin(XX[i],AA[i])) for i in range(Ncurv)]
 		else:
 			## Needs update!
 			raise AttributeError, me+"no can do."

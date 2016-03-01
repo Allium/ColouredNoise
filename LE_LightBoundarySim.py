@@ -218,9 +218,12 @@ def calculate_xmin(X,a):
 	"""
 	me = "LE_LightBoundarySim.calculate_xmin: "
 	xmin = 0.8*(X-a)
-	if (xmin<0.0).any():
-		xmin[xmin<0.0]=0.0
-		print me+"Bulk approximation violated."
+	try:
+		if (xmin<0.0).any():
+			xmin[xmin<0.0]=0.0
+			print me+"Bulk approximation violated."
+	except AttributeError:
+		pass
 	return xmin
 	
 def lookup_xmax(X,a):
