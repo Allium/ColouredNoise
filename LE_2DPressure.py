@@ -292,7 +292,7 @@ def pressure_plot_dir(dirpath, verbose):
 	## 1D plots
 	
 	## Which plots to make (abcissa,multiline,subplot,dimension)
-	[ARX1,AXR1,XAR1,XRA1,RXA1,RAX1] = [1,0,0,0,0,0]
+	[ARX1,AXR1,XAR1,XRA1,RXA1,RAX1] = [1,1,0,0,0,0]
 	
 	if ARX1:
 		fig, axs = plt.subplots(1,2,sharey=True)
@@ -311,7 +311,24 @@ def pressure_plot_dir(dirpath, verbose):
 		pressplot = dirpath+"/PARX1_dt"+str(dt)+".png"
 		plt.savefig(pressplot)
 		if verbose: print me+"plot saved to",pressplot
-		
+	
+	if AXR1:
+		fig, axs = plt.subplots(1,2,sharey=True)
+		for i in range(XX.size):
+			axs[0].plot(AA,PP[i, 0,:], "o-", label="$x_{\\rm wal} = "+str(XX[i])+"$") 
+			axs[1].plot(AA,PP[i,-1,:], "o-", label="$x_{\\rm wal} = "+str(XX[i])+"$")
+		for j in range(len(axs)):
+			axs[j].set_xlim((AA[0],AA[-1]))
+			axs[j].set_ylim((0.0,np.array([PP[:,0,:],PP[:,-1,:]]).max()))
+			axs[j].set_xlabel("$\\alpha$",fontsize=fsa)
+			axs[j].set_title("$R = "+str(RR[0-j])+"$",fontsize=fsa)
+			axs[j].grid()
+		axs[0].set_ylabel("Pressure",fontsize=fsa)
+		axs[1].legend(loc="best",fontsize=fsl)
+		plt.tight_layout()
+		pressplot = dirpath+"/PAXR1_dt"+str(dt)+".png"
+		plt.savefig(pressplot)
+		if verbose: print me+"plot saved to",pressplot	
 
 	## ------------------------------------------------
 	## 2D plots

@@ -161,7 +161,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.plot(xIG,HxIG,"r-",label="White noise")
 	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	ax.set_xlim(left=xini,right=max(xmax,xIG[-1]))
-	ax.set_ylim(bottom=0.0,top=1.0/(X-xmin)+0.1)
+	ax.set_ylim(bottom=0.0,top=max(1.1,1.0/(X-xmin)+0.1))
 	ax.set_xlabel("$x$",fontsize=fsa)
 	ax.set_ylabel("PDF $\\rho(x)$",fontsize=fsa)
 	ax.grid()

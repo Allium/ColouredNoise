@@ -198,7 +198,8 @@ def sim_eta(et0, expmt, npoints, a, dt):
 	if a==0:
 		eta = xi
 	else:
-		eta = et0*expmt + (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
+		# eta = et0*expmt + (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
+		eta = (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
 	return eta
 	
 ## ====================================================================
