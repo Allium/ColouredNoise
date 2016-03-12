@@ -125,12 +125,21 @@ def main():
 	
 	## Precompute exp(-t) and initialise histogram
 	expmt = np.exp(-np.arange(0,tmax,dt)/(a*a)) if a>0 else np.array([1.]+[0.]*(int(tmax/dt)-1))
+	# if a>0:
+		# expmt = np.exp(-np.arange(0.0,tmax,dt)/(a*a))
+		# ## Take average of expmt between dt bins, OMITTING a*a/dt prefactor (included later)
+		# expmt = (expmt[:-1]-expmt[1:])
+	# else:
+		# expmt = np.array([1.]+[0.]*(int(10*a*a/dt)-1))
+	##### for low a, get very few terms in exponential. Sadly, will have to modify dt, or the exp by rescaling something. Get rid of /a2 in expmt somehow.
+	
+	## Initialise histogram
 	H = np.zeros((Nxbin,Nybin))
 	## Loop over initial y-position
 	for x0y0 in X0Y0:
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
-			x, y = boundary_sim(x0y0, a, X, Delta, xmin, tmax, expmt, (run%20==0))
+			x, y = boundary_sim(x0y0, a, X, Delta, xmin, tmax, expmt, (vb and run%50==0))
 			h = np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
 			H += h*histogram_weight(x0y0[1],y[-1], a)
 	H = (H.T)[::-1]
@@ -195,11 +204,11 @@ def sim_eta(et0, expmt, npoints, a, dt):
 	"""
 	nsd = np.sqrt(1.0/dt)
 	xi = np.sqrt(2) * np.random.normal(0, nsd, npoints)
-	if a==0:
+	if a==0.0:
 		eta = xi
 	else:
-		# eta = et0*expmt + (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
-		eta = (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
+		eta = et0*expmt + (dt/(a*a))*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
+		# eta = (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
 	return eta
 	
 ## ====================================================================
@@ -218,13 +227,17 @@ def calculate_xmin(X,a):
 	Want to have sufficient space in the bulk for forgetting.
 	"""
 	me = "LE_LightBoundarySim.calculate_xmin: "
-	xmin = 0.8*(X-a)
+	# xmin = 0.8*(X-a)
+	xmin = 0.9*X-4*a
 	try:
-		if (xmin<0.0).any():
-			xmin[xmin<0.0]=0.0
+		zidx = (xmin<0.0)
+		if zidx.any():
+			xmin[zidx]=0.0
 			print me+"Bulk approximation violated."
-	except AttributeError:
-		pass
+	except (AttributeError,TypeError):
+		if xmin<0.0:
+			xmin=0.0
+			print me+"Bulk approximation violated."
 	return xmin
 	
 def lookup_xmax(X,a):
