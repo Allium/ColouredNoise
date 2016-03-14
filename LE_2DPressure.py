@@ -127,13 +127,15 @@ def pressure_pdf_plot_file(histfile, verbose):
 	c = circle_centre(X,R,ymax)
 	
 	## Space (for axes)
-	xini = calculate_xini(X,alpha)
-	xmax = lookup_xmax(c[0]+R,alpha)
 	try:
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 		xbins = bins["xbins"]
 		ybins = bins["ybins"]
+		xini = xbins[0]
+		xmax = xbins[-1]
 	except (IOError, KeyError):
+		xini = calculate_xini(X,alpha)
+		xmax = lookup_xmax(c[0]+R,alpha)
 		xbins = calculate_xbin(xini,X,xmax,H.shape[1])
 		ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
 	x = 0.5*(xbins[1:]+xbins[:-1])
@@ -224,6 +226,7 @@ def pressure_plot_dir(dirpath, verbose):
 	X = np.zeros(numfiles)
 	R = np.zeros(numfiles)
 	Press = np.zeros(numfiles)
+	xini = np.zeros(numfiles)
 		
 	## Loop over files
 	for i,histfile in enumerate(histfiles):
@@ -242,13 +245,15 @@ def pressure_plot_dir(dirpath, verbose):
 		c = circle_centre(X[i],R[i],ymax)
 		
 		## Space (for axes)
-		xini = calculate_xini(X[i],Alpha[i])
-		xmax = lookup_xmax(c[0]+R[i],Alpha[i])
 		try:
 			bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 			xbins = bins["xbins"]
 			ybins = bins["ybins"]
+			xini[i] = xbins[0]
+			xmax = xbins[-1]
 		except (IOError, KeyError):
+			xini[i] = calculate_xini(X[i],Alpha[i])
+			xmax = lookup_xmax(c[0]+R[i],Alpha[i])
 			xbins = calculate_xbin(xini,X[i],xmax,H.shape[1])
 			ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
 		x = 0.5*(xbins[1:]+xbins[:-1])	
@@ -268,8 +273,6 @@ def pressure_plot_dir(dirpath, verbose):
 	XX = np.unique(X)
 	RR = np.unique(R)
 	
-	# print AA,XX,RR;exit()
-	
 	## 3D pressure array: [X,R,A]
 	PP = np.zeros([XX.size,RR.size,AA.size])
 	PPWN = np.zeros(PP.shape)
@@ -278,9 +281,11 @@ def pressure_plot_dir(dirpath, verbose):
 		for j in range(RR.size):
 			Ridx = (R==RR[j])
 			for k in range(AA.size):
-				try: PP[i,j,k] = Press[Xidx*Ridx*(Alpha==AA[k])]
+				Aidx = (Alpha==AA[k])
+				Pidx = Xidx*Ridx*Aidx
+				try: PP[i,j,k] = Press[Pidx]
 				except ValueError: pass
-				PPWN[i,j,k] = pressure_IG(XX[i],RR[j],ymax,AA[k])
+				PPWN[i,j,k] = pressure_IG(XX[i],RR[j],xini[Pidx],ymax,AA[k])
 	
 	## Normalise by WN result
 	if 1: PP /= PPWN
@@ -292,7 +297,7 @@ def pressure_plot_dir(dirpath, verbose):
 	## 1D plots
 	
 	## Which plots to make (abcissa,multiline,subplot,dimension)
-	[ARX1,AXR1,XAR1,XRA1,RXA1,RAX1] = [1,1,0,0,0,0]
+	[ARX1,AXR1,XAR1,XRA1,RXA1,RAX1] = [1,0,0,0,0,0]
 	
 	if ARX1:
 		fig, axs = plt.subplots(1,2,sharey=True)
@@ -364,12 +369,12 @@ def circle_centre(X,R,ymax):
 
 	
 ##=============================================================================
-def pressure_IG(X,R,ym,a):
+def pressure_IG(X,R,xini,ym,a):
 	"""
 	Theoretical pressure of a white noise gas.
 	See notes 22/02/2016
 	"""
-	cx = circle_centre(X,R,ym)[0] - calculate_xini(X,a)
+	cx = circle_centre(X,R,ym)[0] - xini
 	return 1.0/(2*ym*(1+cx)+ym*np.sqrt(R*R-ym*ym)+R*R*np.arcsin(ym/R))
 
 

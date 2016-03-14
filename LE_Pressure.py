@@ -127,25 +127,31 @@ def pressure_pdf_plot_file(histfile, verbose):
 	
 	## Load data
 	H = np.load(histfile)
+	H[:,0]=H[:,1]
 	
 	## Space -- for axes
-	xmin = calculate_xmin(X,alpha)
-	xmax = lookup_xmax(X,alpha)
-	xini = calculate_xini(X,alpha)
+
 	try:
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 		xbins = bins["xbins"]
 		ybins = bins["ybins"]
+		xmin = xbins[0]
+		xmax = xbins[-1]
+		xini = 0.5*(xmin+X)
+		if verbose: print me+"Found bins file."
 	except (IOError, KeyError):
+		xmin = calculate_xmin(X,alpha)
+		xmax = lookup_xmax(X,alpha)
+		xini = calculate_xini(X,alpha)
 		xbins = calculate_xbin(xini,X,xmax,H.shape[1])
 		ybins = calculate_ybin(-ymax,ymax,H.shape[0]+1)
+		if verbose: print me+"Calculated bins."
 	x = 0.5*(xbins[1:]+xbins[:-1])	
 	y = 0.5*(ybins[1:]+ybins[:-1])
 		
 	## Marginalise to PDF in x
 	Hx = np.trapz(H,x=y,axis=0)
-	Hx /= np.trapz(Hx,x=x)
-	
+	Hx /= np.trapz(Hx,x=x)	
 	
 	## Calculate pressure
 	force = force_x(x,1.0,X,D)
@@ -161,18 +167,18 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.plot(xIG,HxIG,"r-",label="White noise")
 	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	ax.set_xlim(left=xini,right=max(xmax,xIG[-1]))
-	ax.set_ylim(bottom=0.0,top=max(1.1,1.0/(X-xmin)+0.1))
+	ax.set_ylim(bottom=0.0,top=1.1)
 	ax.set_xlabel("$x$",fontsize=fsa)
 	ax.set_ylabel("PDF $\\rho(x)$",fontsize=fsa)
 	ax.grid()
-	ax.legend(loc="best",fontsize=fsl)
+	ax.legend(loc="upper right",fontsize=fsl)
 	
 	## Pressure plot
 	ax = axs[1]
 	ax.plot(x,press,"b-",linewidth=1, label="CN")
 	ax.axhline(y=press[-1],color="b",linestyle="--",linewidth=1)
 	ax.plot(xIG,pressIG,"r-",label="WN")
-	ax.axhline(y=1/(1+X-xini),color="r",linestyle="--",linewidth=1)
+	ax.axhline(y=1/(1.0-np.exp(X-xmax)+X-xmin),color="r",linestyle="--",linewidth=1)
 	ax.set_xlim(left=xbins[0],right=xbins[-1])
 	ax.set_ylim(bottom=0.0)
 	ax.set_xlabel("$x$",fontsize=fsa)
@@ -231,16 +237,20 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 				
 		## Load data
 		H = np.load(histfile)
+		H[:,0]=H[:,1]
 		
 		## Space
-		xmin[i] = calculate_xmin(X[i],Alpha[i])
-		xmax[i] = lookup_xmax(X[i],Alpha[i])
-		xini = calculate_xini(X[i],Alpha[i])
 		try:
 			bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 			xbins = bins["xbins"]
 			ybins = bins["ybins"]
+			xmin[i] = xbins[0]
+			xmax[i] = xbins[-1]
+			xini = 0.5*(xmin[i]+X[i])
 		except (IOError, KeyError):
+			xmin[i] = calculate_xmin(X[i],Alpha[i])
+			xmax[i] = lookup_xmax(X[i],Alpha[i])
+			xini = calculate_xini(X[i],Alpha[i])
 			xbins = calculate_xbin(xini,X[i],xmax[i],H.shape[1])
 			ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
 		x = 0.5*(xbins[1:]+xbins[:-1])	
@@ -323,13 +333,19 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		## There must be a nicer way of doing this
 		Xim = np.unique(X)
 		Pim = -np.ones((Xim.shape[0],Aim.shape[0]))
+		PIGim = -np.ones((Xim.shape[0],Aim.shape[0]))
 		for k in range(Press.shape[0]):
 			for i in range(Xim.shape[0]):
 				for j in range(Aim.shape[0]):
 					if Aim[j]==Alpha[k] and Xim[i]==X[k]:
 						Pim[i,j]=Press[k]
+						PIGim[i,j]=1.0/(1.0-np.exp(-4.0)+Xim[i]-calculate_xini(Xim[i],Aim[j]))
 		## Mask zeros
 		Pim = np.ma.array(Pim, mask = Pim<0.0)
+		PIGim = np.ma.array(PIGim, mask = PIGim<0.0)
+		
+		## Normalise by WN reasult
+		if normIG:	Pim /= PIGim
 						
 		## Make plot
 		im = plt.imshow(Pim[::-1],aspect='auto',extent=[Aim[0],Aim[-1],Xim[0],Xim[-1]],interpolation="none")
@@ -354,10 +370,18 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		plt.title("Pressure normalised by WN result",fontsize=fst)
 		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$",fontsize=fsa)
 		plt.ylabel("Wall separation",fontsize=fsa)
-		plt.grid(None)
+		plt.grid(False)
 		
-		cbar = plt.colorbar(im, ticks=[Pim.min(),Pim.mean(),Pim.max()], orientation="vertical")
-		cbar.ax.set_yticklabels(["Low", "Mean", "High"],fontsize=fsl)
+		# ticks = np.array([0.0,1.0,Pim.min(),Pim.mean(),Pim.max()])
+		# tckidx = np.argsort(ticks)
+		# ticks = ticks[tckidx]
+		# ticklabels = np.array(["0","1","Low", "Mean", "High"])[tckidx]
+		# cbar = plt.colorbar(im, ticks=ticks, orientation="vertical")
+		# cbar.ax.set_yticklabels(ticklabels, fontsize=fsl)	
+		
+		# cbar = plt.colorbar(im, ticks=[Pim.min(),Pim.mean(),Pim.max()], orientation="vertical")
+		# cbar.ax.set_yticklabels(["Low", "Mean", "High"], fontsize=fsl)
+		cbar = plt.colorbar(im, orientation="vertical")
 	
 	## --------------------------------------------------------
 	
@@ -394,6 +418,18 @@ def ideal_gas(x, X, D, dt, up=6):
 	## Pressure
 	pressIG = pressure_x(forceIG,HxIG,xIG)
 	return xIG, forceIG, HxIG, pressIG
+
+##=============================================================================
+
+def calculate_const(H,x,eta):
+	"""
+	<eta^2>Q = c1. See notes 06/03/2016
+	"""
+	Hx = np.trapz(H,x=eta,axis=0)
+	# eta2E = (H.T.dot(eta*eta))
+	eta2E = np.trapz((H.T*(eta*eta)).T,x=eta,axis=0)
+	return Hx*eta2E
+	
 
 ##=============================================================================
 ##=============================================================================
