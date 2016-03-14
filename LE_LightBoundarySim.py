@@ -124,15 +124,24 @@ def main():
 	## ----------------------------------------------------------------
 	
 	## Precompute exp(-t) and initialise histogram
-	expmt = np.exp(-np.arange(0,tmax,dt)/(a*a)) if a>0 else np.array([1.]+[0.]*(int(tmax/dt)-1))
-	# if a>0:
-		# expmt = np.exp(-np.arange(0.0,tmax,dt)/(a*a))
-		# ## Take average of expmt between dt bins, OMITTING a*a/dt prefactor (included later)
-		# expmt = (expmt[:-1]-expmt[1:])
-	# else:
-		# expmt = np.array([1.]+[0.]*(int(10*a*a/dt)-1))
-	##### for low a, get very few terms in exponential. Sadly, will have to modify dt, or the exp by rescaling something. Get rid of /a2 in expmt somehow.
-	
+	if a == 0:
+		## Not used in calculations
+		expmt = None
+	elif a*a <= 0.25:
+		## a is small, and exponential is dominated by first term, 
+		##		which is then exaggerated by 1/a*a
+		## Use a reference expmt to be rescaled.
+		## 1/(a*a) larger array which will be integrated to usual size.
+		TMAX = tmax/(a*a)
+		expmt = np.exp(np.arange(-TMAX,dt,dt))
+		expmt[:int(TMAX-10/dt)]=0.0	## Approximation
+	else:
+		## a is large enough that the exponential is well resolved.
+		expmt = np.exp((np.arange(-10*a*a,dt,dt))/(a*a))
+		# expmt[:int(tmax-10*a*a/dt)]=0.0	## Approximation
+		
+	## ----------------------------------------------------------------
+
 	## Initialise histogram
 	H = np.zeros((Nxbin,Nybin))
 	## Loop over initial y-position
@@ -197,18 +206,30 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 
 ## ----------------------------------------------------------------------------	
 	
-def sim_eta(et0, expmt, npoints, a, dt):
+def sim_eta(eta0, expmt, npoints, a, dt):
 	"""
 	Any alpha-dependence in expmt already taken care of.
 	See notes 02/02/2016 for LE / FPE statement.
+	See attic/ReferenceEtaTest.py for rescaling demo.
 	"""
-	nsd = np.sqrt(1.0/dt)
-	xi = np.sqrt(2) * np.random.normal(0, nsd, npoints)
-	if a==0.0:
+	if a == 0:
+		## White noise with npoints points
+		xi = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, npoints)
+		xi[0] = eta0
 		eta = xi
+	elif a*a <= 0.25:
+		## Using larger-size reference eta and then rescaling
+		NPOINTS = int(npoints/(a*a))
+		XI  = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, NPOINTS)
+		ETA = dt*fftconvolve(XI,expmt,"full")[-NPOINTS:][::-1] ## Lose full padding and reverse time.
+		ETA += eta0*expmt
+		## Rescale
+		eta = 1/(a)*np.array([np.trapz(chunk,dx=dt) for chunk in np.array_split(ETA,npoints)])
 	else:
-		eta = et0*expmt + (dt/(a*a))*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
-		# eta = (1/(a*a))*dt*fftconvolve(expmt,np.append(np.zeros(npoints),xi),"full")[npoints-1:-npoints]
+		## Straight-up convolution
+		xi = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, npoints)
+		eta = dt/(a*a)*fftconvolve(xi,expmt,"full")[-npoints:][::-1] ## Lose full padding and reverse time.
+		eta[:expmt.shape[0]] += eta0*expmt
 	return eta
 	
 ## ====================================================================
