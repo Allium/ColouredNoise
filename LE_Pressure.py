@@ -399,7 +399,7 @@ def pressure_x(force,Hx,x):
 	Returns an array of pressure value at every point in x.
 	"""
 	me = "LE_Pressure.pressure: "
-	press = np.array([np.trapz((-force*Hx)[:i], x[:i]) for i,xi in enumerate(x)])
+	press = np.array([np.trapz((-force*Hx)[:i], x=x[:i]) for i,xi in enumerate(x)])
 	return press
 	
 ##=============================================================================
@@ -418,17 +418,6 @@ def ideal_gas(x, X, D, dt, up=6):
 	## Pressure
 	pressIG = pressure_x(forceIG,HxIG,xIG)
 	return xIG, forceIG, HxIG, pressIG
-
-##=============================================================================
-
-def calculate_const(H,x,eta):
-	"""
-	<eta^2>Q = c1. See notes 06/03/2016
-	"""
-	Hx = np.trapz(H,x=eta,axis=0)
-	# eta2E = (H.T.dot(eta*eta))
-	eta2E = np.trapz((H.T*(eta*eta)).T,x=eta,axis=0)
-	return Hx*eta2E
 	
 
 ##=============================================================================
