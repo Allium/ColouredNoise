@@ -97,7 +97,7 @@ def main():
 	xmax = lookup_xmax(X,a)
 	xmin = calculate_xmin(X,a)	## Simulation cutoff
 	xini = calculate_xini(X,a)	## Particle initial x
-	ymax = round(3.0/(a*a),1) if a!=0.0 else 1.0
+	ymax = round(3.0/a,1) if a!=0.0 else 1.0
 	
 	## Histogramming; xbins and ybins are bin edges.
 	Nxbin = 100
@@ -127,18 +127,18 @@ def main():
 	if a == 0:
 		## Not used in calculations
 		expmt = None
-	elif a*a <= 0.1:
+	elif a <= 0.1:
 		## a is small, and exponential is dominated by first term, 
-		##		which is then exaggerated by 1/a*a
+		##		which is then exaggerated by 1/a
 		## Use a reference expmt to be rescaled.
-		## 1/(a*a) larger array which will be integrated to usual size.
+		## 1/(a) larger array which will be integrated to usual size.
 		if vb: print me+"rescaling time"
 		# expmt = np.exp(np.arange(-10,dt,dt))
 		expmt = np.exp(np.arange(-10,0.1,0.1))
 	else:
 		## a is large enough that the exponential is well resolved.
-		expmt = np.exp((np.arange(-10*a*a,dt,dt))/(a*a))
-		# expmt[:int(tmax-10*a*a/dt)]=0.0	## Approximation
+		expmt = np.exp((np.arange(-10*a,dt,dt))/(a))
+		# expmt[:int(tmax-10*a/dt)]=0.0	## Approximation
 		
 	## ----------------------------------------------------------------
 
@@ -217,10 +217,10 @@ def sim_eta(eta0, expmt, npoints, a, dt):
 		xi = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, npoints)
 		xi[0] = eta0
 		eta = xi
-	elif a*a <= 0.1:
+	elif a <= 0.1:
 		## Using larger-size reference eta and then rescaling
-		# NPOINTS = int(npoints/(a*a))
-		NPOINTS = int(npoints/(a*a)*(dt/0.1))
+		# NPOINTS = int(npoints/(a))
+		NPOINTS = int(npoints/(a)*(dt/0.1))
 		XI  = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, NPOINTS)
 		ETA = dt*fftconvolve(XI,expmt,"full")[-NPOINTS:][::-1] ## Lose full padding and reverse time
 		ETA[:expmt.shape[0]] += eta0*expmt
@@ -229,7 +229,7 @@ def sim_eta(eta0, expmt, npoints, a, dt):
 	else:
 		## Straight-up convolution
 		xi = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, npoints)
-		eta = dt/(a*a)*fftconvolve(xi,expmt,"full")[-npoints:][::-1] ## Lose full padding and reverse time
+		eta = dt/(a)*fftconvolve(xi,expmt,"full")[-npoints:][::-1] ## Lose full padding and reverse time
 		eta[:expmt.shape[0]] += eta0*expmt
 	return eta
 	
@@ -240,7 +240,7 @@ def histogram_weight(yi,yf,a):
 	Weights depend on starting position and finishing position.
 	Probability of y obeys Gaussian with zero mean and variance ???
 	"""
-	return np.exp(-0.5*a*a*(yi*yi+yf*yf))
+	return np.exp(-0.5*a*(yi*yi+yf*yf))
 	
 ## ====================================================================
 
@@ -283,11 +283,10 @@ def lookup_xmax(X,a):
 	# return X+4.0
 	"""
 	Lookup table for xmax
-	2016/03/01 New definitions
+	2016/03/20 New definitions
 	"""
-	if a<=0.05:		xmax = X+7.0
-	elif a<=0.1:	xmax = X+6.0
-	elif a<=0.3:	xmax = X+5.0
+	if a<=0.05:	xmax = X+6.0
+	elif a<=0.1:	xmax = X+5.0
 	else:			xmax = X+4.0
 	return xmax
 	
