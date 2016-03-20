@@ -52,7 +52,7 @@ def main():
 	
 	parser = optparse.OptionParser(conflict_handler="resolve")	
 	parser.add_option('-a','--alpha',
-                  dest="potmag",default=0.1,type="float",
+                  dest="alpha",default=0.1,type="float",
 				  help="The steepness of the potential.")
 	parser.add_option('-X','--wallpos',
                   dest="X",default=10.0,type="float")
@@ -74,7 +74,7 @@ def main():
 				  help="Print docstring.")					  
 	opt = parser.parse_args()[0]
 	if opt.help: print main.__doc__; return
-	a		= opt.potmag
+	a		= opt.alpha
 	X		= opt.X
 	Delta	= opt.Delta
 	Nrun	= opt.Nrun

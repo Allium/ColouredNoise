@@ -314,7 +314,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		plt.xlim(right=max(chain.from_iterable(AA)))
 		plt.ylim(bottom=0.0)
 		plt.title("Pressure normalised by WN result",fontsize=fst)
-		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$",fontsize=fsa)
+		plt.xlabel("$\\alpha=f_0^2\\tau/T\\zeta$",fontsize=fsa)
 		plt.ylabel("Pressure",fontsize=fsa)
 		plt.grid()
 		plt.legend(loc="best",fontsize=fsl)
@@ -368,7 +368,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 				
 		## ACCOUTREMENTS
 		plt.title("Pressure normalised by WN result",fontsize=fst)
-		plt.xlabel("$\\alpha=(f_0^2\\tau/T\\zeta)^{1/2}$",fontsize=fsa)
+		plt.xlabel("$\\alpha=f_0^2\\tau/T\\zeta$",fontsize=fsa)
 		plt.ylabel("Wall separation",fontsize=fsa)
 		plt.grid(False)
 		
