@@ -263,32 +263,11 @@ def calculate_xmin(X,a):
 	return xmin
 	
 def lookup_xmax(X,a):
-	# """
-	# 2015/12/08 NEW DEFINITIONS
-	# Lookup table for xmax
-	# Limited testing; X=10.0 only, up to a=1.0
-	# """
-	# if   a<=0.08:	xmax=1.4*X
-	# elif a<=0.1:	xmax=1.15*X
-	# elif a<=0.2:	xmax=1.1*X
-	# elif a<=0.3:	xmax=1.02*X
-	# elif a<=0.4:	xmax=1.005*X
-	# elif a<=0.5:	xmax=1.003*X
-	# elif a<=0.6:	xmax=1.003*X
-	# elif a<=0.7:	xmax=1.003*X
-	# elif a<=0.8:	xmax=1.002*X
-	# elif a<=0.9:	xmax=1.002*X
-	# else:			xmax=1.001*X
-	# # return max(xmax,X+0.1)
-	# return X+4.0
 	"""
 	Lookup table for xmax
 	2016/03/20 New definitions
 	"""
-	if a<=0.05:	xmax = X+6.0
-	elif a<=0.1:	xmax = X+5.0
-	else:			xmax = X+4.0
-	return xmax
+	return X+4.0
 	
 def calculate_xbin(xini,X,xmax,Nxbin):
 	"""

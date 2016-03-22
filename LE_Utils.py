@@ -112,8 +112,11 @@ def filename_pars(filename):
 	start = filename.find("_a") + 2
 	a = float(filename[start:filename.find("_",start)])
 	## X
-	start = filename.find("_X") + 2
-	X = float(filename[start:filename.find("_",start)])
+	try:
+		start = filename.find("_X") + 2
+		X = float(filename[start:filename.find("_",start)])
+	except ValueError:
+		X = None
 	## D
 	try:
 		start = filename.find("_D") + 2

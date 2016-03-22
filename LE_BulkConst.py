@@ -78,7 +78,7 @@ def plot_dir(histdir):
 	plt.plot(A,P, "o-", label="$-\\int\\rho(x)\\phi(x)\\,{\\rm d}x$")
 	plt.plot(A,C*A, "o-", label="$\\alpha Q\\langle\\eta^2\\rangle$")
 	plt.plot(A,P_WN,"--",label="WN theory")
-	plt.suptitle("Bulk Constant as Function of $\\alpha$")
+	plt.suptitle("Pressure as Function of $\\alpha$")
 	plt.xlabel("$\\alpha$")
 	plt.grid()
 	plt.legend()
