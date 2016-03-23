@@ -89,8 +89,8 @@ def main(a,R,Nrun,dt,timefac,vb):
 	
 	R2 = R*R
 	## Simulation limits
-	rmax = R+4.0
-	rmin = max(0.0,0.95*R-4*a)
+	rmax = R+5.0
+	rmin = max(0.0,0.9*R-5*a)
 	## Injection x coordinate
 	rini = 0.5*(rmin+R)
 		
@@ -157,7 +157,7 @@ def main(a,R,Nrun,dt,timefac,vb):
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim(xyini, eIC[i], a, R, rmin, rmax, dt, tmax, expmt, (vb and run%50==0))
-			# plot_traj(np.sqrt(x*x+y*y),np.arctan(y/x),rmin,R,rmax,hisdir+"TRAJ"+hisfile[4:]+".png"); exit()
+			# plot_traj(np.sqrt(x*x+y*y),np.arctan2(y,x),rmin,R,rmax,hisdir+"TRAJ"+hisfile[4:]+".png")
 			H += np.histogram2d(x,y,bins=[rbins,pbins],normed=False)[0]
 			i += 1
 	## Divide by bin area and number of particles
@@ -181,7 +181,7 @@ def boundary_sim(xyini, exyini, a, R, rmin, rmax, dt, tmax, expmt, vb=False):
 	me = "LE_SBS.boundary_sim: "
 	
 	R2 = R*R
-	rmin2 = rmin*rmin
+	rmin2 = max(rmin*rmin,0.05)
 	
 	## Initialisation
 	x0,y0 = xyini
@@ -237,8 +237,8 @@ def plot_traj(r,theta,rmin,R,rmax,outfile):
 	ax.grid(True)
 	plt.show()
 	
-	plt.savefig(outfile)
-	print me+"Figure saved as",outfile
+	# plt.savefig(outfile)
+	# print me+"Figure saved as",outfile
 	plt.clf()
 	return
 

@@ -116,8 +116,8 @@ def pressure_pdf_file(histfile, verbose):
 	
 	## Load histogram and normalise
 	H = np.load(histfile)
-	H[0]=H[1]
-	H /= np.trapz(r*H,x=r)
+	## Normalise as if extended to r=0
+	H = ext_norm(H,r,R)
 
 	## White noise result
 	rho_WN = pdf_WN(r,R)
@@ -169,7 +169,7 @@ def pressure_pdf_file(histfile, verbose):
 def allfiles(dirpath, verbose):
 	for filepath in glob.glob(dirpath+"/BHIS_CIR_*.npy"):
 		pressure_pdf_file(filepath, verbose)
-		plt.clf()
+		plt.close()
 	return
 
 ##=============================================================================
@@ -208,8 +208,7 @@ def pressure_dir(dirpath, rawp, verbose):
 		
 		## Load histogram and normalise
 		H = np.load(histfile)
-		H[0]=H[1]
-		H /= np.trapz(r*H,x=r)
+		H = ext_norm(H,r,R[i])
 
 		## Calculate force array
 		force = 0.5*(np.sign(R[i]-r)-1)
@@ -255,6 +254,7 @@ def pressure_dir(dirpath, rawp, verbose):
 		[ax.plot(AA,PP_WN[i,:],"--",) for i in range(RR.size)]
 		ax.set_color_cycle(None)
 		title = "Pressure"
+		plotfile = plotfile[:-4]+"_rawp.png"
 	else:
 		PP /= PP_WN
 		title = "Pressure normalised by WN"
@@ -281,11 +281,17 @@ def pdf_WN(r,R):
 	"""
 	Theoretical pressure of a white noise gas.
 	"""
-	rho0 = 1.0/(0.5*(R-r[0])*(R-r[0])+R+1.0)
+	rho0 = 1.0/(0.5*R*R+R+1.0)
 	Rind = np.argmin(np.abs(r-R))
 	rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(R-r[Rind:])])
-	return rho_WN/np.trapz(r*rho_WN,x=r)
+	return rho_WN
 
+def ext_norm(H,r,R):
+	H[0]=H[1]
+	rext = np.hstack([np.linspace(0.0,r[0],2),r])
+	Hext = np.hstack([H[:np.argmin(np.abs(r-R))].mean()*np.ones(2),H])
+	H /= np.trapz(rext*Hext,x=rext)
+	return H
 
 ##=============================================================================
 if __name__=="__main__":
