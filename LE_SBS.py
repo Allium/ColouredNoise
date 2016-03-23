@@ -90,7 +90,8 @@ def main(a,R,Nrun,dt,timefac,vb):
 	R2 = R*R
 	## Simulation limits
 	rmax = R+5.0
-	rmin = max(0.0,0.9*R-5*a)
+	rmin = 0.9*R - (min(5*a,2*dt/a) if a!=0.0 else np.sqrt(2))
+	rmin = max(0.0,rmin)
 	## Injection x coordinate
 	rini = 0.5*(rmin+R)
 		
@@ -181,13 +182,14 @@ def boundary_sim(xyini, exyini, a, R, rmin, rmax, dt, tmax, expmt, vb=False):
 	me = "LE_SBS.boundary_sim: "
 	
 	R2 = R*R
-	rmin2 = max(rmin*rmin,0.05)
+	rmin2 = max(rmin*rmin,0.2*0.2)
 	
 	## Initialisation
 	x0,y0 = xyini
+	r2 = x0*x0+y0*y0
 	nstp = int(tmax/dt)
 	exstp = nstp/10
-	if vb: print me+"a = ",a,"; (r0,p0) =",np.around(xyini,2)
+	if vb: print me+"[a, R] = ",[a,R],"; (x0,y0) =",np.around(xyini,2)
 	
 	## Simulate eta
 	if vb: t0 = time.time()
@@ -198,7 +200,6 @@ def boundary_sim(xyini, exyini, a, R, rmin, rmax, dt, tmax, expmt, vb=False):
 	if vb: t0 = time.time()
 		
 	xy = np.zeros([2,nstp]); xy[:,0] = [x0,y0]
-	r2 = x0*x0+y0*y0
 	i,j = 0,0
 	## Euler steps to calculate x(t)
 	while r2 > rmin2:
@@ -214,14 +215,14 @@ def boundary_sim(xyini, exyini, a, R, rmin, rmax, dt, tmax, expmt, vb=False):
 			j += 1
 	if (j>0 and vb): print me+"trajectory array extended",j,"times."
 	## Clip trailing zeroes
-	xy = xy[:i]
+	xy = xy[:,:i]
 	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",i,"steps"
 
 	return xy
 	
 ## ====================================================================
 
-def plot_traj(r,theta,rmin,R,rmax,outfile):
+def plot_traj(rad,theta,rmin,R,rmax,outfile):
 	me = "LE_SBS.plot.traj: "
 	
 	ax = plt.subplot(111, projection="polar")
@@ -229,10 +230,10 @@ def plot_traj(r,theta,rmin,R,rmax,outfile):
 	## Plot wall and simulation boundary
 	TH = np.linspace(-np.pi,np.pi,360)
 	ax.plot(TH,R*np.ones(360),"k-",linewidth=2)
-	ax.plot(TH,rmin*np.ones(360),"b-",linewidth=2)
+	ax.plot(TH,rmin*np.ones(360),"b-",linewidth=1)
 	
 	## Plot trajectory
-	ax.plot(theta, r, "r-")
+	ax.plot(theta, rad, "r-")
 	ax.set_rlim([0.0,rmax])
 	ax.grid(True)
 	plt.show()
