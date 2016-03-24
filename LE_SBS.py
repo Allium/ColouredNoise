@@ -162,7 +162,8 @@ def main(a,R,Nrun,dt,timefac,vb):
 			H += np.histogram2d(x,y,bins=[rbins,pbins],normed=False)[0]
 			i += 1
 	## Divide by bin area and number of particles
-	H /= np.outer(np.diff(rbins),np.diff(pbins))
+	# H /= np.outer(np.diff(rbins),np.diff(pbins))
+	H /= np.outer(0.5*(rbins[1:]+rbins[-1])*np.diff(rbins),np.diff(pbins))
 	H /= Nparticles
 	## Azimuthal average
 	H = H.sum(axis=1)
@@ -182,19 +183,19 @@ def boundary_sim(xyini, exyini, a, R, rmin, rmax, dt, tmax, expmt, vb=False):
 	me = "LE_SBS.boundary_sim: "
 	
 	R2 = R*R
-	rmin2 = max(rmin*rmin,0.2*0.2)
+	rmin2 = max(rmin*rmin,0.1*0.1)
 	
 	## Initialisation
 	x0,y0 = xyini
 	r2 = x0*x0+y0*y0
 	nstp = int(tmax/dt)
 	exstp = nstp/10
-	if vb: print me+"[a, R] = ",[a,R],"; (x0,y0) =",np.around(xyini,2)
+	if vb: print me+"[a, R] =",np.around([a,R],2),"; [x0, y0] =",np.around(xyini,2)
 	
 	## Simulate eta
 	if vb: t0 = time.time()
 	exy = np.vstack([sim_eta(exyini[0], expmt, nstp, a, dt), sim_eta(exyini[1], expmt, nstp, a, dt)])
-	if vb: print me+"Simulation of eta",round(time.time()-t0,1),"seconds for",nstp,"steps"
+	if vb: print me+"Simulation of eta",round(time.time()-t0,2),"seconds for",nstp,"steps"
 		
 	## Spatial variables
 	if vb: t0 = time.time()
@@ -216,7 +217,7 @@ def boundary_sim(xyini, exyini, a, R, rmin, rmax, dt, tmax, expmt, vb=False):
 	if (j>0 and vb): print me+"trajectory array extended",j,"times."
 	## Clip trailing zeroes
 	xy = xy[:,:i]
-	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",i,"steps"
+	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",i,"steps"
 
 	return xy
 	
