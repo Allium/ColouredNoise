@@ -90,7 +90,7 @@ def main(a,R,Nrun,dt,timefac,vb):
 	R2 = R*R
 	## Simulation limits
 	rmax = R+5.0
-	rmin = 0.9*R - (max(5*a,2*dt/a) if a!=0.0 else np.sqrt(2))
+	rmin = 0.9*R - (max(5*np.sqrt(a),2*dt/a) if a!=0.0 else np.sqrt(2))
 	rmin = max(0.0,rmin)
 	## Injection x coordinate
 	rini = 0.5*(rmin+R)
