@@ -92,29 +92,40 @@ def plot_dir(histdir):
 def bulk_const(histfile):
 
 	pars = filename_pars(histfile)
-	[a,X,D,dt] = [pars[key] for key in ["a","X","D","dt"]]
+	[a,X,R] = [pars[key] for key in ["a","X","R"]]
 
 	H = np.load(histfile)
 	# H[:,0] = H[:,1]
 
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
-	xbins = bins["xbins"]
-	ybins = bins["ybins"]
+	
+	## 1D sim
+	if len(H.shape) == 2:
+		xbins = bins["xbins"]
+		ybins = bins["ybins"]
+		x = 0.5*(xbins[1:]+xbins[:-1])
+		eta = 0.5*(ybins[1:]+ybins[:-1])
+		H /= np.trapz(np.trapz(H,x=x,axis=1),x=eta,axis=0)
+		Hx = np.trapz(H,x=eta,axis=0)
+		force = force_x(x,1.0,X,D)
+		J = 1	## Integration factor
+		
+	## Circular sim
+	elif len(H.shape) ==1:
+		xbins = bins["rbins"]
+		x = 0.5*(xbins[1:]+xbins[:-1])
+		Hx = ext_norm(H,x,R)
+		force = 0.5*(np.sign(R[i]-r)-1
+		J = r	## Integration factor
 
-	x = 0.5*(xbins[1:]+xbins[:-1])
-	eta = 0.5*(ybins[1:]+ybins[:-1])
-
-	H /= np.trapz(np.trapz(H,x=x,axis=1),x=eta,axis=0)
-	Hx = np.trapz(H,x=eta,axis=0)
 
 	if 0:
 		print "eta pdfs"
-		for i in range(H.shape[1]/2):
+		for i in range(H.shape[-1]/2):
 			plt.plot(eta, H[:,i]/Hx[i])
 		plt.show();exit()
 	
-	force = force_x(x,1.0,X,D)
-	press = pressure_x(force,Hx,x)
+	press = pressure_x(force,Hx*J,x)
 
 	## Must normalise each eta pdf slice
 	e2E = np.trapz(((H/Hx).T*(eta*eta)).T,x=eta,axis=0)

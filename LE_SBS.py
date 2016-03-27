@@ -22,7 +22,9 @@ def input():
 	FLAGS
 		-a --alpha		0.1		Slope of the potential
 		-R --bulkrad	10.0	Position of wall
+		   --HO			False	Switch from linear to harmonic potential
 		-r --nruns		100		Number of runs for each (x0,y0)
+		   --dt			0.01	Timestep
 		-t --time		1.0		Multiply t_max by factor
 		-v --verbose	False	Print useful information to screen
 		-h --help		False	Print docstring and exit
@@ -44,18 +46,19 @@ def input():
 	
 	parser = optparse.OptionParser(conflict_handler="resolve")	
 	parser.add_option('-a','--alpha',
-                  dest="a",default=0.1,type="float",
-				  help="The steepness of the potential.")
+        dest="a",default=0.1,type="float")
 	parser.add_option('-R','--bulkrad',
-                  dest="R",default=10.0,type="float")
+        dest="R",default=10.0,type="float")
+	parser.add_option("--HO",
+		dest="harmonic_potential",default=False,action="store_true")
 	parser.add_option('-r','--nrun',
-                  dest="Nrun",default=100,type="int")
+        dest="Nrun",default=100,type="int")
 	parser.add_option('--dt',
-                  dest="dt",default=0.01,type="float")		
+                dest="dt",default=0.01,type="float")		
 	parser.add_option('-t','--timefac',
-                  dest="timefac",default=1.0,type="float")	 
+                dest="timefac",default=1.0,type="float")	 
 	parser.add_option('-v','--verbose',
-                  dest="vb",default=False,action="store_true")
+                dest="vb",default=False,action="store_true")
 	parser.add_option('-h','--help',
 		dest="help", default=False, action="store_true")				  
 	opts, argv = parser.parse_args()
@@ -66,6 +69,10 @@ def input():
 	global dt; dt = opts.dt
 	timefac = opts.timefac
 	vb		= opts.vb
+	
+	## Choose potential type
+	global force
+	force = force_lin if opts.harmonic_potential else force_const
 		
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
 	
@@ -90,7 +97,8 @@ def main(a,R,Nrun,dt,timefac,vb):
 	R2 = R*R
 	## Simulation limits
 	rmax = R+5.0
-	rmin = 0.9*R - (max(5*np.sqrt(a),2*dt/a) if a!=0.0 else np.sqrt(2))
+	# rmin = 0.9*R - (max(5*np.sqrt(a),2*dt/a) if a!=0.0 else np.sqrt(2))
+	rmin = 0.9*R - (5*np.sqrt(a) if a!=0.0 else np.sqrt(2))
 	rmin = max(0.0,rmin)
 	## Injection x coordinate
 	rini = 0.5*(rmin+R)
@@ -113,9 +121,10 @@ def main(a,R,Nrun,dt,timefac,vb):
 	## ----------------------------------------------------------------
 
 	## Filename; directory and file existence; readme
+	f_type = "C" if force == force_const else "L"
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_r"+str(Nrun)+"_dt"+str(dt)+"/"
-	hisfile = "BHIS_CIR_a"+str(a)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)
+			"_CIR_"+f_type+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
+	hisfile = "BHIS_CIR_"+f_type+"_a"+str(a)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
@@ -162,8 +171,8 @@ def main(a,R,Nrun,dt,timefac,vb):
 			H += np.histogram2d(x,y,bins=[rbins,pbins],normed=False)[0]
 			i += 1
 	## Divide by bin area and number of particles
-	# H /= np.outer(np.diff(rbins),np.diff(pbins))
-	H /= np.outer(0.5*(rbins[1:]+rbins[-1])*np.diff(rbins),np.diff(pbins))
+	H /= np.outer(np.diff(rbins),np.diff(pbins))
+	# H /= np.outer(0.5*(rbins[1:]+rbins[-1])*np.diff(rbins),np.diff(pbins))
 	H /= Nparticles
 	## Azimuthal average
 	H = H.sum(axis=1)
@@ -205,7 +214,7 @@ def boundary_sim(xyini, exyini, a, R, rmin, rmax, dt, tmax, expmt, vb=False):
 	## Euler steps to calculate x(t)
 	while r2 > rmin2:
 		r2 = (xy[:,i]*xy[:,i]).sum()
-		fxy = 0.5*(np.sign(R2-r2)-1) * xy[:,i]/np.sqrt(r2)
+		fxy = force(xy[:,i],np.sqrt(r2),r2,R,R2)
 		xy[:,i+1] = xy[:,i] + dt*( fxy + exy[:,i] )
 		i +=1
 		## Extend array if necessary
@@ -221,6 +230,14 @@ def boundary_sim(xyini, exyini, a, R, rmin, rmax, dt, tmax, expmt, vb=False):
 
 	return xy
 	
+## ====================================================================
+
+def force_const(xy,r,r2,R,R2):
+	return 0.5*(np.sign(R2-r2)-1) * xy/r
+
+def force_lin(xy,r,r2,R,R2):
+	return force_const(xy,r,r2,R,R2) * (r-R)
+
 ## ====================================================================
 
 def plot_traj(rad,theta,rmin,R,rmax,outfile):
