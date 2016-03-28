@@ -97,12 +97,12 @@ def pressure_pdf_file(histfile, verbose):
 	me = "LE_SPressure.pressure_pdf_file: "
 	t0 = time()
 	
-	## Filenames
+	## Filename
 	plotfile = os.path.dirname(histfile)+"/PDFP"+os.path.basename(histfile)[4:-4]+".png"
 	
 	## Get pars from filename
 	pars = filename_pars(histfile)
-	[a,R] = [pars[key] for key in ["a","R"]]
+	[a,R,ftype] = [pars[key] for key in ["a","R","ftype"]]
 	assert (R is not None), me+"You are using the wrong program. R must be defined."
 	if verbose: print me+"alpha =",a,"and R =",R
 		
@@ -119,40 +119,44 @@ def pressure_pdf_file(histfile, verbose):
 	H = Hr_norm(H,r,R)
 
 	## White noise result
-	rho_WN = pdf_WN(r,R)
+	rho_WN = pdf_WN(r,R,ftype)
 	
 	## Set up plot
 	fig,axs = plt.subplots(2,1,sharex=True)
 		
-	## pdf plot
+	## PDF PLOT
 	ax = axs[0]
-	
+	## Wall
+	plot_wall(ax, ftype, r, R)
+	## PDF and WN PDF
 	ax.plot(r,H, label="CN simulation")
 	ax.plot(r,rho_WN, label="WN theory")
-	ax.axvline(R,c="k")
+	## Accoutrements
 	ax.set_xlim(right=rmax)
-	ax.set_ylim(bottom=0.0)
+	ax.set_ylim(bottom=0.0, top=np.ceil(H.max()))
 	ax.set_ylabel("$\\rho(r)$", fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="upper right",fontsize=fsl)
 		
 	## Calculate force array
-	force = 0.5*(np.sign(R-r)-1)
+	force = 0.5*(np.sign(R-r)-1) * ((r-R) if ftype is "linear" else 1)
 	## Pressure array -- sum rather than trapz
 	p = -(force*H).cumsum() * (r[1]-r[0])
 	p_WN = -(force*rho_WN).cumsum() * (r[1]-r[0])
 	
-	## Pressure plot
+	## PRESSURE PLOT
 	ax = axs[1]
+	## Wall
+	plot_wall(ax, ftype, r, R)
+	## Pressure and WN pressure
 	ax.plot(r,p,label="CN simulation")
 	ax.plot(r,p_WN,label="WN theory")
-	ax.axvline(R,c="k")
 	## Accoutrements
 	ax.set_xlim(right=rmax)
+	ax.set_ylim(bottom=0.0, top=np.ceil(p.max()))
 	ax.set_xlabel("$r$", fontsize=fsa)
 	ax.set_ylabel("$P(r)$", fontsize=fsa)
 	ax.grid()
-	# ax.legend(loc="lower right",fontsize=fsl)
 	
 	## Tidy figure
 	fig.suptitle(os.path.basename(plotfile),fontsize=fst)
@@ -196,7 +200,7 @@ def pressure_dir(dirpath, rawp, verbose):
 	
 		## Get pars from filename
 		pars = filename_pars(histfile)
-		[A[i],R[i]] = [pars[key] for key in ["a","R"]]
+		[A[i],R[i],ftype] = [pars[key] for key in ["a","R","ftype"]]
 
 		## Space (for axes)
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -213,7 +217,7 @@ def pressure_dir(dirpath, rawp, verbose):
 		force = 0.5*(np.sign(R[i]-r)-1)
 		## Pressure array -- sum rather than trapz
 		P[i] = -(force*H).sum() * (r[1]-r[0])
-		P_WN[i] = -(force*pdf_WN(r,R[i])).sum() * (r[1]-r[0])
+		P_WN[i] = -(force*pdf_WN(r,R[i],ftype)).sum() * (r[1]-r[0])
 		
 	
 	## ------------------------------------------------	
@@ -252,11 +256,11 @@ def pressure_dir(dirpath, rawp, verbose):
 	if rawp:
 		[ax.plot(AA,PP_WN[i,:],"--",) for i in range(RR.size)]
 		ax.set_color_cycle(None)
-		title = "Pressure"
+		title = "Pressure; "+dirpath
 		plotfile = dirpath+"/PAR1_rawp.png"
 	else:
 		PP /= PP_WN
-		title = "Pressure normalised by WN"
+		title = "Pressure normalised by WN; "+dirpath
 		plotfile = dirpath+"/PAR1.png"
 
 	for i in range(RR.size):
@@ -264,12 +268,12 @@ def pressure_dir(dirpath, rawp, verbose):
 
 	ax.set_xlim((AA[0],AA[-1]))
 	ax.set_ylim(bottom=0.0)
-	ax.set_xlabel("$\\alpha$",fontsize=fsa)
-	
+	ax.set_xlabel(("$\\alpha$" if ftype is "const" else "$\\beta$"),fontsize=fsa)
 	ax.set_ylabel("Pressure",fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="best",fontsize=fsl)
 	ax.set_title(title)
+	
 	plt.tight_layout()
 	plt.savefig(plotfile)
 	if verbose: print me+"plot saved to",plotfile
@@ -277,15 +281,17 @@ def pressure_dir(dirpath, rawp, verbose):
 	return
 
 ##=============================================================================
-def pdf_WN(r,R):
+def pdf_WN(r,R,ftype):
 	"""
 	Theoretical radial pdf of a white noise gas.
 	"""
 	Rind = np.argmin(np.abs(r-R))
-	# rho0 = 1.0/(0.5*R*R+R+1.0)
-	# rho_WN = rho0 * r * np.hstack([np.ones(Rind),np.exp(R-r[Rind:])])
-	rho0 = 1.0/(R+1.0)
-	rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(R-r[Rind:])])
+	if ftype is "const":
+		rho0 = 1.0/(R+1.0)
+		rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(R-r[Rind:])])
+	elif ftype is "linear":
+		rho0 = 1.0/(R+np.sqrt(np.pi/2))
+		rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(-0.5*(r[Rind:]-R)**2)])
 	return rho_WN
 
 def Hr_norm(H,r,R):
@@ -300,6 +306,16 @@ def Hr_norm(H,r,R):
 	H /= np.trapz(Hext,x=rext)
 	return H
 
+##=============================================================================
+
+def plot_wall(ax, ftype, r, R):
+	if ftype is "linear":
+		Ridx = np.argmin(np.abs(R-r))
+		ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Wall")
+	else:
+		ax.axvline(R,c="k",ls="--",label="Wall")
+	return
+	
 ##=============================================================================
 if __name__=="__main__":
 	main()

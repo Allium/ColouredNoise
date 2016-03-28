@@ -66,23 +66,22 @@ def input():
 	a		= opts.a
 	R		= opts.R
 	Nrun	= opts.Nrun
-	global dt; dt = opts.dt
+	dt		= opts.dt
 	timefac = opts.timefac
 	vb		= opts.vb
 	
 	## Choose potential type
-	global force
 	force = force_lin if opts.harmonic_potential else force_const
 		
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
 	
-	main(a,R,Nrun,dt,timefac,vb)
+	main(a,R,force,Nrun,dt,timefac,vb)
 	
 	return
 
 ##=============================================================================
 
-def main(a,R,Nrun,dt,timefac,vb):
+def main(a,R,force,Nrun,dt,timefac,vb):
 	"""
 	"""
 	me = "LE_SBS.main: "
@@ -166,7 +165,7 @@ def main(a,R,Nrun,dt,timefac,vb):
 		xyini = [rini*np.cos(pini),rini*np.sin(pini)]
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
-			x, y = boundary_sim(xyini, eIC[i], a, R, rmin, rmax, dt, tmax, expmt, (vb and run%50==0))
+			x, y = boundary_sim(xyini, eIC[i], a, R, force, rmin, rmax, dt, tmax, expmt, (vb and run%50==0))
 			# plot_traj(np.sqrt(x*x+y*y),np.arctan2(y,x),rmin,R,rmax,hisdir+"TRAJ"+hisfile[4:]+".png")
 			H += np.histogram2d(x,y,bins=[rbins,pbins],normed=False)[0]
 			i += 1
@@ -184,7 +183,7 @@ def main(a,R,Nrun,dt,timefac,vb):
 	
 ## ====================================================================
 
-def boundary_sim(xyini, exyini, a, R, rmin, rmax, dt, tmax, expmt, vb=False):
+def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=False):
 	"""
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
 	Dynamically adds more space to arrays.

@@ -142,9 +142,11 @@ def filename_pars(filename):
 		R = float(filename[start:filename.find("_",start)])
 	except ValueError:
 		R = None
+	## force type
+	ftype = "linear" if filename.find("_L_") > 0 else "const"
 	## Collect into lists
-	names = ["a","X","D","dt","ymax","R"]
-	pars  = [a,X,D,dt,ymax,R]
+	names = ["a","X","D","dt","ymax","R","ftype"]
+	pars  = [a,X,D,dt,ymax,R,ftype]
 	##
 	return dict(zip(names,pars))
 
