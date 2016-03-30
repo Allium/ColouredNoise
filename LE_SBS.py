@@ -135,7 +135,7 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	create_readme(filepath, vb)
 	
 	## Save bins
-	np.savez(hisdir+binfile,rbins=rbins,pbins=pbins)
+	np.savez(hisdir+binfile,rbins=rbins,erbins=erbins)
 			
 	## ----------------------------------------------------------------
 	## SIMULATION
