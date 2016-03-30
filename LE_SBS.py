@@ -107,6 +107,11 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	Npbin = 50
 	rbins = np.linspace(rini,rmax,Nrbin)
 	pbins = np.linspace(0.0,2*np.pi,Npbin)
+	Nerbin = 200
+	Nepbin = 50
+	erbins = np.linspace(0.0,1.0,Nerbin)
+	epbins = np.linspace(0.0,2*np.pi,Nepbin)
+	bins = [rbins,pbins,erbins,epbins]
 	
 	## Particles	
 	Nparticles = pbins.size*Nrun
@@ -115,7 +120,7 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	if a > 0.0:
 		eIC = np.random.normal(0.0,1.0/np.sqrt(a),[Nparticles,2])
 	else:
-		eIC = 100*(np.random.random([Nparticles,2])-0.5)
+		eIC = 10*(np.random.random([Nparticles,2])-0.5)
 		
 	## ----------------------------------------------------------------
 
@@ -155,7 +160,8 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	
 	
 	## Initialise histogram in space
-	H = np.zeros((Nrbin-1,Npbin-1))
+	H = np.zeros((Nrbin-1,Npbin-1,Nerbin-1,Nepbin-1))
+	# He = np.zeros((Nerbin-1,Nepbin-1))
 	## Counter for noise initial conditions
 	i = 0
 	
@@ -165,16 +171,20 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 		xyini = [rini*np.cos(pini),rini*np.sin(pini)]
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
-			x, y = boundary_sim(xyini, eIC[i], a, R, force, rmin, rmax, dt, tmax, expmt, (vb and run%50==0))
+			xyexey = boundary_sim(xyini, eIC[i], a, R, force, rmin, rmax, dt, tmax, expmt, (vb and run%50==0))
 			# plot_traj(np.sqrt(x*x+y*y),np.arctan2(y,x),rmin,R,rmax,hisdir+"TRAJ"+hisfile[4:]+".png")
-			H += np.histogram2d(x,y,bins=[rbins,pbins],normed=False)[0]
+			H += np.histogramdd(xyexey.T,bins=bins,normed=False)[0]
+			# He += np.histogram2d(ex,ey,bins=[erbins,epbins],normed=False)[0]
 			i += 1
 	## Divide by bin area and number of particles
-	H /= np.outer(np.diff(rbins),np.diff(pbins))
-	# H /= np.outer(0.5*(rbins[1:]+rbins[-1])*np.diff(rbins),np.diff(pbins))
+	coords = [np.diff(b) for b in bins]
+	newshapes = np.diag(np.array(map(len, coords))-1)+1
+	reshaped = [x.reshape(y) for x,y in zip(coords, newshapes)]
+	H /= reduce(np.multiply, np.ix_(*coords))
 	H /= Nparticles
 	## Azimuthal average
 	H = H.sum(axis=1)
+	H = H.sum(axis=2)
 	save_data(filepath, H, vb)
 	
 	if vb: print me+"execution time",round(time.time()-t0,2),"seconds"
@@ -225,9 +235,10 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	if (j>0 and vb): print me+"trajectory array extended",j,"times."
 	## Clip trailing zeroes
 	xy = xy[:,:i]
+	exy = exy[:,:i]
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",i,"steps"
 
-	return xy
+	return np.vstack([xy, exy])
 	
 ## ====================================================================
 
