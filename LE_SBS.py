@@ -191,7 +191,7 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	me = "LE_SBS.boundary_sim: "
 	
 	R2 = R*R
-	rmin2 = max(rmin*rmin,0.1*0.1)
+	rmin2 = max(rmin*rmin,0.05**2)
 	
 	## Initialisation
 	x0,y0 = xyini
