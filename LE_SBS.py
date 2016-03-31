@@ -100,7 +100,7 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	rmax = R+5.0
 	# rmin = 0.9*R - (max(5*np.sqrt(a),2*dt/a) if a!=0.0 else np.sqrt(2))
 	rmin = 0.9*R - 4*np.sqrt(a)#(4*np.sqrt(a) if a!=0.0 else np.sqrt(2))
-	rmin = max(0.0,rmin)
+	rmin = max([0.0,rmin])
 	## Injection x coordinate
 	rini = 0.5*(rmin+R)
 		
@@ -111,7 +111,7 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	pbins = np.linspace(0.0,2*np.pi,Npbin)
 	Nerbin = 150
 	Nepbin = 50
-	erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 10.0),Nerbin)	## Is this correct?
+	erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 10.0),Nerbin)
 	epbins = np.linspace(0.0,2*np.pi,Nepbin)
 	bins = [rbins,erbins]
 	
@@ -174,7 +174,6 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
 			r,er = boundary_sim(xyini, eIC[i], a, R, force, rmin, rmax, dt, tmax, expmt, (vb and run%50==0))
-			if vb: print er.max, erbins[-1] 
 			# plot_traj(np.sqrt(x*x+y*y),np.arctan2(y,x),rmin,R,rmax,hisdir+"TRAJ"+hisfile[4:]+".png")
 			H += np.histogram2d(r,er,bins=bins,normed=False)[0]
 			i += 1
@@ -242,10 +241,8 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	rcoord = np.sqrt((xy*xy).sum(axis=0))
 	ercoord = np.sqrt((exy*exy).sum(axis=0))
 	
-	erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 10.0),150)
-	plt.hist(ercoord,bins=erbins)
-	plt.show()
-	exit()
+	# erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 10.0),150)
+	# plt.hist(ercoord,bins=erbins);plt.show();exit()
 
 	return rcoord, ercoord
 	
