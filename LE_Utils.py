@@ -144,9 +144,13 @@ def filename_pars(filename):
 		R = None
 	## force type
 	ftype = "linear" if filename.find("_L_") > 0 else "const"
+	## Geometry
+	if filename.find("_CIR_") > 0: geo = "CIR"
+	elif filename.find("_1D_") > 0: geo = "1D"
+	elif filename.find("_2D_") > 0: geo = "2D"
 	## Collect into lists
-	names = ["a","X","D","dt","ymax","R","ftype"]
-	pars  = [a,X,D,dt,ymax,R,ftype]
+	names = ["a","X","D","dt","ymax","R","ftype","geo"]
+	pars  = [a,X,D,dt,ymax,R,ftype,geo]
 	##
 	return dict(zip(names,pars))
 

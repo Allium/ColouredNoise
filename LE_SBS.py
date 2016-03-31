@@ -37,6 +37,8 @@ def input():
 	
 	HISTORY
 		10 March 2016	Started
+		25 March 2016	Added linear force option
+		29 March 2016	Switchd to 2D histogram in r-eta_r space
 	"""	
 	me = "LE_SBS.input: "
 	t0 = time.time()
@@ -97,7 +99,7 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	## Simulation limits
 	rmax = R+5.0
 	# rmin = 0.9*R - (max(5*np.sqrt(a),2*dt/a) if a!=0.0 else np.sqrt(2))
-	rmin = 0.9*R - (5*np.sqrt(a) if a!=0.0 else np.sqrt(2))
+	rmin = 0.9*R - 4*np.sqrt(a)#(4*np.sqrt(a) if a!=0.0 else np.sqrt(2))
 	rmin = max(0.0,rmin)
 	## Injection x coordinate
 	rini = 0.5*(rmin+R)
@@ -107,11 +109,11 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	Npbin = 50
 	rbins = np.linspace(rini,rmax,Nrbin)
 	pbins = np.linspace(0.0,2*np.pi,Npbin)
-	Nerbin = 200
+	Nerbin = 150
 	Nepbin = 50
-	erbins = np.linspace(0.0,1.0,Nerbin)
+	erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 10.0),Nerbin)	## Is this correct?
 	epbins = np.linspace(0.0,2*np.pi,Nepbin)
-	bins = [rbins,pbins,erbins,epbins]
+	bins = [rbins,erbins]
 	
 	## Particles	
 	Nparticles = pbins.size*Nrun
@@ -160,31 +162,30 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	
 	
 	## Initialise histogram in space
-	H = np.zeros((Nrbin-1,Npbin-1,Nerbin-1,Nepbin-1))
+	H = np.zeros((Nrbin-1,Nerbin-1))
 	# He = np.zeros((Nerbin-1,Nepbin-1))
 	## Counter for noise initial conditions
 	i = 0
-	
+
 	## Loop over initial coordinates
 	for pini in pbins:
 		## Perform several runs in Cartesian coordinates
 		xyini = [rini*np.cos(pini),rini*np.sin(pini)]
 		for run in xrange(Nrun):
 			## x, y are coordinates as a function of time
-			xyexey = boundary_sim(xyini, eIC[i], a, R, force, rmin, rmax, dt, tmax, expmt, (vb and run%50==0))
+			r,er = boundary_sim(xyini, eIC[i], a, R, force, rmin, rmax, dt, tmax, expmt, (vb and run%50==0))
+			if vb: print er.max, erbins[-1] 
 			# plot_traj(np.sqrt(x*x+y*y),np.arctan2(y,x),rmin,R,rmax,hisdir+"TRAJ"+hisfile[4:]+".png")
-			H += np.histogramdd(xyexey.T,bins=bins,normed=False)[0]
-			# He += np.histogram2d(ex,ey,bins=[erbins,epbins],normed=False)[0]
+			H += np.histogram2d(r,er,bins=bins,normed=False)[0]
 			i += 1
 	## Divide by bin area and number of particles
-	coords = [np.diff(b) for b in bins]
-	newshapes = np.diag(np.array(map(len, coords))-1)+1
-	reshaped = [x.reshape(y) for x,y in zip(coords, newshapes)]
-	H /= reduce(np.multiply, np.ix_(*coords))
+	# coords = [np.diff(b) for b in bins]
+	# newshapes = np.diag(np.array(map(len, coords))-1)+1
+	# reshaped = [x.reshape(y) for x,y in zip(coords, newshapes)]
+	# H /= reduce(np.multiply, np.ix_(*coords))
+	# H = H.T
+	H /= np.outer(np.diff(rbins),np.diff(erbins))
 	H /= Nparticles
-	## Azimuthal average
-	H = H.sum(axis=1)
-	H = H.sum(axis=2)
 	save_data(filepath, H, vb)
 	
 	if vb: print me+"execution time",round(time.time()-t0,2),"seconds"
@@ -237,8 +238,16 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	xy = xy[:,:i]
 	exy = exy[:,:i]
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",i,"steps"
+	
+	rcoord = np.sqrt((xy*xy).sum(axis=0))
+	ercoord = np.sqrt((exy*exy).sum(axis=0))
+	
+	erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 10.0),150)
+	plt.hist(ercoord,bins=erbins)
+	plt.show()
+	exit()
 
-	return np.vstack([xy, exy])
+	return rcoord, ercoord
 	
 ## ====================================================================
 

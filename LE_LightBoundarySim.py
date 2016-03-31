@@ -230,7 +230,8 @@ def sim_eta(eta0, expmt, npoints, a, dt):
 		## Straight-up convolution
 		xi = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, npoints)
 		eta = dt/(a)*fftconvolve(xi,expmt,"full")[-npoints:][::-1] ## Lose full padding and reverse time
-		eta[:expmt.shape[0]] += eta0*expmt
+		idx = min(expmt.shape[0],eta.shape[0])
+		eta[:idx] += eta0*expmt[:idx]
 	return eta
 	
 ## ====================================================================
