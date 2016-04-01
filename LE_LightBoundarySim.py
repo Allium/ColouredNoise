@@ -98,20 +98,16 @@ def main():
 	tmax = 5e2*timefac
 	
 	## Space
-	# xmax = lookup_xmax(X,a)
-	# xmin = calculate_xmin(X,a)	## Simulation cutoff
-	# xini = calculate_xini(X,a)	## Particle initial x
-	xmax = X+5.0
-	xmin = 0.9*X - 4*np.sqrt(a)#(4*np.sqrt(a) if a!=0.0 else np.sqrt(2))
-	xmin = max([0.0,xmin])
-	xini = 0.5*(xmin+X)
+	xmax = lookup_xmax(X,a)
+	xmin = calculate_xmin(X,a)	## Simulation cutoff
+	xini = calculate_xini(X,a)	## Particle initial x
 	
 	ymax = round(3.0/a,1) if a!=0.0 else 1.0
 	
 	## Histogramming; xbins and ybins are bin edges.
 	Nxbin = 100
 	Nybin = 50
-	xbins = calculate_xbin(xini,X,xmax,Nxbin)
+	xbins = np.linspace(xini,xmax,Nxbin+1)#calculate_xbin(xini,X,xmax,Nxbin)
 	ybins = calculate_ybin(-ymax,ymax,Nybin+1)
 		
 	## Initial conditions
@@ -159,6 +155,9 @@ def main():
 			## x, y are coordinates as a function of time
 			x, y = boundary_sim(x0y0, a, X, Delta, xmin, tmax, expmt, (vb and run%50==0))
 			h = np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
+			if h.shape != H.shape:
+				print h.shape, H.shape, histogram_weight(x0y0[1],y[-1], a).shape, x0y0.shape
+				print xbins, ybins
 			H += h*histogram_weight(x0y0[1],y[-1], a)
 	H = (H.T)[::-1]
 	## When normed=False, need to divide by the bin area
@@ -166,7 +165,7 @@ def main():
 	## Normalise by number of particles
 	H /= Nparticles
 	
-	check_path(filepath, vb)
+	check_path(hisfile, vb)
 	save_data(hisfile, H, vb)
 	
 	if vb: print me+"execution time",round(time.time()-t0,2),"seconds"
@@ -261,8 +260,7 @@ def calculate_xmin(X,a):
 	Want to have sufficient space in the bulk for forgetting.
 	"""
 	me = "LE_LightBoundarySim.calculate_xmin: "
-	# xmin = 0.8*(X-a)
-	xmin = 0.9*X-4*a
+	xmin = 0.9*X-4*np.sqrt(a)
 	try:
 		zidx = (xmin<0.0)
 		if zidx.any():
