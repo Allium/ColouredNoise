@@ -52,10 +52,11 @@ def main():
 	
 	parser = optparse.OptionParser(conflict_handler="resolve")	
 	parser.add_option('-a','--alpha',
-                  dest="alpha",default=0.1,type="float",
-				  help="The steepness of the potential.")
+        dest="alpha",default=0.1,type="float")
 	parser.add_option('-X','--wallpos',
-                  dest="X",default=10.0,type="float")
+        dest="X",default=10.0,type="float")
+	parser.add_option("--HO",
+		dest="harmonic_potential",default=False,action="store_true")
 	parser.add_option('-D','--Delta',
                   dest="Delta",default=0.0,type="float")		
 	parser.add_option('-r','--nrun',
@@ -72,7 +73,7 @@ def main():
 	parser.add_option('-h','--help',
                   dest="help",default=False,action="store_true",
 				  help="Print docstring.")					  
-	opt = parser.parse_args()[0]
+	opt, args = parser.parse_args()
 	if opt.help: print main.__doc__; return
 	a		= opt.alpha
 	X		= opt.X
@@ -80,10 +81,13 @@ def main():
 	Nrun	= opt.Nrun
 	global dt; dt = opt.dt
 	timefac = opt.timefac
-	IC		= opt.IC
 	vb		= opt.verbose
 
-	assert IC == "line" or "uniform"
+	## Choose potential type
+	if opt.harmonic_potential:
+		from LE_Utils import force_1D_lin as force_x
+	else:
+		from LE_Utils import FBW_soft as force_x
 	
 	if vb: print "\n==  "+me+"a =",a," Nruns =",Nrun," ==\n"
 
@@ -94,9 +98,14 @@ def main():
 	tmax = 5e2*timefac
 	
 	## Space
-	xmax = lookup_xmax(X,a)
-	xmin = calculate_xmin(X,a)	## Simulation cutoff
-	xini = calculate_xini(X,a)	## Particle initial x
+	# xmax = lookup_xmax(X,a)
+	# xmin = calculate_xmin(X,a)	## Simulation cutoff
+	# xini = calculate_xini(X,a)	## Particle initial x
+	xmax = X+5.0
+	xmin = 0.9*X - 4*np.sqrt(a)#(4*np.sqrt(a) if a!=0.0 else np.sqrt(2))
+	xmin = max([0.0,xmin])
+	xini = 0.5*(xmin+X)
+	
 	ymax = round(3.0/a,1) if a!=0.0 else 1.0
 	
 	## Histogramming; xbins and ybins are bin edges.
@@ -156,6 +165,8 @@ def main():
 	H /= np.outer(np.diff(ybins),np.diff(xbins))
 	## Normalise by number of particles
 	H /= Nparticles
+	
+	check_path(filepath, vb)
 	save_data(hisfile, H, vb)
 	
 	if vb: print me+"execution time",round(time.time()-t0,2),"seconds"

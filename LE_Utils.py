@@ -42,7 +42,12 @@ def FBW_soft(x,b,X,D):
 		return FBW(x,b,X)
 	else:
 		return -b*0.5*(np.tanh((x-X)/(D*X))+1.0)
-	
+
+def force_1D_lin(x,b,X,D):
+	"""
+	Force for bulk + harmonic potential
+	"""
+	return 0.5*(np.sign(X-x)-1) * (x-X)
 	
 ## Currents
 
