@@ -1,9 +1,10 @@
 import numpy as np
 from matplotlib import pyplot as plt
+import os, optparse, glob
 from LE_Utils import filename_pars
 from LE_Utils import FBW_soft as force_x
 from LE_Pressure import pressure_x
-import os, optparse, glob
+from LE_SPressure import Hr_norm, plot_wall
 
 
 def main():
@@ -29,9 +30,9 @@ def main():
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False
 		plotfile = []
-		for histfile in glob.glob(args[0]+"*.npy"):
-			plotfile += plot_file(histfile)
-			plt.clf()
+		for histfile in glob.glob(args[0]+"/BHIS*.npy"):
+			plotfile += [plot_file(histfile)]
+			plt.close()
 	if os.path.isdir(args[0]):
 		plotfile = plot_dir(args[0])
 	
@@ -43,16 +44,21 @@ def main():
 ##=============================================================================
 def plot_file(histfile):
 	## CALCULATIONS
-	a, x, Hx, e2E, c1, p = bulk_const(histfile)
+	x, Hx, e2E, c1, p, pars = bulk_const(histfile)
+	ord = "r" if pars["geo"] == "CIR" else "r"
 	## PLOTTING
-	plt.axvline(x[x.shape[0]/2-1:x.shape[0]/2+1].mean(),color="k")
-	plt.plot(x,Hx/Hx[0],label="$Q(x)$")
-	plt.plot(x,e2E/e2E[0],label="$\\langle\\eta^2\\rangle(x)$")
+	fig = plt.figure()
+	if pars["ftype"] == "const":
+		plt.axvline(pars["X"],color="k")
+	else:
+		plot_wall(plt.gca(),pars["ftype"],x,pars["R"])
+	plt.plot(x,Hx/Hx[0],label="$Q("+ord+")$")
+	plt.plot(x,e2E/e2E[0],label="$\\langle\\eta^2\\rangle("+ord+")$")
 	plt.plot(x,c1/c1[0],label="$Q\\cdot\\langle\\eta^2\\rangle$")
 	plt.xlim(left=x[0])
-	plt.ylim(bottom=0.0,top=np.ceil((c1/c1[0]).max()))
-	plt.suptitle("Bulk Constant. $\\alpha = "+str(a)+"$.")
-	plt.xlabel("$x$")
+	plt.ylim(bottom=0.0,top=10)#np.ceil((c1/c1[0]).max()))
+	plt.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.")
+	plt.xlabel("$"+ord+"$")
 	plt.ylabel("Quantity divided by first value")
 	plt.grid()
 	plt.legend()
@@ -92,46 +98,55 @@ def plot_dir(histdir):
 def bulk_const(histfile):
 
 	pars = filename_pars(histfile)
-	[a,X,R] = [pars[key] for key in ["a","X","R"]]
+	[a,X,R,ftype,geo] = [pars[key] for key in ["a","X","R","ftype","geo"]]
 
 	H = np.load(histfile)
-	# H[:,0] = H[:,1]
 
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 	
 	## 1D sim
-	if len(H.shape) == 2:
+	if geo == "1D":
 		xbins = bins["xbins"]
 		ybins = bins["ybins"]
 		x = 0.5*(xbins[1:]+xbins[:-1])
 		eta = 0.5*(ybins[1:]+ybins[:-1])
 		H /= np.trapz(np.trapz(H,x=x,axis=1),x=eta,axis=0)
+		## Integrate over eta
 		Hx = np.trapz(H,x=eta,axis=0)
 		force = force_x(x,1.0,X,D)
-		J = 1	## Integration factor
+		p = pressure_x(force,Hx,x)
+		## Must normalise each eta pdf slice
+		e2E = np.trapz(((H/Hx).T*(eta*eta)).T,x=eta,axis=0)
+		c1 = Hx*e2E
 		
 	## Circular sim
-	elif len(H.shape) ==1:
-		xbins = bins["rbins"]
-		x = 0.5*(xbins[1:]+xbins[:-1])
-		Hx = ext_norm(H,x,R)
-		force = 0.5*(np.sign(R[i]-r)-1
-		J = r	## Integration factor
-
-
+	elif geo == "CIR":
+		H = H.T
+		## r->x for convenience
+		rbins = bins["rbins"]
+		erbins = bins["erbins"]
+		x = 0.5*(rbins[1:]+rbins[:-1])
+		eta = 0.5*(erbins[1:]+erbins[:-1]) ## Radial
+		## To get probability density rather than probebility
+		H /= np.multiply(*np.meshgrid(x,eta))
+		## Marginalise over eta
+		Hx = np.trapz(H,x=eta,axis=0)
+		Hx = Hr_norm(Hx,x,R)
+		## Force
+		force = 0.5*(np.sign(R-x)-1) * ((x-R) if ftype is "linear" else 1)
+		p = -(force*Hx).cumsum() * (x[1]-x[0])
+		
+		
 	if 0:
 		print "eta pdfs"
-		for i in range(H.shape[-1]/2):
+		for i in range(0,50,5):
 			plt.plot(eta, H[:,i]/Hx[i])
 		plt.show();exit()
-	
-	press = pressure_x(force,Hx*J,x)
-
-	## Must normalise each eta pdf slice
+		
 	e2E = np.trapz(((H/Hx).T*(eta*eta)).T,x=eta,axis=0)
 	c1 = Hx*e2E
 	
-	return a, x, Hx, e2E, c1, press
+	return [x, Hx, e2E, c1, p, pars]
 	
 ##=============================================================================
 if __name__ == "__main__":

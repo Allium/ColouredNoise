@@ -109,8 +109,11 @@ def filename_pars(filename):
 	Scrape filename for parameters and return a dict.
 	"""
 	## a
-	start = filename.find("_a") + 2
-	a = float(filename[start:filename.find("_",start)])
+	try:
+		start = filename.find("_a") + 2
+		a = float(filename[start:filename.find("_",start)])
+	except ValueError:
+		a = None
 	## X
 	try:
 		start = filename.find("_X") + 2

@@ -111,7 +111,7 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	pbins = np.linspace(0.0,2*np.pi,Npbin)
 	Nerbin = 150
 	Nepbin = 50
-	erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 10.0),Nerbin)
+	erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)),Nerbin)
 	epbins = np.linspace(0.0,2*np.pi,Nepbin)
 	bins = [rbins,erbins]
 	
@@ -138,7 +138,7 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	
 	## Save bins
 	np.savez(hisdir+binfile,rbins=rbins,erbins=erbins)
-			
+	
 	## ----------------------------------------------------------------
 	## SIMULATION
 	
@@ -163,7 +163,6 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	
 	## Initialise histogram in space
 	H = np.zeros((Nrbin-1,Nerbin-1))
-	# He = np.zeros((Nerbin-1,Nepbin-1))
 	## Counter for noise initial conditions
 	i = 0
 
@@ -185,6 +184,8 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	# H = H.T
 	H /= np.outer(np.diff(rbins),np.diff(erbins))
 	H /= Nparticles
+	
+	check_path(filepath, vb)
 	save_data(filepath, H, vb)
 	
 	if vb: print me+"execution time",round(time.time()-t0,2),"seconds"

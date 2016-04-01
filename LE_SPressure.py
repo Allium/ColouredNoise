@@ -112,9 +112,13 @@ def pressure_pdf_file(histfile, verbose):
 	rini = rbins[0]
 	rmax = rbins[-1]
 	r = 0.5*(rbins[1:]+rbins[:-1])
+	erbins = bins["erbins"]
+	er = 0.5*(erbins[1:]+erbins[-1])
 	
 	## Load histogram, convert to normalised pdf
 	H = np.load(histfile)
+	## Noise dimension irrelevant here
+	H = np.trapz(H, x=er, axis=1)
 	## Normalise as if extended to r=0
 	H = Hr_norm(H,r,R)
 
@@ -208,9 +212,14 @@ def pressure_dir(dirpath, rawp, verbose):
 		rini = rbins[0]
 		rmax = rbins[-1]
 		r = 0.5*(rbins[1:]+rbins[:-1])
+		erbins = bins["erbins"]
+		er = 0.5*(erbins[1:]+erbins[-1])
 		
-		## Load (density) histogram, convert to normalised pdf
+		## Load histogram, convert to normalised pdf
 		H = np.load(histfile)
+		## Noise dimension irrelevant here
+		H = np.trapz(H, x=er, axis=1)
+		## Convert to normalised pdf
 		H = Hr_norm(H,r,R[i])
 
 		## Calculate force array
