@@ -193,11 +193,11 @@ def boundary_sim(x0e0, a, X, D, xmin, tmax, expmt, vb=False):
 	x0,e0 = x0e0
 	nstp = int(tmax/dt)
 	exstp = nstp/10
-	if vb: print me+"a = ",a,"; IC =",x0e0
+	if vb: print me+"[a, X] = ",[a,X],"; IC =",x0e0
 	
 	## Simulate eta
 	if vb: t0 = time.time()
-	y = sim_eta(e0, expmt, nstp, a, dt)
+	eta = sim_eta(e0, expmt, nstp, a, dt)
 	if vb: print me+"Simulation of eta",round(time.time()-t0,1),"seconds for",nstp,"steps"
 	
 	## Variable of interest
@@ -205,19 +205,20 @@ def boundary_sim(x0e0, a, X, D, xmin, tmax, expmt, vb=False):
 	x = np.zeros(nstp); x[0],xt = x0,x0; i,j = 1,0
 	## Euler steps to calculate x(t)
 	while xt > xmin:
-		xt = x[i-1] + dt*(force_x(x[i-1],X,D) + y[i-1])
-		x[i] = xt; i +=1
+		x[i] = x[i-1] + dt*(force_x(x[i-1],X,D) + eta[i-1])
+		xt = x[i]
+		i +=1
 		## Extend array if necessary
-		if i == len(x):
-			x = np.append(x,np.zeros(exstp))
-			y = np.append(y,sim_eta(y[-2],expmt[:exstp],exstp, a, dt))
+		if i == x.shape[0]:
+			eta = np.hstack([eta, sim_eta(eta[-1], expmt, exstp, a, dt)])
+			x = np.hstack([x,np.zeros(exstp)])
 			j += 1
 	if j>0: print me+"trajectory array extended",j,"times."
 	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",i,"steps"
 	
-	## Clip trailing zeroes from y and x
-	x, y = x[:i], y[:i]	
-	return np.vstack([x,y])
+	## Clip trailing zeroes from eta and x
+	x, eta = x[:i], eta[:i]	
+	return np.vstack([x,eta])
 
 ## ----------------------------------------------------------------------------	
 	
