@@ -113,7 +113,7 @@ def bulk_const(histfile):
 		H /= np.trapz(np.trapz(H,x=x,axis=1),x=eta,axis=0)
 		## Integrate over eta
 		Hx = np.trapz(H,x=eta,axis=0)
-		force = force_x(x,1.0,X,D)
+		force = force_x(x,X,D)
 		p = pressure_x(force,Hx,x)
 		## Must normalise each eta pdf slice
 		e2E = np.trapz(((H/Hx).T*(eta*eta)).T,x=eta,axis=0)
@@ -135,7 +135,6 @@ def bulk_const(histfile):
 		## Force
 		force = 0.5*(np.sign(R-x)-1) * ((x-R) if ftype is "linear" else 1)
 		p = -(force*Hx).cumsum() * (x[1]-x[0])
-		
 		
 	if 0:
 		print "eta pdfs"

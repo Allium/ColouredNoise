@@ -78,18 +78,17 @@ def main():
 		dest="plotall", default=False, action="store_true")
 	parser.add_option('-2','--twod',
 		dest="twod", default=False, action="store_true")
-	parser.add_option('--rawP',
-		dest="rawP", default=False, action="store_true")
+	parser.add_option('--rawp',
+		dest="rawp", default=False, action="store_true")
 	parser.add_option('-h','--help',
-                  dest="help",default=False,action="store_true",
-				  help="Print docstring.")		
+        dest="help",default=False,action="store_true")		
 	opt = parser.parse_args()[0]
 	if opt.help: print main.__doc__; return
 	showfig = opt.showfig
 	verbose = opt.verbose
 	plotall = opt.plotall
 	twod 	= opt.twod
-	normIG	= not opt.rawP
+	normIG	= not opt.rawp
 	
 	argv[1] = argv[1].replace("\\","/")
 	if plotall and os.path.isdir(argv[1]):
@@ -152,7 +151,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	xIG, forceIG, HxIG, pressIG = ideal_gas(x, X, D)
 	
 	## PLOTTING
-	fig,axs = plt.subplots(1,2)
+	fig,axs = plt.subplots(2,1,sharex=True)
 	
 	## Density plot
 	ax = axs[0]
@@ -165,7 +164,6 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.plot(xIG,HxIG,"r-",label="White noise")
 	ax.set_xlim(left=xini,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0,top=1.1)
-	ax.set_xlabel("$x$",fontsize=fsa)
 	ax.set_ylabel("PDF $\\rho(x)$",fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="upper right",fontsize=fsl)
@@ -180,7 +178,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.plot(xIG,pressIG,"r-",label="WN")
 	ax.axhline(1/(1.0-np.exp(X-xmax)+X-xmin),color="r",linestyle="--",linewidth=1)
 	ax.set_xlim(left=xbins[0],right=xbins[-1])
-	ax.set_ylim(bottom=0.0)
+	ax.set_ylim(bottom=0.0, top=np.ceil(max([press[-1],pressIG[-1]])))
 	ax.set_xlabel("$x$",fontsize=fsa)
 	ax.set_ylabel("Pressure",fontsize=fsa)
 	ax.grid()
@@ -252,7 +250,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 			xmax[i] = lookup_xmax(X[i],Alpha[i])
 			xini = calculate_xini(X[i],Alpha[i])
 			xbins = calculate_xbin(xini,X[i],xmax[i],H.shape[1])
-			ebins = calculate_ybin(0.0,ymax,H.shape[0]+1)
+			ebins = calculate_ebin(0.0,ymax,H.shape[0]+1)
 		x = 0.5*(xbins[1:]+xbins[:-1])	
 		e = 0.5*(ebins[1:]+ebins[:-1])
 		
@@ -261,7 +259,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		Hx /= np.trapz(Hx,x=x,axis=0)
 
 		## Calculate pressure
-		force = force_x(x,1.0,X[i],D)
+		force = force_x(x,X[i],D)
 		Press[i] = np.trapz(-force*Hx, x)
 	
 	## ----------------------------------------------------
@@ -270,11 +268,10 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 	Alpha = Alpha[sortind]
 	Press = Press[sortind]
 	X = X[sortind]
-	# xmin = xmin[sortind]
 	
 	if verbose: print me+"data collection",round(sysT()-t0,2),"seconds."
 	
-	pressplot = dirpath+"/ALPH_X"+"_dt"+str(dt)+".png"
+	pressplot = dirpath+"/PAX.png"
 	
 	## ----------------------------------------------------
 	## Choose plot type
@@ -295,7 +292,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 				
 		labels = ["X = "+str(XX[i]) for i in range(Ncurv)]
 			
-		## Calculate IG on finer grid, assuming same X, xmin and dt
+		## Calculate IG on finer grid, assuming same X, xmin
 		AAIG = AA
 		PPIG = [[]]*Ncurv
 		if D==0.0:
@@ -303,7 +300,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		else:
 			## Needs update!
 			raise AttributeError, me+"no can do."
-			PPIG = [ideal_gas(a,x,X,D)[3][-1]/dt for a in AAIG]
+			PPIG = [ideal_gas(a,x,X,D)[3][-1] for a in AAIG]
 			
 		if normIG: PP = [PP[i]/PPIG[i] for i in range(Ncurv)]
 			
