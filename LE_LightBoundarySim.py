@@ -26,7 +26,7 @@ def main():
 		-a --alpha		0.1		Slope of the potential
 		-X --wallpos	10.0	Position of wall
 		-D --Delta		0.0		Width of wall onset in units of X
-		-r --nruns		100		Number of runs for each (x0,y0)
+		-r --nruns		100		Number of runs for each (x0,e0)
 		-t --timefac	1.0		Multiply t_max by factor
 		-v --verbose	False	Print useful information to screen
 		-h --help		False	Print docstring and exit
@@ -102,17 +102,22 @@ def main():
 	xmin = calculate_xmin(X,a)	## Simulation cutoff
 	xini = calculate_xini(X,a)	## Particle initial x
 	
-	ymax = round(3.0/a,1) if a!=0.0 else 1.0
+	##### IS THIS CORRECT STILL? #####
+	# emax = round(3.0/a,1) if a!=0.0 else 1.0
+	emax = 4/np.sqrt(a) if a!=0.0 else 4/np.sqrt(dt)
 	
-	## Histogramming; xbins and ybins are bin edges.
+	## Histogramming; xbins and ebins are bin edges.
 	Nxbin = 100
-	Nybin = 50
+	Nebin = 50
+	
+	##### ATTENTION #####
 	xbins = np.linspace(xini,xmax,Nxbin+1)#calculate_xbin(xini,X,xmax,Nxbin)
-	ybins = calculate_ybin(-ymax,ymax,Nybin+1)
+	
+	ebins = calculate_ebin(-emax,emax,Nebin+1)
 		
 	## Initial conditions
-	X0Y0 = np.array([[xini,y0] for y0 in ybins])
-	Nparticles = Nybin*Nrun
+	X0E0 = np.array([[xini,e0] for e0 in ebins])
+	Nparticles = Nebin*Nrun
 	if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
 	
 	## Filename; directory and file existence; readme
@@ -124,7 +129,7 @@ def main():
 	create_readme(hisfile, vb)
 	
 	## Save bins
-	np.savez(hisdir+binfile,xbins=xbins,ybins=ybins)
+	np.savez(hisdir+binfile,xbins=xbins,ebins=ebins)
 
 	## ----------------------------------------------------------------
 	
@@ -148,20 +153,17 @@ def main():
 	## ----------------------------------------------------------------
 
 	## Initialise histogram
-	H = np.zeros((Nxbin,Nybin))
+	H = np.zeros((Nxbin,Nebin))
 	## Loop over initial y-position
-	for x0y0 in X0Y0:
+	for x0e0 in X0E0:
 		for run in xrange(Nrun):
-			## x, y are coordinates as a function of time
-			x, y = boundary_sim(x0y0, a, X, Delta, xmin, tmax, expmt, (vb and run%50==0))
-			h = np.histogram2d(x,y,bins=[xbins,ybins],normed=False)[0]
-			if h.shape != H.shape:
-				print h.shape, H.shape, histogram_weight(x0y0[1],y[-1], a).shape, x0y0.shape
-				print xbins, ybins
-			H += h*histogram_weight(x0y0[1],y[-1], a)
+			## x, e are coordinates as a function of time
+			x, e = boundary_sim(x0e0, a, X, Delta, xmin, tmax, expmt, (vb and run%50==0))
+			h = np.histogram2d(x,e,bins=[xbins,ebins],normed=False)[0]
+			H += h*histogram_weight(x0e0[1], e[-1], a)
 	H = (H.T)[::-1]
 	## When normed=False, need to divide by the bin area
-	H /= np.outer(np.diff(ybins),np.diff(xbins))
+	H /= np.outer(np.diff(ebins),np.diff(xbins))
 	## Normalise by number of particles
 	H /= Nparticles
 	
@@ -174,9 +176,9 @@ def main():
 	
 ## ====================================================================
 
-def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
+def boundary_sim(x0e0, a, X, D, xmin, tmax, expmt, vb=False):
 	"""
-	Run the LE simulation from (x0,y0), stopping if x<xmin.
+	Run the LE simulation from (x0,e0), stopping if x<xmin.
 	Dynamically adds more space to arrays.
 	Same results if end of array not hit.
 	Harder to test other case: random numbers. However, it looks close enough.
@@ -185,14 +187,14 @@ def boundary_sim(x0y0, a, X, D, xmin, tmax, expmt, vb=False):
 	t0 = time.time()
 	
 	## Initialisation
-	x0,y0 = x0y0
+	x0,e0 = x0e0
 	nstp = int(tmax/dt)
 	exstp = nstp/10
-	if vb: print me+"a = ",a,"; IC =",x0y0
+	if vb: print me+"a = ",a,"; IC =",x0e0
 	
 	## Simulate eta
 	if vb: t0 = time.time()
-	y = sim_eta(y0, expmt, nstp, a, dt)
+	y = sim_eta(e0, expmt, nstp, a, dt)
 	if vb: print me+"Simulation of eta",round(time.time()-t0,1),"seconds for",nstp,"steps"
 	
 	## Variable of interest
@@ -246,12 +248,12 @@ def sim_eta(eta0, expmt, npoints, a, dt):
 	
 ## ====================================================================
 
-def histogram_weight(yi,yf,a):
+def histogram_weight(ei,ef,a):
 	"""
 	Weights depend on starting position and finishing position.
 	Probability of y obeys Gaussian with zero mean and variance ???
 	"""
-	return np.exp(-0.5*a*(yi*yi+yf*yf))
+	return np.exp(-0.5*a*(ei*ei+ef*ef))
 	
 ## ====================================================================
 
@@ -293,8 +295,8 @@ def calculate_xbin(xini,X,xmax,Nxbin):
 def calculate_xini(X,a):
 	return 0.5*(calculate_xmin(X,a)+X)
 
-def calculate_ybin(yi,yf,N):
-	return np.linspace(yi,yf,N)
+def calculate_ebin(ei,ef,N):
+	return np.linspace(ei,ef,N)
 
 ## ====================================================================
 

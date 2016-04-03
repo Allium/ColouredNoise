@@ -12,7 +12,7 @@ from time import time as sysT
 from itertools import chain
 
 from LE_LightBoundarySim import lookup_xmax,calculate_xmin,calculate_xini,\
-		calculate_xbin,calculate_ybin
+		calculate_xbin,calculate_ebin
 from LE_Utils import FBW_soft as force_x
 from LE_Utils import save_data, filename_pars
 
