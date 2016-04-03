@@ -23,27 +23,27 @@ STARTED
 
 ## Potentials
 	
-def FHO(x,b,X):
+def FHO(x,X):
 	""" Force at position x for harmonic confinement """
-	return -b*x
+	return -x
 
-def FBW(x,b,X):
+def FBW(x,X):
 	""" Force at position x for bulk+wall confinement """
 	# return -b*(np.abs(x)>=X).astype(int)*np.sign(x)
 	## Only good for single wall
-	return -b*0.5*(np.sign(x-X)+1)
+	return -0.5*(np.sign(x-X)+1)
 	
-def FBW_soft(x,b,X,D):
+def FBW_soft(x,X,D):
 	"""
 	Force for bulk + linear wall, but with smooth onset parameterised by Delta.
 	Only good for a single wall
 	"""
 	if D==0:
-		return FBW(x,b,X)
+		return FBW(x,X)
 	else:
-		return -b*0.5*(np.tanh((x-X)/(D*X))+1.0)
+		return -0.5*(np.tanh((x-X)/(D*X))+1.0)
 
-def force_1D_lin(x,b,X,D):
+def force_1D_lin(x,X,D):
 	"""
 	Force for bulk + harmonic potential
 	"""

@@ -8,6 +8,7 @@ import warnings
 from time import time
 
 from LE_Utils import save_data, filename_pars
+from LE_Pressure import plot_wall
 
 
 warnings.filterwarnings("ignore",
@@ -236,7 +237,7 @@ def pressure_dir(dirpath, rawp, verbose):
 	AA = np.unique(A)
 	RR = np.unique(R)
 	
-	## 3D pressure array: [R,A]
+	## 2D pressure array: [R,A]
 	PP = np.zeros([RR.size,AA.size])
 	PP_WN = np.zeros(PP.shape)
 	for i in range(RR.size):
@@ -315,15 +316,6 @@ def Hr_norm(H,r,R):
 	H /= np.trapz(Hext,x=rext)
 	return H
 
-##=============================================================================
-
-def plot_wall(ax, ftype, r, R):
-	if ftype is "linear":
-		Ridx = np.argmin(np.abs(R-r))
-		ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Wall")
-	else:
-		ax.axvline(R,c="k",ls="--",label="Wall")
-	return
 	
 ##=============================================================================
 if __name__=="__main__":

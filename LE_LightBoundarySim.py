@@ -86,8 +86,11 @@ def main():
 	## Choose potential type
 	if opt.harmonic_potential:
 		from LE_Utils import force_1D_lin as force_x
+		ftype = "L"
+		Delta = 0.0
 	else:
 		from LE_Utils import FBW_soft as force_x
+		ftype = "C"
 	
 	if vb: print "\n==  "+me+"a =",a," Nruns =",Nrun," ==\n"
 
@@ -121,8 +124,8 @@ def main():
 	if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
 	
 	## Filename; directory and file existence; readme
-	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_1D_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
-	hisfile = "BHIS_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
+	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_1D_"+ftype+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
+	hisfile = "BHIS_1D_"+ftype+"_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	hisfile = hisdir+hisfile
 	check_path(hisfile, vb)
@@ -202,7 +205,7 @@ def boundary_sim(x0e0, a, X, D, xmin, tmax, expmt, vb=False):
 	x = np.zeros(nstp); x[0],xt = x0,x0; i,j = 1,0
 	## Euler steps to calculate x(t)
 	while xt > xmin:
-		xt = x[i-1] + dt*(force_x(x[i-1],1.0,X,D) + 1.0*y[i-1])
+		xt = x[i-1] + dt*(force_x(x[i-1],X,D) + y[i-1])
 		x[i] = xt; i +=1
 		## Extend array if necessary
 		if i == len(x):

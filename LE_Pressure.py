@@ -121,7 +121,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 		
 	## Get pars from filename
 	pars = filename_pars(histfile)
-	[alpha,X,D,dt,ymax,R] = [pars[key] for key in ["a","X","D","dt","ymax","R"]]
+	[alpha,X,D,ymax,R,ftype] = [pars[key] for key in ["a","X","D","ymax","R","ftype"]]
 	assert (R is None), me+"You are using the wrong program. R should not enter."
 	if verbose: print me+"alpha =",alpha,"and X =",X,"and D =",D
 	
@@ -129,43 +129,40 @@ def pressure_pdf_plot_file(histfile, verbose):
 	H = np.load(histfile)
 	H[:,0]=H[:,1]
 	
-	## Space -- for axes
-
+	## Space, for axes
+	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+	xbins = bins["xbins"]
 	try:
-		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
-		xbins = bins["xbins"]
-		ybins = bins["ybins"]
-		xmin = xbins[0]
-		xmax = xbins[-1]
-		xini = 0.5*(xmin+X)
-		if verbose: print me+"Found bins file."
-	except (IOError, KeyError):
-		xmin = calculate_xmin(X,alpha)
-		xmax = lookup_xmax(X,alpha)
-		xini = calculate_xini(X,alpha)
-		xbins = calculate_xbin(xini,X,xmax,H.shape[1])
-		ybins = calculate_ybin(-ymax,ymax,H.shape[0]+1)
-		if verbose: print me+"Calculated bins."
+		ebins = bins["ebins"]
+	except KeyError:
+		ebins = bins["ybins"]
+	xmin = xbins[0]
+	xmax = xbins[-1]
+	xini = 0.5*(xmin+X)
 	x = 0.5*(xbins[1:]+xbins[:-1])	
-	y = 0.5*(ybins[1:]+ybins[:-1])
+	e = 0.5*(ebins[1:]+ebins[:-1])
 		
 	## Marginalise to PDF in x
-	Hx = np.trapz(H,x=y,axis=0)
+	Hx = np.trapz(H,x=e,axis=0)
 	Hx /= np.trapz(Hx,x=x)	
 	
 	## Calculate pressure
-	force = force_x(x,1.0,X,D)
+	force = force_x(x,X,D)
 	press = pressure_x(force,Hx,x)
-	xIG, forceIG, HxIG, pressIG = ideal_gas(x, X, D, dt)
+	xIG, forceIG, HxIG, pressIG = ideal_gas(x, X, D)
 	
 	## PLOTTING
 	fig,axs = plt.subplots(1,2)
 	
 	## Density plot
 	ax = axs[0]
+	## Wall
+	plot_wall(ax, ftype, x, X)
+	##### Will have to fix when D!=0
+	# ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
+	##
 	ax.plot(x,Hx,"b-",label="Simulation")
 	ax.plot(xIG,HxIG,"r-",label="White noise")
-	ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	ax.set_xlim(left=xini,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0,top=1.1)
 	ax.set_xlabel("$x$",fontsize=fsa)
@@ -175,10 +172,13 @@ def pressure_pdf_plot_file(histfile, verbose):
 	
 	## Pressure plot
 	ax = axs[1]
+	## Wall
+	plot_wall(ax, ftype, x, X)
+	##
 	ax.plot(x,press,"b-",linewidth=1, label="CN")
-	ax.axhline(y=press[-1],color="b",linestyle="--",linewidth=1)
+	ax.axhline(press[-1],color="b",linestyle="--",linewidth=1)
 	ax.plot(xIG,pressIG,"r-",label="WN")
-	ax.axhline(y=1/(1.0-np.exp(X-xmax)+X-xmin),color="r",linestyle="--",linewidth=1)
+	ax.axhline(1/(1.0-np.exp(X-xmax)+X-xmin),color="r",linestyle="--",linewidth=1)
 	ax.set_xlim(left=xbins[0],right=xbins[-1])
 	ax.set_ylim(bottom=0.0)
 	ax.set_xlabel("$x$",fontsize=fsa)
@@ -232,7 +232,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		
 		## Get pars from filename
 		pars = filename_pars(histfile)
-		[Alpha[i],X[i],D,dt,ymax,R] = [pars[key] for key in ["a","X","D","dt","ymax","R"]]
+		[Alpha[i],X[i],D,ymax,R] = [pars[key] for key in ["a","X","D","ymax","R"]]
 		assert (R is None), me+"You are using the wrong program. R should not enter."
 				
 		## Load data
@@ -243,7 +243,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		try:
 			bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 			xbins = bins["xbins"]
-			ybins = bins["ybins"]
+			ebins = bins["ebins"]
 			xmin[i] = xbins[0]
 			xmax[i] = xbins[-1]
 			xini = 0.5*(xmin[i]+X[i])
@@ -252,12 +252,12 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 			xmax[i] = lookup_xmax(X[i],Alpha[i])
 			xini = calculate_xini(X[i],Alpha[i])
 			xbins = calculate_xbin(xini,X[i],xmax[i],H.shape[1])
-			ybins = calculate_ybin(0.0,ymax,H.shape[0]+1)
+			ebins = calculate_ybin(0.0,ymax,H.shape[0]+1)
 		x = 0.5*(xbins[1:]+xbins[:-1])	
-		y = 0.5*(ybins[1:]+ybins[:-1])
+		e = 0.5*(ebins[1:]+ebins[:-1])
 		
 		## Marginalise to PDF in x and normalise
-		Hx = np.trapz(H,x=y,axis=0)
+		Hx = np.trapz(H,x=e,axis=0)
 		Hx /= np.trapz(Hx,x=x,axis=0)
 
 		## Calculate pressure
@@ -303,7 +303,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		else:
 			## Needs update!
 			raise AttributeError, me+"no can do."
-			PPIG = [ideal_gas(a,x,X,D,dt)[3][-1]/dt for a in AAIG]
+			PPIG = [ideal_gas(a,x,X,D)[3][-1]/dt for a in AAIG]
 			
 		if normIG: PP = [PP[i]/PPIG[i] for i in range(Ncurv)]
 			
@@ -403,14 +403,13 @@ def pressure_x(force,Hx,x):
 	return press
 	
 ##=============================================================================
-def ideal_gas(x, X, D, dt, up=6):
+def ideal_gas(x, X, D, up=6):
 	"""
 	Calculate PDF and pressure for ideal gas
-	No alpha in new variables 02.02.2016
 	"""
 	xbinsIG = np.linspace(x[0],x[-1],up*len(x)+1)
 	xIG = 0.5*(xbinsIG[1:]+xbinsIG[:-1])
-	forceIG = force_x(xIG,1.0,X,D)
+	forceIG = force_x(xIG,X,D)
 	## Predicted solution
 	UIG = np.array([np.trapz((-forceIG)[:i], x=xIG[:i]) for i in range(len(xIG))])
 	HxIG = np.exp(-UIG)
@@ -418,7 +417,18 @@ def ideal_gas(x, X, D, dt, up=6):
 	## Pressure
 	pressIG = pressure_x(forceIG,HxIG,xIG)
 	return xIG, forceIG, HxIG, pressIG
+
 	
+	
+##=============================================================================
+
+def plot_wall(ax, ftype, r, R):
+	if ftype is "linear":
+		Ridx = np.argmin(np.abs(R-r))
+		ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Wall")
+	else:
+		ax.axvline(R,c="k",ls="--",label="Wall")
+	return
 
 ##=============================================================================
 ##=============================================================================
