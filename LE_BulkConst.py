@@ -33,8 +33,8 @@ def main():
 		for histfile in glob.glob(args[0]+"/BHIS*.npy"):
 			plotfile += [plot_file(histfile)]
 			plt.close()
-	if os.path.isdir(args[0]):
-		plotfile = plot_dir(args[0])
+	# if os.path.isdir(args[0]):
+		# plotfile = plot_dir(args[0])
 	
 	if vb:	print me+"Figure saved to",plotfile
 	if showfig:	plt.show()
@@ -48,20 +48,17 @@ def plot_file(histfile):
 	ord = "r" if pars["geo"] == "CIR" else "r"
 	## PLOTTING
 	fig = plt.figure()
-	if pars["ftype"] == "const":
-		plt.axvline(pars["X"],color="k")
-	else:
-		plot_wall(plt.gca(),pars["ftype"],x,pars["R"])
+	plot_wall(plt.gca(),pars["ftype"],x, (pars["X"] if pars["geo"] is "1D" else pars["R"]) )
 	plt.plot(x,Hx/Hx[0],label="$Q("+ord+")$")
 	plt.plot(x,e2E/e2E[0],label="$\\langle\\eta^2\\rangle("+ord+")$")
 	plt.plot(x,c1/c1[0],label="$Q\\cdot\\langle\\eta^2\\rangle$")
 	plt.xlim(left=x[0])
-	plt.ylim(bottom=0.0,top=10)#np.ceil((c1/c1[0]).max()))
+	plt.ylim(bottom=0.0,top=np.ceil((np.isfinite(c1/c1[0])).max()))
 	plt.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.")
 	plt.xlabel("$"+ord+"$")
 	plt.ylabel("Quantity divided by first value")
 	plt.grid()
-	plt.legend()
+	plt.legend(loc="best")
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".png"
 	plt.savefig(plotfile)
 	return plotfile
@@ -98,18 +95,22 @@ def plot_dir(histdir):
 def bulk_const(histfile):
 
 	pars = filename_pars(histfile)
-	[a,X,R,ftype,geo] = [pars[key] for key in ["a","X","R","ftype","geo"]]
+	[a,X,R,D,ftype,geo] = [pars[key] for key in ["a","X","R","D","ftype","geo"]]
 
 	H = np.load(histfile)
+	H[:,0] = H[:,1]
 
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 	
 	## 1D sim
 	if geo == "1D":
 		xbins = bins["xbins"]
-		ybins = bins["ybins"]
+		try:
+			ebins = bins["ebins"]
+		except KeyError:
+			ebins = bins["ybins"]
 		x = 0.5*(xbins[1:]+xbins[:-1])
-		eta = 0.5*(ybins[1:]+ybins[:-1])
+		eta = 0.5*(ebins[1:]+ebins[:-1])
 		H /= np.trapz(np.trapz(H,x=x,axis=1),x=eta,axis=0)
 		## Integrate over eta
 		Hx = np.trapz(H,x=eta,axis=0)
