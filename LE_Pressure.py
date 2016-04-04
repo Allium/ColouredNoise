@@ -216,8 +216,9 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 	histfiles = np.sort(glob.glob(dirpath+"/*.npy"))
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
-		
-	force_x = force_1D_const if filename_pars(histfiles[0])["ftype"] is "const" else force_1D_lin
+	
+	ftype = filename_pars(histfiles[0])["ftype"]
+	force_x = force_1D_const if ftype is "const" else force_1D_lin
 	
 	## ----------------------------------------------------
 
@@ -299,9 +300,9 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		AAIG = AA
 		PPIG = [[]]*Ncurv
 		if D==0.0:
-			if filename_pars(histfiles[0])["ftype"] is "const":
+			if ftype is "const":
 				PPIG = [1.0/(1.0-np.exp(-4.0)+XX[i]-calculate_xini(XX[i],AA[i])) for i in range(Ncurv)]
-			elif filename_pars(histfiles[0])["ftype"] is "linear":
+			elif ftype is "linear":
 				PPIG = [1.0/(np.sqrt(np.pi/2)-np.exp(-4.0)+XX[i]-calculate_xini(XX[i],AA[i])) for i in range(Ncurv)]
 		else:
 			## Needs update!
@@ -317,7 +318,8 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		plt.xlim(right=max(chain.from_iterable(AA)))
 		plt.ylim(bottom=0.0)
 		plt.title("Pressure normalised by WN result",fontsize=fst)
-		plt.xlabel("$\\alpha=f_0^2\\tau/T\\zeta$",fontsize=fsa)
+		xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$" if ftype is "const" else "$\\alpha=k\\tau/\\zeta$"
+		plt.xlabel(xlabel,fontsize=fsa)
 		plt.ylabel("Pressure",fontsize=fsa)
 		plt.grid()
 		plt.legend(loc="best",fontsize=fsl)
@@ -371,8 +373,8 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 				
 		## ACCOUTREMENTS
 		plt.title("Pressure normalised by WN result",fontsize=fst)
-		xlabel - "$\\alpha=f_0^2\\tau/T\\zeta$" if ftype is "const" else "$\\alpha=k\\tau/\\zeta$"
-		plt.xlabel("$\\alpha=f_0^2\\tau/T\\zeta$",fontsize=fsa)
+		xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$" if ftype is "const" else "$\\alpha=k\\tau/\\zeta$"
+		plt.xlabel(xlabel,fontsize=fsa)
 		plt.ylabel("Wall separation",fontsize=fsa)
 		plt.grid(False)
 		

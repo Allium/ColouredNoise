@@ -278,7 +278,7 @@ def pressure_dir(dirpath, rawp, verbose):
 
 	ax.set_xlim((AA[0],AA[-1]))
 	ax.set_ylim(bottom=0.0)
-	ax.set_xlabel(("$\\alpha$" if ftype is "const" else "$\\beta$"),fontsize=fsa)
+	plt.xlabel(("$\\alpha=f_0^2\\tau/T\\zeta$" if ftype is "const" else "$\\alpha=k\\tau/\\zeta$"),fontsize=fsa)
 	ax.set_ylabel("Pressure",fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="best",fontsize=fsl)
