@@ -53,7 +53,7 @@ def plot_file(histfile):
 	plt.plot(x,e2E/e2E[0],label="$\\langle\\eta^2\\rangle("+ord+")$")
 	plt.plot(x,c1/c1[0],label="$Q\\cdot\\langle\\eta^2\\rangle$")
 	plt.xlim(left=x[0])
-	plt.ylim(bottom=0.0,top=5)
+	plt.ylim(bottom=0.0,top=5.0)
 	plt.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.")
 	plt.xlabel("$"+ord+"$")
 	plt.ylabel("Quantity divided by first value")
@@ -116,9 +116,6 @@ def bulk_const(histfile):
 		Hx = np.trapz(H,x=eta,axis=0)
 		force = force_x(x,X,D)
 		p = pressure_x(force,Hx,x)
-		## Must normalise each eta pdf slice
-		e2E = np.trapz(((H/Hx).T*(eta*eta)).T,x=eta,axis=0)
-		c1 = Hx*e2E
 		
 	## Circular sim
 	elif geo == "CIR":
@@ -139,7 +136,7 @@ def bulk_const(histfile):
 		
 	if 0:
 		print "eta pdfs"
-		for i in range(0,50,5):
+		for i in range(0,50,2):
 			plt.plot(eta, H[:,i]/Hx[i])
 		plt.show();exit()
 		

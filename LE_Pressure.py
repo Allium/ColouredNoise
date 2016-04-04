@@ -11,8 +11,7 @@ import warnings
 from time import time as sysT
 from itertools import chain
 
-from LE_LightBoundarySim import lookup_xmax,calculate_xmin,calculate_xini,\
-		calculate_xbin,calculate_ebin
+from LE_LightBoundarySim import lookup_xmax,calculate_xmin,calculate_xini
 from LE_Utils import force_1D_const, force_1D_lin
 from LE_Utils import save_data, filename_pars
 
@@ -177,7 +176,8 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.plot(x,press,"b-",linewidth=1, label="CN")
 	ax.axhline(press[-1],color="b",linestyle="--",linewidth=1)
 	ax.plot(xIG,pressIG,"r-",label="WN")
-	ax.axhline(1/(1.0-np.exp(X-xmax)+X-xmin),color="r",linestyle="--",linewidth=1)
+	ax.axhline(pressIG[-1],color="r",linestyle="--",linewidth=1)
+	# ax.axhline(1/(1.0-np.exp(X-xmax)+X-xmin),color="r",linestyle="--",linewidth=1)
 	ax.set_xlim(left=xbins[0],right=xbins[-1])
 	ax.set_ylim(bottom=0.0, top=np.ceil(max([press[-1],pressIG[-1]])))
 	ax.set_xlabel("$x$",fontsize=fsa)
@@ -299,7 +299,10 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		AAIG = AA
 		PPIG = [[]]*Ncurv
 		if D==0.0:
-			PPIG = [1.0/(1.0-np.exp(-4.0)+XX[i]-calculate_xini(XX[i],AA[i])) for i in range(Ncurv)]
+			if filename_pars(histfiles[0])["ftype"] is "const":
+				PPIG = [1.0/(1.0-np.exp(-4.0)+XX[i]-calculate_xini(XX[i],AA[i])) for i in range(Ncurv)]
+			elif filename_pars(histfiles[0])["ftype"] is "linear":
+				PPIG = [1.0/(np.sqrt(np.pi/2)-np.exp(-4.0)+XX[i]-calculate_xini(XX[i],AA[i])) for i in range(Ncurv)]
 		else:
 			## Needs update!
 			raise AttributeError, me+"no can do."
@@ -368,6 +371,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 				
 		## ACCOUTREMENTS
 		plt.title("Pressure normalised by WN result",fontsize=fst)
+		xlabel - "$\\alpha=f_0^2\\tau/T\\zeta$" if ftype is "const" else "$\\alpha=k\\tau/\\zeta$"
 		plt.xlabel("$\\alpha=f_0^2\\tau/T\\zeta$",fontsize=fsa)
 		plt.ylabel("Wall separation",fontsize=fsa)
 		plt.grid(False)
@@ -431,6 +435,7 @@ def plot_wall(ax, ftype, r, R):
 		ax.axvline(R,c="k",ls="--",label="Wall")
 	return
 
+	
 ##=============================================================================
 ##=============================================================================
 if __name__=="__main__":

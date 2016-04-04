@@ -134,8 +134,8 @@ def pressure_pdf_file(histfile, verbose):
 	## Wall
 	plot_wall(ax, ftype, r, R)
 	## PDF and WN PDF
-	ax.plot(r,H, label="CN simulation")
-	ax.plot(r,rho_WN, label="WN theory")
+	ax.plot(r,H,"b-", label="CN simulation")
+	ax.plot(r,rho_WN,"r-", label="WN theory")
 	## Accoutrements
 	ax.set_xlim(right=rmax)
 	ax.set_ylim(bottom=0.0, top=np.ceil(H.max()))
@@ -154,8 +154,8 @@ def pressure_pdf_file(histfile, verbose):
 	## Wall
 	plot_wall(ax, ftype, r, R)
 	## Pressure and WN pressure
-	ax.plot(r,p,label="CN simulation")
-	ax.plot(r,p_WN,label="WN theory")
+	ax.plot(r,p,"b-",label="CN simulation")
+	ax.plot(r,p_WN,"r-",label="WN theory")
 	## Accoutrements
 	ax.set_xlim(right=rmax)
 	ax.set_ylim(bottom=0.0, top=np.ceil(p.max()))

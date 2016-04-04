@@ -29,10 +29,10 @@ def main():
 	
 	## 
 	if dirpars["geo"] is "CIR":
-		plotfile = dirpath+"E2_CIRLPDF_a"+str(a)+".png"
+		plotfile = dirpath+"/E2_CIRLPDF_a"+str(a)+".png"
 		histfiles = sort_AN(glob.glob(dirpath+"/BHIS*_a"+str(a)+"*.npy"), "R")[::-1]
 	elif dirpars["geo"] is "1D":
-		plotfile = dirpath+"E2_1DLPDF_a"+str(a)+".png"
+		plotfile = dirpath+"/E2_1DLPDF_a"+str(a)+".png"
 		histfiles = sort_AN(glob.glob(dirpath+"/BHIS*_a"+str(a)+"*.npy"), "X")[::-1]
 	
 	plot_pdf(histfiles,a,vb)
@@ -47,8 +47,7 @@ def main():
 def plot_pdf(histfiles,a,vb):
 
 	geo = filename_pars(histfiles[0])["geo"]
-	[wall,xbin,ebin] = ["R","rbins","erbins"] if geo is "CIR" else ["X","xbins","ybins"]
-	## Note that everything is written in language of r
+	[wall,xbin,ebin] = ["R","rbins","erbins"] if geo is "CIR" else ["X","xbins","ebins"]
 
 	fig, axs = plt.subplots((len(histfiles)+1)/2+1,2,sharey=True)
 	axs = np.ravel(axs)
@@ -59,7 +58,7 @@ def plot_pdf(histfiles,a,vb):
 		
 		H = np.load(hf)
 		if geo is "CIR": H = H.T[::-1]
-		H[:,0]=H[:,1]
+		H[:,0]=H[:,3];H[:,1]=H[:,3];H[:,2]=H[:,3]
 		bins = np.load(os.path.dirname(hf)+"/BHISBIN"+os.path.basename(hf)[4:-4]+".npz")
 		rbins  = bins[xbin]
 		erbins = bins[ebin]
@@ -90,6 +89,8 @@ def plot_pdf(histfiles,a,vb):
 	ax.set_title("Uncorrelated")
 	
 	plt.tight_layout()
+	fig.suptitle("$\\alpha = "+str(a)+"$",fontsize=16)
+	plt.subplots_adjust(top=0.9)
 				
 	return None
 	

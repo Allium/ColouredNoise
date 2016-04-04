@@ -104,19 +104,13 @@ def main():
 	xmax = lookup_xmax(X,a)
 	xmin = calculate_xmin(X,a)	## Simulation cutoff
 	xini = calculate_xini(X,a)	## Particle initial x
-	
-	##### IS THIS CORRECT STILL? #####
-	# emax = round(3.0/a,1) if a!=0.0 else 1.0
 	emax = 4/np.sqrt(a) if a!=0.0 else 4/np.sqrt(dt)
 	
 	## Histogramming; xbins and ebins are bin edges.
 	Nxbin = 100
 	Nebin = 50
-	
-	##### ATTENTION #####
 	xbins = np.linspace(xini,xmax,Nxbin+1)#calculate_xbin(xini,X,xmax,Nxbin)
-	
-	ebins = calculate_ebin(-emax,emax,Nebin+1)
+	ebins = np.linspace(-emax,emax,Nebin+1)#calculate_ebin(-emax,emax,Nebin+1)
 		
 	## Initial conditions
 	X0E0 = np.array([[xini,e0] for e0 in ebins])
@@ -216,8 +210,11 @@ def boundary_sim(x0e0, a, X, force_x, D, xmin, tmax, expmt, vb=False):
 	if j>0: print me+"trajectory array extended",j,"times."
 	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",i,"steps"
 	
+	# ebins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)),150)
+	# plt.hist(eta,bins=ebins);plt.show();exit()
+	
 	## Clip trailing zeroes from eta and x
-	x, eta = x[:i], eta[:i]	
+	x, eta = x[:i], eta[:i]
 	return np.vstack([x,eta])
 
 ## ----------------------------------------------------------------------------	
@@ -299,8 +296,8 @@ def calculate_xbin(xini,X,xmax,Nxbin):
 def calculate_xini(X,a):
 	return 0.5*(calculate_xmin(X,a)+X)
 
-def calculate_ebin(ei,ef,N):
-	return np.linspace(ei,ef,N)
+# def calculate_ebin(ei,ef,N):
+	# return np.linspace(ei,ef,N)
 
 ## ====================================================================
 
