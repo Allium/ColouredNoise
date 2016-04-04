@@ -2,7 +2,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 import os, optparse, glob
 from LE_Utils import filename_pars
-from LE_Utils import FBW_soft as force_x
+from LE_Utils import force_1D_const as force_x
 from LE_Pressure import pressure_x
 from LE_SPressure import Hr_norm, plot_wall
 
@@ -53,7 +53,7 @@ def plot_file(histfile):
 	plt.plot(x,e2E/e2E[0],label="$\\langle\\eta^2\\rangle("+ord+")$")
 	plt.plot(x,c1/c1[0],label="$Q\\cdot\\langle\\eta^2\\rangle$")
 	plt.xlim(left=x[0])
-	plt.ylim(bottom=0.0,top=np.ceil((np.isfinite(c1/c1[0])).max()))
+	plt.ylim(bottom=0.0,top=5)
 	plt.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.")
 	plt.xlabel("$"+ord+"$")
 	plt.ylabel("Quantity divided by first value")

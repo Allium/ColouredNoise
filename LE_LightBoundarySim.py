@@ -7,7 +7,7 @@ from scipy.ndimage.filters import gaussian_filter
 from scipy.signal import fftconvolve
 from sys import argv
 from LE_Utils import save_data
-from LE_Utils import FBW_soft as force_x
+from LE_Utils import force_1D_const, force_1D_lin
 
 
 def main():
@@ -85,11 +85,11 @@ def main():
 
 	## Choose potential type
 	if opt.harmonic_potential:
-		from LE_Utils import force_1D_lin as force_x
+		force_x = force_1D_lin
 		ftype = "L"
 		Delta = 0.0
 	else:
-		from LE_Utils import FBW_soft as force_x
+		force_x = force_1D_const
 		ftype = "C"
 	
 	if vb: print "\n==  "+me+"a =",a," Nruns =",Nrun," ==\n"
@@ -161,7 +161,7 @@ def main():
 	for x0e0 in X0E0:
 		for run in xrange(Nrun):
 			## x, e are coordinates as a function of time
-			x, e = boundary_sim(x0e0, a, X, Delta, xmin, tmax, expmt, (vb and run%50==0))
+			x, e = boundary_sim(x0e0, a, X, force_x, Delta, xmin, tmax, expmt, (vb and run%50==0))
 			h = np.histogram2d(x,e,bins=[xbins,ebins],normed=False)[0]
 			H += h*histogram_weight(x0e0[1], e[-1], a)
 	H = (H.T)[::-1]
@@ -179,7 +179,7 @@ def main():
 	
 ## ====================================================================
 
-def boundary_sim(x0e0, a, X, D, xmin, tmax, expmt, vb=False):
+def boundary_sim(x0e0, a, X, force_x, D, xmin, tmax, expmt, vb=False):
 	"""
 	Run the LE simulation from (x0,e0), stopping if x<xmin.
 	Dynamically adds more space to arrays.

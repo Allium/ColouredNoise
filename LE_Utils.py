@@ -33,7 +33,7 @@ def FBW(x,X):
 	## Only good for single wall
 	return -0.5*(np.sign(x-X)+1)
 	
-def FBW_soft(x,X,D):
+def force_1D_const(x,X,D):
 	"""
 	Force for bulk + linear wall, but with smooth onset parameterised by Delta.
 	Only good for a single wall

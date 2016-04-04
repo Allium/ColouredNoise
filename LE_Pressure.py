@@ -13,7 +13,7 @@ from itertools import chain
 
 from LE_LightBoundarySim import lookup_xmax,calculate_xmin,calculate_xini,\
 		calculate_xbin,calculate_ebin
-from LE_Utils import FBW_soft as force_x
+from LE_Utils import force_1D_const, force_1D_lin
 from LE_Utils import save_data, filename_pars
 
 warnings.filterwarnings("ignore",
@@ -122,7 +122,8 @@ def pressure_pdf_plot_file(histfile, verbose):
 	pars = filename_pars(histfile)
 	[alpha,X,D,ymax,R,ftype] = [pars[key] for key in ["a","X","D","ymax","R","ftype"]]
 	assert (R is None), me+"You are using the wrong program. R should not enter."
-	if verbose: print me+"alpha =",alpha,"and X =",X,"and D =",D
+	force_x = force_1D_const if ftype is "const" else force_1D_lin
+	if verbose: print me+"[a, X, D, ftype] =",[alpha,X,D,ftype]
 	
 	## Load data
 	H = np.load(histfile)
@@ -148,7 +149,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	## Calculate pressure
 	force = force_x(x,X,D)
 	press = pressure_x(force,Hx,x)
-	xIG, forceIG, HxIG, pressIG = ideal_gas(x, X, D)
+	xIG, forceIG, HxIG, pressIG = ideal_gas(x, X, D, force_x)
 	
 	## PLOTTING
 	fig,axs = plt.subplots(2,1,sharex=True)
@@ -216,6 +217,8 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
 		
+	force_x = force_1D_const if filename_pars(histfiles[0])["ftype"] is "const" else force_1D_lin
+	
 	## ----------------------------------------------------
 
 	## Initialise
@@ -400,10 +403,11 @@ def pressure_x(force,Hx,x):
 	return press
 	
 ##=============================================================================
-def ideal_gas(x, X, D, up=6):
+def ideal_gas(x, X, D, force_x):
 	"""
 	Calculate PDF and pressure for ideal gas
 	"""
+	up=2
 	xbinsIG = np.linspace(x[0],x[-1],up*len(x)+1)
 	xIG = 0.5*(xbinsIG[1:]+xbinsIG[:-1])
 	forceIG = force_x(xIG,X,D)
