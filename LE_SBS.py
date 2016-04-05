@@ -98,21 +98,22 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	R2 = R*R
 	## Simulation limits
 	rmax = R+5.0
-	# rmin = 0.9*R - (max(5*np.sqrt(a),2*dt/a) if a!=0.0 else np.sqrt(2))
-	rmin = 0.9*R - 4*np.sqrt(a)#(4*np.sqrt(a) if a!=0.0 else np.sqrt(2))
-	rmin = max([0.0,rmin])
+	rmin = max([0.0, 0.9*R-4*np.sqrt(a)])
 	## Injection x coordinate
 	rini = 0.5*(rmin+R)
 		
 	## Histogramming; bin edges
 	Nrbin = 200
+	Npbin = 50
 	rbins = np.linspace(rmin,rmax,Nrbin)
+	pbins = np.linspace(0.0,2*np.pi,Npbin)
 	Nerbin = 150
+	Nepbin = 50
 	erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)),Nerbin)
 	bins = [rbins,erbins]
 	
 	## Particles	
-	Nparticles = pbins.size*Nrun
+	Nparticles = Npbin*Nrun
 
 	## Initial noise drawn from Gaussian
 	if a > 0.0:
@@ -217,18 +218,20 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 		
 	xy = np.zeros([2,nstp]); xy[:,0] = [x0,y0]
 	j = 0
-	## Calculate x(t)
+	## Calculate trajectory
 	for i in xrange(0,nstp-1):
 		r2 = (xy[:,i]*xy[:,i]).sum()
 		fxy = force(xy[:,i],np.sqrt(r2),r2,R,R2)
 		xy[:,i+1] = xy[:,i] + dt*( fxy + exy[:,i] )
 		## Apply BC
 		if r2 < rmin2:
-			xy[:,i] *= (2*rmin-np.sqrt(r2))/r2
+			xy[:,i] *= (2*rmin)/np.sqrt(r2) - 1
 			exy[:,i:] *= -1
 			j += 1
 	if (vb and j==0 and rmin2>0.0): print me+"rmin never crossed."
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
+	
+	plt.plot(*xy[:,:1000]);plt.show();exit()
 	
 	rcoord = np.sqrt((xy*xy).sum(axis=0))
 	ercoord = np.sqrt((exy*exy).sum(axis=0))
