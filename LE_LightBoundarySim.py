@@ -196,25 +196,18 @@ def boundary_sim(x0e0, a, X, force_x, D, xmin, tmax, expmt, vb=False):
 	
 	## Variable of interest
 	if vb: t0 = time.time()
-	x = np.zeros(nstp); x[0],xt = x0,x0; i,j = 1,0
-	## Euler steps to calculate x(t)
-	while xt > xmin:
+	x = np.zeros(nstp); x[0] = x0; j = 0
+	## Calculate x(t)
+	for i in xrange(1,nstp):
 		x[i] = x[i-1] + dt*(force_x(x[i-1],X,D) + eta[i-1])
-		xt = x[i]
-		i +=1
-		## Extend array if necessary
-		if i == x.shape[0]:
-			eta = np.hstack([eta, sim_eta(eta[-1], expmt, exstp, a, dt)])
-			x = np.hstack([x,np.zeros(exstp)])
+		## Apply BC
+		if x[i] < xmin:
+			x[i] = 2*xmin - x[i]
+			eta[i:] *= -1
 			j += 1
-	if j>0: print me+"trajectory array extended",j,"times."
-	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",i,"steps"
+	if (vb and j==0): print me+"xmin never crossed."
+	if vb: print me+"Simulation of x",round(time.time()-t0,1),"seconds for",nstp,"steps"
 	
-	# ebins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)),150)
-	# plt.hist(eta,bins=ebins);plt.show();exit()
-	
-	## Clip trailing zeroes from eta and x
-	x, eta = x[:i], eta[:i]
 	return np.vstack([x,eta])
 
 ## ----------------------------------------------------------------------------	

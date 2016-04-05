@@ -220,31 +220,23 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	if vb: t0 = time.time()
 		
 	xy = np.zeros([2,nstp]); xy[:,0] = [x0,y0]
-	i,j = 0,0
-	## Euler steps to calculate x(t)
-	while r2 > rmin2:
+	j = 0
+	## Calculate x(t)
+	for i in xrange(0,nstp-1):
 		r2 = (xy[:,i]*xy[:,i]).sum()
 		fxy = force(xy[:,i],np.sqrt(r2),r2,R,R2)
 		xy[:,i+1] = xy[:,i] + dt*( fxy + exy[:,i] )
-		i +=1
 		## Extend array if necessary
-		if i == xy.shape[1]-1:
-			exy_2 = np.vstack([sim_eta(exy[-1,0],expmt,exstp,a,dt),sim_eta(exy[-1,1],expmt,exstp,a,dt)])
-			exy = np.hstack([exy,exy_2])
-			xy = np.hstack([xy,np.zeros([2,exstp])])
+		if r2 < rmin2:
+			xy[:,i] *= (2*rmin-np.sqrt(r2))/r2
+			exy[:,i:] *= -1
 			j += 1
-	if (j>0 and vb): print me+"trajectory array extended",j,"times."
-	## Clip trailing zeroes
-	xy = xy[:,:i]
-	exy = exy[:,:i]
-	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",i,"steps"
+	if (vb and j==0): print me+"rmin never crossed."
+	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 	
 	rcoord = np.sqrt((xy*xy).sum(axis=0))
 	ercoord = np.sqrt((exy*exy).sum(axis=0))
 	
-	# erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 10.0),150)
-	# plt.hist(ercoord,bins=erbins);plt.show();exit()
-
 	return rcoord, ercoord
 	
 ## ====================================================================
@@ -273,9 +265,8 @@ def plot_traj(rad,theta,rmin,R,rmax,outfile):
 	ax.grid(True)
 	plt.show()
 	
-	# plt.savefig(outfile)
-	# print me+"Figure saved as",outfile
-	plt.clf()
+	# plt.savefig(outfile); print me+"Figure saved as",outfile
+	plt.close()
 	return
 
 
