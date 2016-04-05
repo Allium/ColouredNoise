@@ -114,22 +114,19 @@ def pressure_pdf_plot_file(histfile, verbose):
 		
 	## Get pars from filename
 	pars = filename_pars(histfile)
-	[alpha,X,D,ymax,R,ftype] = [pars[key] for key in ["a","X","D","ymax","R","ftype"]]
+	[alpha,X,D,R,ftype] = [pars[key] for key in ["a","X","D","R","ftype"]]
 	assert (R is None), me+"You are using the wrong program. R should not enter."
 	force_x = force_1D_const if ftype is "const" else force_1D_lin
 	if verbose: print me+"[a, X, D, ftype] =",[alpha,X,D,ftype]
 	
 	## Load data
 	H = np.load(histfile)
-	H[:,0]=H[:,1]
+	# H[:,0]=H[:,1]
 	
 	## Space, for axes
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 	xbins = bins["xbins"]
-	try:
-		ebins = bins["ebins"]
-	except KeyError:
-		ebins = bins["ybins"]
+	ebins = bins["ebins"]
 	xmin = xbins[0]
 	xmax = xbins[-1]
 	xini = 0.5*(xmin+X)
@@ -237,19 +234,12 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		H[:,0]=H[:,1]
 		
 		## Space
-		try:
-			bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
-			xbins = bins["xbins"]
-			ebins = bins["ebins"]
-			xmin[i] = xbins[0]
-			xmax[i] = xbins[-1]
-			xini = 0.5*(xmin[i]+X[i])
-		except (IOError, KeyError):
-			xmin[i] = calculate_xmin(X[i],Alpha[i])
-			xmax[i] = lookup_xmax(X[i],Alpha[i])
-			xini = calculate_xini(X[i],Alpha[i])
-			xbins = calculate_xbin(xini,X[i],xmax[i],H.shape[1])
-			ebins = calculate_ebin(0.0,ymax,H.shape[0]+1)
+		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+		xbins = bins["xbins"]
+		ebins = bins["ebins"]
+		xmin[i] = xbins[0]
+		xmax[i] = xbins[-1]
+		xini = 0.5*(xmin[i]+X[i])
 		x = 0.5*(xbins[1:]+xbins[:-1])	
 		e = 0.5*(ebins[1:]+ebins[:-1])
 		
@@ -296,9 +286,9 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		PPIG = [[]]*Ncurv
 		if D==0.0:
 			if ftype is "const":
-				PPIG = [1.0/(1.0-np.exp(-4.0)+XX[i]-calculate_xini(XX[i],AA[i])) for i in range(Ncurv)]
+				PPIG = [1.0/(1.0-np.exp(-4.0)+XX[i]-calculate_xmin(XX[i],AA[i])) for i in range(Ncurv)]
 			elif ftype is "linear":
-				PPIG = [1.0/(np.sqrt(np.pi/2)-np.exp(-4.0)+XX[i]-calculate_xini(XX[i],AA[i])) for i in range(Ncurv)]
+				PPIG = [1.0/(np.sqrt(np.pi/2)-np.exp(-4.0)+XX[i]-calculate_xmin(XX[i],AA[i])) for i in range(Ncurv)]
 		else:
 			## Needs update!
 			raise AttributeError, me+"no can do."
@@ -308,8 +298,8 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 			
 		for i in range(Ncurv):
 			plt.plot(AA[i], PP[i], 'o-', label=labels[i])
-			# plt.errorbar(AA[i], PP[i], yerr=0.05, color=plt.gca().lines[-1].get_color(), fmt='.', ecolor='grey', capthick=2)
 			if not normIG: plt.axhline(PressIG[i], color=plt.gca().lines[-1].get_color(), linestyle="--")
+		# if ftype is "linear": plt.plot(AA[0],1/(0.5*AA[0]+1),"m--",label="$(\\alpha/2+1)^{-1}$")
 		plt.xlim(right=max(chain.from_iterable(AA)))
 		plt.ylim(bottom=0.0)
 		plt.title("Pressure normalised by WN result",fontsize=fst)

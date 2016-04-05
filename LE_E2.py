@@ -57,7 +57,7 @@ def plot_pdfs(histfiles,a,vb):
 		
 		H = np.load(hf)
 		if geo is "CIR": H = H.T[::-1]
-		H[:,0]=H[:,3];H[:,1]=H[:,3];H[:,2]=H[:,3]
+		# H[:,0]=H[:,3];H[:,1]=H[:,3];H[:,2]=H[:,3]
 		bins = np.load(os.path.dirname(hf)+"/BHISBIN"+os.path.basename(hf)[4:-4]+".npz")
 		rbins  = bins[xbin]
 		erbins = bins[ebin]

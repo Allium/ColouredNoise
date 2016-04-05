@@ -49,6 +49,9 @@ def force_1D_lin(x,X,D):
 	"""
 	return 0.5*(np.sign(X-x)-1) * (x-X)
 	
+def force_1D_lin_jump(x,X,sh):
+	return force_1D_lin(x,X,0.0) + sh
+	
 ## Currents
 
 def J_BW(P,b,F,Y):

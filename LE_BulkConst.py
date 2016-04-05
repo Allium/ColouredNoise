@@ -60,7 +60,7 @@ def plot_file(histfile):
 	plt.grid()
 	plt.legend(loc="best")
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".png"
-	plt.savefig(plotfile)
+	# plt.savefig(plotfile)
 	return plotfile
 	
 ##=============================================================================
@@ -122,7 +122,7 @@ def bulk_const(histfile):
 		x = 0.5*(rbins[1:]+rbins[:-1])
 		eta = 0.5*(erbins[1:]+erbins[:-1]) ## Radial
 		## To get probability density rather than probebility
-		H /= np.multiply(*np.meshgrid(x,eta))
+		H /= np.meshgrid(x,eta)[0]#np.multiply(*np.meshgrid(x,eta))
 		## Marginalise over eta
 		Hx = np.trapz(H,x=eta,axis=0)
 		Hx = Hr_norm(Hx,x,R)

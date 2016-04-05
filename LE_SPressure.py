@@ -215,6 +215,7 @@ def pressure_dir(dirpath, rawp, verbose):
 		
 		## Load histogram, convert to normalised pdf
 		H = np.load(histfile)
+		if R[i]>=5.0: H[:10] = H[10:40].mean(axis=0) ### ATTENTION
 		## Noise dimension irrelevant here
 		H = np.trapz(H, x=er, axis=1)
 		## Convert to normalised *pdf*
@@ -306,7 +307,7 @@ def Hr_norm(H,r,R):
 	H is probability density per unit area (flat in the bulk).
 	Hr is probability density.
 	"""
-	H[0]=H[1]
+	# H[0]=H[1]
 	rext = np.hstack([np.linspace(0.0,r[0],2),r])
 	Hext = np.hstack([H[:np.argmin(np.abs(r-R))].mean()*np.ones(2),H])
 	# H /= np.trapz(rext*Hext,x=rext)

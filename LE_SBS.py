@@ -56,11 +56,11 @@ def input():
 	parser.add_option('-r','--nrun',
         dest="Nrun",default=100,type="int")
 	parser.add_option('--dt',
-                dest="dt",default=0.01,type="float")		
+        dest="dt",default=0.01,type="float")		
 	parser.add_option('-t','--timefac',
-                dest="timefac",default=1.0,type="float")	 
+        dest="timefac",default=1.0,type="float")	 
 	parser.add_option('-v','--verbose',
-                dest="vb",default=False,action="store_true")
+        dest="vb",default=False,action="store_true")
 	parser.add_option('-h','--help',
 		dest="help", default=False, action="store_true")				  
 	opts, argv = parser.parse_args()
@@ -225,11 +225,14 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 		xy[:,i+1] = xy[:,i] + dt*( fxy + exy[:,i] )
 		## Apply BC
 		if r2 < rmin2:
-			xy[:,i] *= (2*rmin)/np.sqrt(r2) - 1
-			exy[:,i:] *= -1
+			xy[:,i] *= -((2*rmin)/np.sqrt(r2) - 1)
 			j += 1
-	if (vb and j==0 and rmin2>0.0): print me+"rmin never crossed."
+	if (vb and j==0 and rmin2>0.0): print me+"rmin never encountered."
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
+	
+	# xx = np.linspace(0,2*np.pi,100)
+	# plt.plot(rmin*np.cos(xx),rmin*np.sin(xx))
+	# plt.plot(*xy[:,:5000]);plt.show();exit()
 	
 	rcoord = np.sqrt((xy*xy).sum(axis=0))
 	ercoord = np.sqrt((exy*exy).sum(axis=0))
@@ -238,11 +241,14 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	
 ## ====================================================================
 
-def force_const(xy,r,r2,R,R2):
+def force_const(xy,r,r2,R,R2,*args=None):
 	return 0.5*(np.sign(R2-r2)-1) * xy/r
 
-def force_lin(xy,r,r2,R,R2):
+def force_lin(xy,r,r2,R,R2,*args=None):
 	return force_const(xy,r,r2,R,R2) * (r-R)
+	
+def force_lin_sh(xy,r,r2,R,R2,sh):
+	return force_lin(xy,r,r2,R,R2) + sh
 
 ## ====================================================================
 
