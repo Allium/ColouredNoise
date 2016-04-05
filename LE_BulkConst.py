@@ -98,17 +98,13 @@ def bulk_const(histfile):
 	[a,X,R,D,ftype,geo] = [pars[key] for key in ["a","X","R","D","ftype","geo"]]
 
 	H = np.load(histfile)
-	H[:,0] = H[:,1]
 
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 	
 	## 1D sim
 	if geo == "1D":
 		xbins = bins["xbins"]
-		try:
-			ebins = bins["ebins"]
-		except KeyError:
-			ebins = bins["ybins"]
+		ebins = bins["ebins"]
 		x = 0.5*(xbins[1:]+xbins[:-1])
 		eta = 0.5*(ebins[1:]+ebins[:-1])
 		H /= np.trapz(np.trapz(H,x=x,axis=1),x=eta,axis=0)

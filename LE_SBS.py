@@ -231,8 +231,6 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	if (vb and j==0 and rmin2>0.0): print me+"rmin never crossed."
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 	
-	plt.plot(*xy[:,:1000]);plt.show();exit()
-	
 	rcoord = np.sqrt((xy*xy).sum(axis=0))
 	ercoord = np.sqrt((exy*exy).sum(axis=0))
 	

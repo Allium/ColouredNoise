@@ -1,6 +1,5 @@
 
 import numpy as np
-from scipy import integrate
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import os, glob, optparse
@@ -110,7 +109,6 @@ def pressure_pdf_file(histfile, verbose):
 	## Space (for axes)
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 	rbins = bins["rbins"]
-	rini = rbins[0]
 	rmax = rbins[-1]
 	r = 0.5*(rbins[1:]+rbins[:-1])
 	erbins = bins["erbins"]
@@ -121,7 +119,8 @@ def pressure_pdf_file(histfile, verbose):
 	## Noise dimension irrelevant here
 	H = np.trapz(H, x=er, axis=1)
 	## Normalise as if extended to r=0
-	H = Hr_norm(H,r,R)
+	## H is now probability density rather than prob at r
+	H = Hr_norm(H/r,r,R)
 
 	## White noise result
 	rho_WN = pdf_WN(r,R,ftype)
@@ -198,7 +197,6 @@ def pressure_dir(dirpath, rawp, verbose):
 	R = np.zeros(numfiles)
 	P = np.zeros(numfiles)
 	P_WN = np.zeros(numfiles)
-	rini = np.zeros(numfiles)
 		
 	## Loop over files
 	for i,histfile in enumerate(histfiles):
@@ -210,7 +208,6 @@ def pressure_dir(dirpath, rawp, verbose):
 		## Space (for axes)
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 		rbins = bins["rbins"]
-		rini = rbins[0]
 		rmax = rbins[-1]
 		r = 0.5*(rbins[1:]+rbins[:-1])
 		erbins = bins["erbins"]
@@ -220,8 +217,8 @@ def pressure_dir(dirpath, rawp, verbose):
 		H = np.load(histfile)
 		## Noise dimension irrelevant here
 		H = np.trapz(H, x=er, axis=1)
-		## Convert to normalised pdf
-		H = Hr_norm(H,r,R[i])
+		## Convert to normalised *pdf*
+		H = Hr_norm(H/r,r,R[i])
 
 		## Calculate force array
 		force = 0.5*(np.sign(R[i]-r)-1)

@@ -1,12 +1,7 @@
 
 import numpy as np
-from scipy.interpolate import UnivariateSpline
-from scipy.interpolate import interp1d
-from scipy import integrate
 from matplotlib import pyplot as plt
-from sys import argv
-import os, glob
-import optparse
+import os, glob, optparse
 import warnings
 from time import time as sysT
 from itertools import chain
@@ -81,7 +76,7 @@ def main():
 		dest="rawp", default=False, action="store_true")
 	parser.add_option('-h','--help',
         dest="help",default=False,action="store_true")		
-	opt = parser.parse_args()[0]
+	opt, args = parser.parse_args()
 	if opt.help: print main.__doc__; return
 	showfig = opt.showfig
 	verbose = opt.verbose
@@ -89,14 +84,14 @@ def main():
 	twod 	= opt.twod
 	normIG	= not opt.rawp
 	
-	argv[1] = argv[1].replace("\\","/")
-	if plotall and os.path.isdir(argv[1]):
+	args[0] = args[0].replace("\\","/")
+	if plotall and os.path.isdir(args[0]):
 		showfig = False
-		allfiles(argv[1],verbose)
-	if os.path.isfile(argv[1]):
-		pressure_pdf_plot_file(argv[1],verbose)
-	elif os.path.isdir(argv[1]):
-		pressure_plot_dir(argv[1],verbose, twod, normIG)
+		allfiles(args[0],verbose)
+	if os.path.isfile(args[0]):
+		pressure_pdf_plot_file(args[0],verbose)
+	elif os.path.isdir(args[0]):
+		pressure_plot_dir(args[0],verbose, twod, normIG)
 	else:
 		print me+"you gave me rubbish. Abort."
 		exit()

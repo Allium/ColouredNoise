@@ -27,7 +27,6 @@ def main():
 	dirpars = filename_pars(dirpath)
 	assert dirpars["ftype"] is "linear", me+"Check input."
 	
-	## 
 	if dirpars["geo"] is "CIR":
 		plotfile = dirpath+"/E2_CIRLPDF_a"+str(a)+".png"
 		histfiles = sort_AN(glob.glob(dirpath+"/BHIS*_a"+str(a)+"*.npy"), "R")[::-1]
@@ -35,7 +34,7 @@ def main():
 		plotfile = dirpath+"/E2_1DLPDF_a"+str(a)+".png"
 		histfiles = sort_AN(glob.glob(dirpath+"/BHIS*_a"+str(a)+"*.npy"), "X")[::-1]
 	
-	plot_pdf(histfiles,a,vb)
+	plot_pdfs(histfiles,a,vb)
 	
 	plt.savefig(plotfile)
 	if vb:	print me+"Figure saved to",plotfile
@@ -44,7 +43,7 @@ def main():
 	return
 
 ##=============================================================================	
-def plot_pdf(histfiles,a,vb):
+def plot_pdfs(histfiles,a,vb):
 
 	geo = filename_pars(histfiles[0])["geo"]
 	[wall,xbin,ebin] = ["R","rbins","erbins"] if geo is "CIR" else ["X","xbins","ebins"]
@@ -81,7 +80,7 @@ def plot_pdf(histfiles,a,vb):
 	
 	ax = axs[-2]
 	ax.imshow(pdf_E2(r,er,a), extent=[rbins[0],rbins[-1],erbins[0],erbins[-1]],aspect="auto")
-	ax.set_title("E2 $"+wall+" = 0$")
+	ax.set_title("Theory $"+wall+" = 0.0$")
 	
 	ax = axs[-1]
 	R, ER = np.meshgrid(r,er); ER = ER[::-1]
