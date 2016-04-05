@@ -107,8 +107,8 @@ def main():
 	emax = 4/np.sqrt(a) if a!=0.0 else 4/np.sqrt(dt)
 	
 	## Histogramming; xbins and ebins are bin edges.
-	Nxbin = 200
-	Nebin = 150
+	Nxbin = 250
+	Nebin = 200
 	xbins = np.linspace(xmin,xmax,Nxbin+1)#calculate_xbin(xini,X,xmax,Nxbin)
 	ebins = np.linspace(-emax,emax,Nebin+1)
 		
