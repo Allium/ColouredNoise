@@ -106,13 +106,9 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 		
 	## Histogramming; bin edges
 	Nrbin = 200
-	Npbin = 50
-	rbins = np.linspace(rini,rmax,Nrbin)
-	pbins = np.linspace(0.0,2*np.pi,Npbin)
+	rbins = np.linspace(rmin,rmax,Nrbin)
 	Nerbin = 150
-	Nepbin = 50
 	erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)),Nerbin)
-	epbins = np.linspace(0.0,2*np.pi,Nepbin)
 	bins = [rbins,erbins]
 	
 	## Particles	
@@ -202,7 +198,7 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	me = "LE_SBS.boundary_sim: "
 	
 	R2 = R*R
-	rmin2 = max(rmin*rmin,0.05**2)
+	rmin2 = rmin*rmin
 	
 	## Initialisation
 	x0,y0 = xyini
@@ -226,12 +222,12 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 		r2 = (xy[:,i]*xy[:,i]).sum()
 		fxy = force(xy[:,i],np.sqrt(r2),r2,R,R2)
 		xy[:,i+1] = xy[:,i] + dt*( fxy + exy[:,i] )
-		## Extend array if necessary
+		## Apply BC
 		if r2 < rmin2:
 			xy[:,i] *= (2*rmin-np.sqrt(r2))/r2
 			exy[:,i:] *= -1
 			j += 1
-	if (vb and j==0): print me+"rmin never crossed."
+	if (vb and j==0 and rmin2>0.0): print me+"rmin never crossed."
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 	
 	rcoord = np.sqrt((xy*xy).sum(axis=0))

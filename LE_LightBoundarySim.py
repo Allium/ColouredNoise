@@ -109,7 +109,7 @@ def main():
 	## Histogramming; xbins and ebins are bin edges.
 	Nxbin = 100
 	Nebin = 50
-	xbins = np.linspace(xini,xmax,Nxbin+1)#calculate_xbin(xini,X,xmax,Nxbin)
+	xbins = np.linspace(rmin,xmax,Nxbin+1)#calculate_xbin(xini,X,xmax,Nxbin)
 	ebins = np.linspace(-emax,emax,Nebin+1)#calculate_ebin(-emax,emax,Nebin+1)
 		
 	## Initial conditions
