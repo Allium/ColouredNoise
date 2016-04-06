@@ -108,6 +108,8 @@ def pressure_pdf_plot_file(histfile, verbose):
 	"""
 	me = "LE_Pressure.pressure_pdf_plot_file: "
 	t0 = sysT()
+
+	plotpress = False
 	
 	## Filenames
 	plotfile = os.path.dirname(histfile)+"/PDFP"+os.path.basename(histfile)[4:-4]+".png"
@@ -137,16 +139,20 @@ def pressure_pdf_plot_file(histfile, verbose):
 	Hx = np.trapz(H,x=e,axis=0)
 	Hx /= np.trapz(Hx,x=x)	
 	
-	## Calculate pressure
-	force = force_x(x,X,D)
-	press = pressure_x(force,Hx,x)
+	if plotpress:
+		## Calculate pressure
+		force = force_x(x,X,D)
+		press = pressure_x(force,Hx,x)
 	xIG, forceIG, HxIG, pressIG = ideal_gas(x, X, D, force_x)
 	
 	## PLOTTING
-	fig,axs = plt.subplots(2,1,sharex=True)
+	if not plotpress:
+		fig,ax = plt.subplots(1,1)
+	elif plotpress:
+		fig,axs = plt.subplots(2,1,sharex=True)
+		ax = axs[0]
 	
 	## Density plot
-	ax = axs[0]
 	## Wall
 	plot_wall(ax, ftype, x, X)
 	##### Will have to fix when D!=0
@@ -156,26 +162,28 @@ def pressure_pdf_plot_file(histfile, verbose):
 	ax.plot(xIG,HxIG,"r-",label="White noise")
 	ax.set_xlim(left=xini,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0,top=1.1)
-	ax.set_ylabel("PDF $\\rho(x)$",fontsize=fsa)
+	if not plotpress: ax.set_xlabel("$x$",fontsize=fsa)
+	ax.set_ylabel("$\\rho(x)$",fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="upper right",fontsize=fsl)
 	
-	## Pressure plot
-	ax = axs[1]
-	## Wall
-	plot_wall(ax, ftype, x, X)
-	##
-	ax.plot(x,press,"b-",linewidth=1, label="CN")
-	ax.axhline(press[-1],color="b",linestyle="--",linewidth=1)
-	ax.plot(xIG,pressIG,"r-",label="WN")
-	ax.axhline(pressIG[-1],color="r",linestyle="--",linewidth=1)
-	# ax.axhline(1/(1.0-np.exp(X-xmax)+X-xmin),color="r",linestyle="--",linewidth=1)
-	ax.set_xlim(left=xbins[0],right=xbins[-1])
-	ax.set_ylim(bottom=0.0, top=np.ceil(max([press[-1],pressIG[-1]])))
-	ax.set_xlabel("$x$",fontsize=fsa)
-	ax.set_ylabel("Pressure",fontsize=fsa)
-	ax.grid()
-	# ax.legend(loc="best",fontsize=fsl)
+	if plotpress:
+		## Pressure plot
+		ax = axs[1]
+		## Wall
+		plot_wall(ax, ftype, x, X)
+		##
+		ax.plot(x,press,"b-",linewidth=1, label="CN")
+		ax.axhline(press[-1],color="b",linestyle="--",linewidth=1)
+		ax.plot(xIG,pressIG,"r-",label="WN")
+		ax.axhline(pressIG[-1],color="r",linestyle="--",linewidth=1)
+		# ax.axhline(1/(1.0-np.exp(X-xmax)+X-xmin),color="r",linestyle="--",linewidth=1)
+		ax.set_xlim(left=xbins[0],right=xbins[-1])
+		ax.set_ylim(bottom=0.0, top=np.ceil(max([press[-1],pressIG[-1]])))
+		ax.set_xlabel("$x$",fontsize=fsa)
+		ax.set_ylabel("Pressure",fontsize=fsa)
+		ax.grid()
+		# ax.legend(loc="best",fontsize=fsl)
 	
 	plt.tight_layout()
 	fig.suptitle("$x_{w}=$"+str(X)+", $\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
@@ -226,12 +234,12 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		
 		## Get pars from filename
 		pars = filename_pars(histfile)
-		[Alpha[i],X[i],D,ymax,R] = [pars[key] for key in ["a","X","D","ymax","R"]]
+		[Alpha[i],X[i],D,R] = [pars[key] for key in ["a","X","D","R"]]
 		assert (R is None), me+"You are using the wrong program. R should not enter."
 				
 		## Load data
 		H = np.load(histfile)
-		H[:,0]=H[:,1]
+		# H[:,0]=H[:,1]
 		
 		## Space
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -296,10 +304,10 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 			
 		if normIG: PP = [PP[i]/PPIG[i] for i in range(Ncurv)]
 			
+		if ftype is "linear": plt.plot(AA[0],np.sqrt(1/(AA[0]+1)),"b--",label="$(\\alpha+1)^{-1/2}$")
 		for i in range(Ncurv):
 			plt.plot(AA[i], PP[i], 'o-', label=labels[i])
 			if not normIG: plt.axhline(PressIG[i], color=plt.gca().lines[-1].get_color(), linestyle="--")
-		# if ftype is "linear": plt.plot(AA[0],1/(0.5*AA[0]+1),"m--",label="$(\\alpha/2+1)^{-1}$")
 		plt.xlim(right=max(chain.from_iterable(AA)))
 		plt.ylim(bottom=0.0)
 		plt.title("Pressure normalised by WN result",fontsize=fst)

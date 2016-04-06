@@ -51,28 +51,24 @@ def main():
 	## Input options
 	
 	parser = optparse.OptionParser(conflict_handler="resolve")	
-	parser.add_option('-a','--alpha',
+	parser.add_option("-a","--alpha",
         dest="alpha",default=0.1,type="float")
-	parser.add_option('-X','--wallpos',
+	parser.add_option("-X","--wallpos",
         dest="X",default=10.0,type="float")
 	parser.add_option("--HO",
 		dest="harmonic_potential",default=False,action="store_true")
-	parser.add_option('-D','--Delta',
-                  dest="Delta",default=0.0,type="float")		
-	parser.add_option('-r','--nrun',
+	parser.add_option("-D","--Delta",
+        dest="Delta",default=0.0,type="float")		
+	parser.add_option("-r","--nrun",
                   dest="Nrun",default=100,type="int")
-	parser.add_option('--dt',
+	parser.add_option("--dt",
                   dest="dt",default=0.01,type="float")		
-	parser.add_option('-t','--timefac',
-                  dest="timefac",default=1.0,type="float")	 
-	parser.add_option('-I','--IC',
-                  dest="IC",default="line",type="str")	  
-	parser.add_option('-v','--verbose',
-                  dest="verbose",default=False,action="store_true",
-				  help="Print useful information to screen.")
-	parser.add_option('-h','--help',
-                  dest="help",default=False,action="store_true",
-				  help="Print docstring.")					  
+	parser.add_option("-t","--timefac",
+                  dest="timefac",default=1.0,type="float")  
+	parser.add_option("-v","--verbose",
+                  dest="verbose",default=False,action="store_true")
+	parser.add_option("-h","--help",
+                  dest="help",default=False,action="store_true")					  
 	opt, args = parser.parse_args()
 	if opt.help: print main.__doc__; return
 	a		= opt.alpha

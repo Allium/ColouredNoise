@@ -60,7 +60,7 @@ def plot_file(histfile):
 	plt.grid()
 	plt.legend(loc="best")
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".png"
-	# plt.savefig(plotfile)
+	plt.savefig(plotfile)
 	return plotfile
 	
 ##=============================================================================

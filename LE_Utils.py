@@ -86,7 +86,7 @@ def plot_fontsizes():
 	"""
 	Axes, legend, title
 	"""
-	return 16,12,18
+	return 18,14,18
 
 	
 ##==========================================
@@ -141,12 +141,6 @@ def filename_pars(filename):
 	except ValueError:
 		start = filename.find("_dt",start) + 3
 		dt = float(filename[start:filename.find(".npy",start)])
-	## ymax
-	try:
-		start = filename.find("_ym") + 2
-		ymax = float(filename[start:filename.find("_",start)])
-	except ValueError:
-		ymax = 0.5
 	## R
 	try:
 		start = filename.find("_R") + 2
@@ -160,8 +154,8 @@ def filename_pars(filename):
 	elif filename.find("_1D_") > 0: geo = "1D"
 	elif filename.find("_2D_") > 0: geo = "2D"
 	## Collect into lists
-	names = ["a","X","D","dt","ymax","R","ftype","geo"]
-	pars  = [a,X,D,dt,ymax,R,ftype,geo]
+	names = ["a","X","D","dt","R","ftype","geo"]
+	pars  = [a,X,D,dt,R,ftype,geo]
 	##
 	return dict(zip(names,pars))
 

@@ -98,7 +98,7 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	R2 = R*R
 	## Simulation limits
 	rmax = R+5.0
-	rmin = max([0.0, 0.9*R-4*np.sqrt(a)])
+	rmin = 0.0#max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
 	rini = 0.5*(rmin+R)
 		
@@ -225,7 +225,7 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 		xy[:,i+1] = xy[:,i] + dt*( fxy + exy[:,i] )
 		## Apply BC
 		if r2 < rmin2:
-			xy[:,i] *= -((2*rmin)/np.sqrt(r2) - 1)
+			xy[:,i] *= 1-(2*rmin)/np.sqrt(r2)
 			j += 1
 	if (vb and j==0 and rmin2>0.0): print me+"rmin never encountered."
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
@@ -241,10 +241,10 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	
 ## ====================================================================
 
-def force_const(xy,r,r2,R,R2,*args=None):
+def force_const(xy,r,r2,R,R2,*args):
 	return 0.5*(np.sign(R2-r2)-1) * xy/r
 
-def force_lin(xy,r,r2,R,R2,*args=None):
+def force_lin(xy,r,r2,R,R2,*args):
 	return force_const(xy,r,r2,R,R2) * (r-R)
 	
 def force_lin_sh(xy,r,r2,R,R2,sh):

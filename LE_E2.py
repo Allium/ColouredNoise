@@ -57,7 +57,6 @@ def plot_pdfs(histfiles,a,vb):
 		
 		H = np.load(hf)
 		if geo is "CIR": H = H.T[::-1]
-		# H[:,0]=H[:,3];H[:,1]=H[:,3];H[:,2]=H[:,3]
 		bins = np.load(os.path.dirname(hf)+"/BHISBIN"+os.path.basename(hf)[4:-4]+".npz")
 		rbins  = bins[xbin]
 		erbins = bins[ebin]
@@ -65,9 +64,10 @@ def plot_pdfs(histfiles,a,vb):
 		er = 0.5*(erbins[1:]+erbins[:-1])
 		
 		if geo is "CIR": H /= np.multiply(*np.meshgrid(r,er))
+		H /= H.max()
 		
 		ax = axs[i]
-		ax.imshow(H, extent=[rbins[0],rbins[-1],erbins[0],erbins[-1]],aspect="auto")
+		ax.imshow(H, extent=[rbins[0],rbins[-1],erbins[0],erbins[-1]],vmin=0.0,vmax=1.0,aspect="auto")
 		ax.axvline(R,c="k")
 		ax.set_xlim(left=0.0)
 		ax.set_ylim(bottom=0.0)
@@ -79,9 +79,9 @@ def plot_pdfs(histfiles,a,vb):
 	er = 0.5*(erbins[1:]+erbins[:-1])
 	
 	ax = axs[-2]
-	ax.imshow(pdf_E2(r,er,a), extent=[rbins[0],rbins[-1],erbins[0],erbins[-1]],aspect="auto")
+	ax.imshow(pdf_E2(r,er,a), extent=[rbins[0],rbins[-1],erbins[0],erbins[-1]],vmin=0.0,vmax=1.0,aspect="auto")
 	ax.set_title("Theory $"+wall+" = 0.0$")
-	
+
 	ax = axs[-1]
 	R, ER = np.meshgrid(r,er); ER = ER[::-1]
 	ax.imshow(np.exp(-0.5*R*R-0.5*ER*ER), extent=[rbins[0],rbins[-1],erbins[0],erbins[-1]],aspect="auto")

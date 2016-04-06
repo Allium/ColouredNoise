@@ -72,7 +72,6 @@ def main():
 	rawp	= opt.rawp
 	plotall = opt.plotall
 	
-	# args[0] = args[0].replace("\\","/")
 	if plotall and os.path.isdir(args[0]):
 		showfig = False
 		allfiles(args[0],verbose)
@@ -97,6 +96,8 @@ def pressure_pdf_file(histfile, verbose):
 	me = "LE_SPressure.pressure_pdf_file: "
 	t0 = time()
 	
+	plotpress = False
+
 	## Filename
 	plotfile = os.path.dirname(histfile)+"/PDFP"+os.path.basename(histfile)[4:-4]+".png"
 	
@@ -117,7 +118,7 @@ def pressure_pdf_file(histfile, verbose):
 	## Load histogram, convert to normalised pdf
 	H = np.load(histfile)
 	## Noise dimension irrelevant here
-	H = np.trapz(H, x=er, axis=1)
+	H = np.trapz(H/er, x=er, axis=1)
 	## Normalise as if extended to r=0
 	## H is now probability density rather than prob at r
 	H = Hr_norm(H/r,r,R)
@@ -126,10 +127,13 @@ def pressure_pdf_file(histfile, verbose):
 	rho_WN = pdf_WN(r,R,ftype)
 	
 	## Set up plot
-	fig,axs = plt.subplots(2,1,sharex=True)
+	if not plotpress:
+		fig,ax = plt.subplots(1,1)
+	elif plotpress:
+		fig,axs = plt.subplots(2,1,sharex=True)
+		ax = axs[0]
 		
 	## PDF PLOT
-	ax = axs[0]
 	## Wall
 	plot_wall(ax, ftype, r, R)
 	## PDF and WN PDF
@@ -137,30 +141,32 @@ def pressure_pdf_file(histfile, verbose):
 	ax.plot(r,rho_WN,"r-", label="WN theory")
 	## Accoutrements
 	ax.set_xlim(right=rmax)
-	ax.set_ylim(bottom=0.0, top=np.ceil(H.max()))
+	ax.set_ylim(bottom=0.0, top=1.1)#np.ceil(H.max()))
+	if not plotpress: ax.set_xlabel("$r$", fontsize=fsa)
 	ax.set_ylabel("$\\rho(r)$", fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="upper right",fontsize=fsl)
-		
-	## Calculate force array
-	force = 0.5*(np.sign(R-r)-1) * ((r-R) if ftype is "linear" else 1)
-	## Pressure array -- sum rather than trapz
-	p = -(force*H).cumsum() * (r[1]-r[0])
-	p_WN = -(force*rho_WN).cumsum() * (r[1]-r[0])
 	
-	## PRESSURE PLOT
-	ax = axs[1]
-	## Wall
-	plot_wall(ax, ftype, r, R)
-	## Pressure and WN pressure
-	ax.plot(r,p,"b-",label="CN simulation")
-	ax.plot(r,p_WN,"r-",label="WN theory")
-	## Accoutrements
-	ax.set_xlim(right=rmax)
-	ax.set_ylim(bottom=0.0, top=np.ceil(p.max()))
-	ax.set_xlabel("$r$", fontsize=fsa)
-	ax.set_ylabel("$P(r)$", fontsize=fsa)
-	ax.grid()
+	if plotpress:
+		## Calculate force array
+		force = 0.5*(np.sign(R-r)-1) * ((r-R) if ftype is "linear" else 1)
+		## Pressure array -- sum rather than trapz
+		p = -(force*H).cumsum() * (r[1]-r[0])
+		p_WN = -(force*rho_WN).cumsum() * (r[1]-r[0])
+		
+		## PRESSURE PLOT
+		ax = axs[1]
+		## Wall
+		plot_wall(ax, ftype, r, R)
+		## Pressure and WN pressure
+		ax.plot(r,p,"b-",label="CN simulation")
+		ax.plot(r,p_WN,"r-",label="WN theory")
+		## Accoutrements
+		ax.set_xlim(right=rmax)
+		ax.set_ylim(bottom=0.0, top=np.ceil(p.max()))
+		ax.set_xlabel("$r$", fontsize=fsa)
+		ax.set_ylabel("$P(r)$", fontsize=fsa)
+		ax.grid()
 	
 	## Tidy figure
 	fig.suptitle(os.path.basename(plotfile),fontsize=fst)
@@ -215,19 +221,17 @@ def pressure_dir(dirpath, rawp, verbose):
 		
 		## Load histogram, convert to normalised pdf
 		H = np.load(histfile)
-		if R[i]>=5.0: H[:10] = H[10:40].mean(axis=0) ### ATTENTION
 		## Noise dimension irrelevant here
-		H = np.trapz(H, x=er, axis=1)
+		H = np.trapz(H/er, x=er, axis=1)
 		## Convert to normalised *pdf*
 		H = Hr_norm(H/r,r,R[i])
 
 		## Calculate force array
-		force = 0.5*(np.sign(R[i]-r)-1)
+		force = 0.5*(np.sign(R[i]-r)-1) * ((r-R[i]) if ftype is "linear" else 1)
 		## Pressure array -- sum rather than trapz
 		P[i] = -(force*H).sum() * (r[1]-r[0])
 		P_WN[i] = -(force*pdf_WN(r,R[i],ftype)).sum() * (r[1]-r[0])
 		
-	
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
 
@@ -309,7 +313,7 @@ def Hr_norm(H,r,R):
 	"""
 	# H[0]=H[1]
 	rext = np.hstack([np.linspace(0.0,r[0],2),r])
-	Hext = np.hstack([H[:np.argmin(np.abs(r-R))].mean()*np.ones(2),H])
+	Hext = np.hstack([H[:np.argmin(np.abs(r-R))/2].mean()*np.ones(2),H])
 	# H /= np.trapz(rext*Hext,x=rext)
 	H /= np.trapz(Hext,x=rext)
 	return H
