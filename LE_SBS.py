@@ -95,7 +95,6 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	## Simulation time
 	tmax = 5e2*timefac
 	
-	R2 = R*R
 	## Simulation limits
 	rmax = R+5.0
 	rmin = 0.0#max([0.0, 0.9*R-5*np.sqrt(a)])
@@ -242,7 +241,7 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 ## ====================================================================
 
 def force_const(xy,r,r2,R,R2,*args):
-	return 0.5*(np.sign(R2-r2)-1) * xy/r
+	return 0.5*(np.sign(R2-r2)-1) * xy/(r+0.001*int(r==0.0))
 
 def force_lin(xy,r,r2,R,R2,*args):
 	return force_const(xy,r,r2,R,R2) * (r-R)

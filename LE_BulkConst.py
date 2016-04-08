@@ -4,7 +4,7 @@ import os, optparse, glob
 from LE_Utils import filename_pars
 from LE_Utils import force_1D_const as force_x
 from LE_Pressure import pressure_x
-from LE_SPressure import Hr_norm, plot_wall
+from LE_SPressure import Hr_norm, pdf_WN, plot_wall
 
 
 def main():
@@ -33,8 +33,8 @@ def main():
 		for histfile in glob.glob(args[0]+"/BHIS*.npy"):
 			plotfile += [plot_file(histfile)]
 			plt.close()
-	# if os.path.isdir(args[0]):
-		# plotfile = plot_dir(args[0])
+	if os.path.isdir(args[0]):
+		plotfile = plot_dir(args[0])
 	
 	if vb:	print me+"Figure saved to",plotfile
 	if showfig:	plt.show()
@@ -65,28 +65,45 @@ def plot_file(histfile):
 	
 ##=============================================================================
 def plot_dir(histdir):
+
+	dirpars = filename_pars(histdir)
+	geo = dirpars["geo"]
+	ftype = dirpars["ftype"]
+	
 	## CONSTRUCT CALCULATION ARRAYS
-	A = []; X = []; C = []; P = []
-	for histfile in np.sort(glob.glob(histdir+"*.npy")):
-		pars = bulk_const(histfile)
-		A += [pars[0]]
-		X += [pars[1]]
-		c = pars[4]
-		C += [c[:c.shape[0]/2].mean()]
-		P += [pars[5][-1]]
-	A = np.array(A); X = np.array(X); C = np.array(C); P = np.array(P)
-	## Theoretical calculation of white noise pressure
-	P_WN = 1/(1.0-np.exp(X[:,X.shape[1]/2]-X[:,-1])+X[:,X.shape[1]/2]-X[:,0])
+	A = []; X = []; R = []; C = []; P = []; P_WN = []
+	for i,histfile in enumerate(np.sort(glob.glob(histdir+"*_R5.0_*.npy"))):
+		[x, Hx, e2E, c1, p, pars] = bulk_const(histfile)
+		A += [pars["a"]]
+		if geo == "1D":
+			X += [pars["X"]]
+			widx = np.argmin(np.abs(x-X[i]))
+			force = 0.5*(np.sign(X[i]-x)-1)* ((x-X[i]) if ftype is "linear" else 1)
+			P_WN += [-(force*pdf_WN(x,R[i],ftype)).sum()*(x[1]-x[0])]
+		elif geo == "CIR":
+			R += [pars["R"]]
+			widx = np.argmin(np.abs(x-R[i]))
+			force = 0.5*(np.sign(R[i]-x)-1) * ((x-R[i]) if ftype is "linear" else 1)
+			P_WN += [-(force*pdf_WN(x,R[i],ftype)).sum()*(x[1]-x[0])]
+		C += [c1[:widx].mean()]
+		P += [p[-1]]
+	A = np.array(A); X = np.array(X); R = np.array(R); C = np.array(C)
+	P = np.array(P); P_WN = np.array(P_WN)
+	
+	## NORMALISE
+	P /= P_WN
+	C /= P_WN
+	
 	## PLOTTING
 	plt.plot(A,P, "o-", label="$-\\int\\rho(x)\\phi(x)\\,{\\rm d}x$")
 	plt.plot(A,C*A, "o-", label="$\\alpha Q\\langle\\eta^2\\rangle$")
-	plt.plot(A,P_WN,"--",label="WN theory")
-	plt.suptitle("Pressure as Function of $\\alpha$")
+	plt.suptitle("Pressure normalised by WN result")
 	plt.xlabel("$\\alpha$")
+	plt.ylabel("$P$")
 	plt.grid()
 	plt.legend()
 	plotfile = histdir+"/QEe2_P_.png"
-	plt.savefig(plotfile)
+	# plt.savefig(plotfile)
 	return plotfile
 	
 ##=============================================================================
@@ -98,7 +115,6 @@ def bulk_const(histfile):
 	[a,X,R,D,ftype,geo] = [pars[key] for key in ["a","X","R","D","ftype","geo"]]
 
 	H = np.load(histfile)
-
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 	
 	## 1D sim
@@ -112,6 +128,8 @@ def bulk_const(histfile):
 		Hx = np.trapz(H,x=eta,axis=0)
 		force = force_x(x,X,D)
 		p = pressure_x(force,Hx,x)
+		e2E = np.trapz(((H/Hx).T*(eta*eta)).T,x=eta,axis=0)
+		c1 = Hx*e2E
 		
 	## Circular sim
 	elif geo == "CIR":
@@ -121,14 +139,16 @@ def bulk_const(histfile):
 		erbins = bins["erbins"]
 		x = 0.5*(rbins[1:]+rbins[:-1])
 		eta = 0.5*(erbins[1:]+erbins[:-1]) ## Radial
-		## To get probability density rather than probebility
-		H /= np.meshgrid(x,eta)[0]#np.multiply(*np.meshgrid(x,eta))
-		## Marginalise over eta
-		Hx = np.trapz(H,x=eta,axis=0)
-		Hx = Hr_norm(Hx,x,R)
+		## To get probability density rather than probability
+		H /= (H.sum()*np.outer(np.diff(erbins),np.diff(rbins)))
+		H /= np.outer(eta,x)
+		## Marginalise over eta and normalise
+		Hx = Hr_norm( np.trapz(H,x=eta,axis=0) ,x,R)
 		## Force
 		force = 0.5*(np.sign(R-x)-1) * ((x-R) if ftype is "linear" else 1)
 		p = -(force*Hx).cumsum() * (x[1]-x[0])
+		e2E = np.trapz(((H/Hx).T*(eta*eta)).T,x=eta,axis=0)
+		c1 = Hx*e2E
 		
 	if 0:
 		print "eta pdfs"
@@ -136,8 +156,6 @@ def bulk_const(histfile):
 			plt.plot(eta, H[:,i]/Hx[i])
 		plt.show();exit()
 		
-	e2E = np.trapz(((H/Hx).T*(eta*eta)).T,x=eta,axis=0)
-	c1 = Hx*e2E
 	
 	return [x, Hx, e2E, c1, p, pars]
 	
