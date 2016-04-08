@@ -49,10 +49,12 @@ def input():
 	parser = optparse.OptionParser(conflict_handler="resolve")	
 	parser.add_option('-a','--alpha',
         dest="a",default=0.1,type="float")
-	parser.add_option('-R','--bulkrad',
+	parser.add_option('-R','--outrad',
         dest="R",default=10.0,type="float")
-	parser.add_option("--HO",
-		dest="harmonic_potential",default=False,action="store_true")
+	parser.add_option('-S','--inrad',
+        dest="S",default=-1.0,type="float")
+	parser.add_option("--ftype",
+		dest="ftype",default="const",type="str")
 	parser.add_option('-r','--nrun',
         dest="Nrun",default=100,type="int")
 	parser.add_option('--dt',
@@ -67,27 +69,57 @@ def input():
 	if opts.help: print input.__doc__; return
 	a		= opts.a
 	R		= opts.R
+	S		= opts.S
+	ftype	= opts.ftype
 	Nrun	= opts.Nrun
 	dt		= opts.dt
 	timefac = opts.timefac
 	vb		= opts.vb
 	
-	## Choose potential type
-	force = force_lin if opts.harmonic_potential else force_const
-		
+	if ftype == "const" or ftype == "lin":
+		fpar = [R]
+	elif ftype == "dcon" or ftype == "dlin":
+		assert S>=0.0, me+"Must specify inner radius S for double circus."
+		fpar = [R,S]
+	else:
+		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin}."
+			
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
 	
-	main(a,R,force,Nrun,dt,timefac,vb)
+	main(a,ftype,fpar,Nrun,dt,timefac,vb)
 	
 	return
 
 ##=============================================================================
 
-def main(a,R,force,Nrun,dt,timefac,vb):
+def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	"""
 	"""
 	me = "LE_SBS.main: "
 	t0 = time.time()
+	
+	## ----------------------------------------------------------------
+	## CHOOSE FORCE
+	if ftype == "const":
+		R = fpar[0]
+		force = lambda xy, r, r2: force_const(xy,r,r2,R,R*R)
+		fstr = "C"
+	elif ftype == "lin":
+		R = fpar[0]
+		force = lambda xy, r, r2: force_lin(xy,r,r2,R*R)
+		fstr = "L"
+	elif ftype == "lico":
+		R, g = fpar
+		force = lambda xy, r, r2: force_lico(xy,r,r2,R,R*R,g)
+		fstr = "S"
+	elif ftype == "dcon":
+		R, R2 = fpar
+		force = lambda xy, r, r2: force_dcon(xy,r,r2,R,R*R,R2,R2*R2)
+		fstr = "DC"
+	elif ftype == "dlin":
+		R, R2 = fpar
+		force = lambda xy, r, r2: force_dlin(xy,r,r2,R,R*R,R2,R2*R2)
+		fstr = "DL"
 	
 	## ----------------------------------------------------------------
 	## SET UP CALCULATIONS
@@ -125,8 +157,8 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	## Filename; directory and file existence; readme
 	f_type = "C" if force == force_const else "L"
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+f_type+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
-	hisfile = "BHIS_CIR_"+f_type+"_a"+str(a)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)
+			"_CIR_"+fstr+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
+	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
@@ -167,9 +199,9 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 		## Perform several runs in Cartesian coordinates
 		xyini = [rini*np.cos(pini),rini*np.sin(pini)]
 		for run in xrange(Nrun):
-			## x, y are coordinates as a function of time
-			r,er = boundary_sim(xyini, eIC[i], a, R, force, rmin, rmax, dt, tmax, expmt, (vb and run%50==0))
-			# plot_traj(np.sqrt(x*x+y*y),np.arctan2(y,x),rmin,R,rmax,hisdir+"TRAJ"+hisfile[4:]+".png")
+			if vb: print me+"Run",i,"of",Nparticles
+			## r, er are radial coordinates as a function of time
+			r,er = boundary_sim(xyini, eIC[i], a, force, fpar, rmin, rmax, dt, tmax, expmt, (vb and run%50==0))
 			H += np.histogram2d(r,er,bins=bins,normed=False)[0]
 			i += 1
 	## Divide by bin area and number of particles
@@ -190,14 +222,13 @@ def main(a,R,force,Nrun,dt,timefac,vb):
 	
 ## ====================================================================
 
-def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=False):
+def boundary_sim(xyini, exyini, a, force, fpar, rmin, rmax, dt, tmax, expmt, vb=False):
 	"""
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
 	Dynamically adds more space to arrays.
 	"""
 	me = "LE_SBS.boundary_sim: "
 	
-	R2 = R*R
 	rmin2 = rmin*rmin
 	
 	## Initialisation
@@ -205,7 +236,6 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	r2 = x0*x0+y0*y0
 	nstp = int(tmax/dt)
 	exstp = nstp/10
-	if vb: print me+"[a, R] =",np.around([a,R],2),"; [x0, y0] =",np.around(xyini,2)
 	
 	## Simulate eta
 	if vb: t0 = time.time()
@@ -220,7 +250,7 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	## Calculate trajectory
 	for i in xrange(0,nstp-1):
 		r2 = (xy[:,i]*xy[:,i]).sum()
-		fxy = force(xy[:,i],np.sqrt(r2),r2,R,R2)
+		fxy = force(xy[:,i],np.sqrt(r2),r2)
 		xy[:,i+1] = xy[:,i] + dt*( fxy + exy[:,i] )
 		## Apply BC
 		if r2 < rmin2:
@@ -230,8 +260,8 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 	
 	# xx = np.linspace(0,2*np.pi,100)
-	# plt.plot(rmin*np.cos(xx),rmin*np.sin(xx))
-	# plt.plot(*xy[:,:5000]);plt.show();exit()
+	# plt.plot(fpar[0]*np.cos(xx),fpar[0]*np.sin(xx),fpar[1]*np.cos(xx),fpar[1]*np.sin(xx))
+	# plt.plot(*xy);plt.show();exit()
 	
 	rcoord = np.sqrt((xy*xy).sum(axis=0))
 	ercoord = np.sqrt((exy*exy).sum(axis=0))
@@ -240,37 +270,20 @@ def boundary_sim(xyini, exyini, a, R, force, rmin, rmax, dt, tmax, expmt, vb=Fal
 	
 ## ====================================================================
 
-def force_const(xy,r,r2,R,R2,*args):
-	return 0.5*(np.sign(R2-r2)-1) * xy/(r+0.001*int(r==0.0))
+def force_const(xy,r,r2,R,R_2):
+	return 0.5*(np.sign(R_2-r2)-1) * xy/(r+0.0001*(r==0.0))
 
-def force_lin(xy,r,r2,R,R2,*args):
-	return force_const(xy,r,r2,R,R2) * (r-R)
+def force_lin(xy,r,r2,R,R_2):
+	return force_const(xy,r,r2,R,R_2) * (r-R)
 	
-def force_lin_sh(xy,r,r2,R,R2,sh):
-	return force_lin(xy,r,r2,R,R2) + sh
-
-## ====================================================================
-
-def plot_traj(rad,theta,rmin,R,rmax,outfile):
-	me = "LE_SBS.plot.traj: "
+def force_lico(xy,r,r2,R,R_2,g):
+	return force_lin(xy,r,r2,R,R2) + g
 	
-	ax = plt.subplot(111, projection="polar")
+def force_dcon(xy,r,r2,R1,R1_2,R2,R2_2):
+	return force_const(xy,r,r2,R1,R1_2) - force_const(xy,r,-r2,R2,-R2_2)
 	
-	## Plot wall and simulation boundary
-	TH = np.linspace(-np.pi,np.pi,360)
-	ax.plot(TH,R*np.ones(360),"k-",linewidth=2)
-	ax.plot(TH,rmin*np.ones(360),"b-",linewidth=1)
-	
-	## Plot trajectory
-	ax.plot(theta, rad, "r-")
-	ax.set_rlim([0.0,rmax])
-	ax.grid(True)
-	plt.show()
-	
-	# plt.savefig(outfile); print me+"Figure saved as",outfile
-	plt.close()
-	return
-
+def force_dlin(xy,r,r2,R1,R1_2,R2,R2_2):
+	return force_lin(xy,r,r2,R1,R1_2) - force_lin(xy,r,-r2,R2,-R2_2)
 
 ## ====================================================================
 ## ====================================================================

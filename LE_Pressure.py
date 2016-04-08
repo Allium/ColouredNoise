@@ -5,6 +5,7 @@ import os, glob, optparse
 import warnings
 from time import time as sysT
 from itertools import chain
+from sys import argv
 
 from LE_LightBoundarySim import lookup_xmax,calculate_xmin,calculate_xini
 from LE_Utils import force_1D_const, force_1D_lin
@@ -117,7 +118,9 @@ def pressure_pdf_plot_file(histfile, verbose):
 	## Get pars from filename
 	pars = filename_pars(histfile)
 	[alpha,X,D,R,ftype] = [pars[key] for key in ["a","X","D","R","ftype"]]
-	assert (R is None), me+"You are using the wrong program. R should not enter."
+	if R is None:
+		print me+"You are using the wrong program. R should not enter."
+		os.system("python LE_SPressure.py ")
 	force_x = force_1D_const if ftype is "const" else force_1D_lin
 	if verbose: print me+"[a, X, D, ftype] =",[alpha,X,D,ftype]
 	
