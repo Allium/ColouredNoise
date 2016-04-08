@@ -118,9 +118,9 @@ def pressure_pdf_plot_file(histfile, verbose):
 	## Get pars from filename
 	pars = filename_pars(histfile)
 	[alpha,X,D,R,ftype] = [pars[key] for key in ["a","X","D","R","ftype"]]
-	if R is None:
-		print me+"You are using the wrong program. R should not enter."
-		os.system("python LE_SPressure.py ")
+	if X is None:
+		raise IOError, me+"You are using the wrong program. R should not enter."
+		# os.system("python LE_SPressure.py "+argv[1:])
 	force_x = force_1D_const if ftype is "const" else force_1D_lin
 	if verbose: print me+"[a, X, D, ftype] =",[alpha,X,D,ftype]
 	

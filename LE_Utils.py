@@ -147,6 +147,11 @@ def filename_pars(filename):
 		R = float(filename[start:filename.find("_",start)])
 	except ValueError:
 		R = None
+	try:
+		start = filename.find("_S") + 2
+		S = float(filename[start:filename.find("_",start)])
+	except ValueError:
+		S = None
 	## force type
 	ftype = "linear" if filename.find("_L_") > 0 else "const"
 	## Geometry
@@ -154,8 +159,8 @@ def filename_pars(filename):
 	elif filename.find("_1D_") > 0: geo = "1D"
 	elif filename.find("_2D_") > 0: geo = "2D"
 	## Collect into lists
-	names = ["a","X","D","dt","R","ftype","geo"]
-	pars  = [a,X,D,dt,R,ftype,geo]
+	names = ["a","X","D","dt","R","S","ftype","geo"]
+	pars  = [a,X,D,dt,R,S,ftype,geo]
 	##
 	return dict(zip(names,pars))
 

@@ -104,22 +104,29 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 		R = fpar[0]
 		force = lambda xy, r, r2: force_const(xy,r,r2,R,R*R)
 		fstr = "C"
+		fparstr = ""
 	elif ftype == "lin":
 		R = fpar[0]
-		force = lambda xy, r, r2: force_lin(xy,r,r2,R*R)
+		force = lambda xy, r, r2: force_lin(xy,r,r2,R,R*R)
 		fstr = "L"
+		fparstr = ""
 	elif ftype == "lico":
 		R, g = fpar
 		force = lambda xy, r, r2: force_lico(xy,r,r2,R,R*R,g)
-		fstr = "S"
+		fstr = "LC"
+		fparstr = ""
 	elif ftype == "dcon":
 		R, R2 = fpar
 		force = lambda xy, r, r2: force_dcon(xy,r,r2,R,R*R,R2,R2*R2)
 		fstr = "DC"
+		fparstr = "_S"+str(R2)
 	elif ftype == "dlin":
 		R, R2 = fpar
 		force = lambda xy, r, r2: force_dlin(xy,r,r2,R,R*R,R2,R2*R2)
 		fstr = "DL"
+		fparstr = "_S"+str(R2)
+	else:
+		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin}."
 	
 	## ----------------------------------------------------------------
 	## SET UP CALCULATIONS
@@ -158,7 +165,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	f_type = "C" if force == force_const else "L"
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
 			"_CIR_"+fstr+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
-	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+"_r"+str(Nrun)+"_dt"+str(dt)
+	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_r"+str(Nrun)+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
