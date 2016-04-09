@@ -129,9 +129,9 @@ def pressure_pdf_file(histfile, verbose):
 	## Noise dimension irrelevant here
 	H = np.trapz(H/er, x=er, axis=1)
 	## Normalise as if extended to r=0
-	## H is now probability density rather than prob at r
-	# H = Hr_norm(H/r,r,R)
-	H = H/r / np.trapz(H/r, x=r, axis=0)
+	## rho is probability density. H is probability at r
+	# rho = Hr_norm(H/r,r,R)
+	rho = H/r / np.trapz(H, x=r, axis=0)
 
 	## White noise result
 	rho_WN = pdf_WN(r,[R,S],ftype)
@@ -147,11 +147,11 @@ def pressure_pdf_file(histfile, verbose):
 	## Wall
 	plot_wall(ax, ftype, fpars, r)
 	## PDF and WN PDF
-	ax.plot(r,H,"b-", label="CN simulation")
+	ax.plot(r,rho,"b-", label="CN simulation")
 	ax.plot(r,rho_WN,"r-", label="WN theory")
 	## Accoutrements
 	ax.set_xlim(right=rmax)
-	ax.set_ylim(bottom=0.0, top=1.1)#np.ceil(H.max()))
+	ax.set_ylim(bottom=0.0, top=round(max(rho.max(),rho_WN.max())+0.05,1))
 	if not plotpress: ax.set_xlabel("$r$", fontsize=fsa)
 	ax.set_ylabel("$\\rho(r)$", fontsize=fsa)
 	ax.grid()
@@ -167,8 +167,8 @@ def pressure_pdf_file(histfile, verbose):
 		elif ftype == "dlin":	force = force_dlin(r,r,r*r,R,R*R,S,S*S)
 		
 		## Pressure array -- sum rather than trapz
-		p = -(force*H).cumsum() * dr
-		p_WN = -(force*rho_WN).cumsum() * dr
+		p 	 = -2*np.pi*(force*rho*r).cumsum() * dr
+		p_WN = -2*np.pi*(force*rho_WN*r).cumsum() * dr
 		
 		p -= p.min()
 		p_WN -= p_WN.min()
@@ -183,7 +183,7 @@ def pressure_pdf_file(histfile, verbose):
 		ax.plot(r,p_WN,"r-",label="WN theory")
 		## Accoutrements
 		ax.set_xlim(left=0.0,right=rmax)
-		ax.set_ylim(bottom=0.0, top=round(p.max()+0.05,1))
+		ax.set_ylim(bottom=0.0, top=round(max(p.max(),p_WN.max())+0.05,1))
 		ax.set_xlabel("$r$", fontsize=fsa)
 		ax.set_ylabel("$P(r)$", fontsize=fsa)
 		ax.grid()
@@ -246,8 +246,7 @@ def pressure_dir(dirpath, rawp, verbose):
 		erbins = bins["erbins"]
 		er = 0.5*(erbins[1:]+erbins[-1])
 		## Start point for computing pressures
-		rini = 0.5*(max(rbins[0],S[i])+R[i])
-		rinidx = np.argmin(np.abs(r-rini))
+		bidx = np.argmin(np.abs(r-0.5*(max(rbins[0],S[i])+R[i])))
 		dr = r[1]-r[0]
 		
 		## Load histogram, convert to normalised pdf
@@ -255,7 +254,10 @@ def pressure_dir(dirpath, rawp, verbose):
 		## Noise dimension irrelevant here
 		H = np.trapz(H/er, x=er, axis=1)
 		## Convert to normalised *pdf*
-		H = Hr_norm(H/r,r,R[i])
+		# rho = Hr_norm(H/r,r,R[i])
+		rho = H/r / np.trapz(H, x=r, axis=0)
+		
+		rho_WN = pdf_WN(r,[R[i],S[i]],ftype)
 
 		## Calculate force array
 		if ftype == "const":	force = force_const(r,r,r*r,R[i],R[i]*R[i])
@@ -266,15 +268,15 @@ def pressure_dir(dirpath, rawp, verbose):
 		
 		## Pressure array -- sum rather than trapz
 		if ftype == "const" or ftype == "lin" or ftype == "linco":
-			P[i] = -(force*H).sum() * dr
-			P_WN[i] = -(force*pdf_WN(r,[R[i],S[i]],ftype)).sum() * dr
+			P[i]	= -2*np.pi*(force*rho*r).sum() * dr
+			P_WN[i]	= -2*np.pi*(force*rho_WN*r).sum() * dr
 		elif ftype == "dcon" or ftype == "dlin":
 			## Two pressures -- outer
-			P[i] = -(force[rinidx:]*H[rinidx:]).sum() * dr
-			P_WN[i] = -(force[rinidx:]*pdf_WN(r,[R[i],S[i]],ftype)[rinidx:]).sum() * dr
+			P[i] 	= -2*np.pi*(force[bidx:]*rho[bidx:]*r).sum() * dr
+			P_WN[i]	= -2*np.pi*(force[bidx:]*rho_WN[bidx:]*r).sum() * dr
 			## Inner
-			Q[i] = +(force[:rinidx]*H[:rinidx]).sum() * dr
-			Q_WN[i] = +(force[:rinidx]*pdf_WN(r,[R[i],S[i]],ftype)[:rinidx]).sum() * dr
+			Q[i]	= +2*np.pi*(force[:bidx]*rho[:bidx]*r).sum() * dr
+			Q_WN[i]	= +2*np.pi*(force[:bidx]*rho_WN[:bidx]*r).sum() * dr
 		
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
@@ -391,22 +393,26 @@ def pdf_WN(r,fpars,ftype):
 	if ftype is "const":
 		R = fpars[0]
 		Rind = np.argmin(np.abs(r-R))
-		rho0 = 1.0/(R+1.0)
+		# rho0 = 1.0/(R+1.0)
+		rho0 = 1.0/(0.5*R*R+R+1.0)
 		rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(R-r[Rind:])])
 	elif ftype is "lin":
 		R = fpars[0]
 		Rind = np.argmin(np.abs(r-R))
-		rho0 = 1.0/(R+np.sqrt(np.pi/2))
+		# rho0 = 1.0/(R+np.sqrt(np.pi/2))
+		rho0 = 1.0/(0.5*R*R+np.sqrt(np.pi/2)*R+1.0)
 		rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(-0.5*(r[Rind:]-R)**2)])
 	elif ftype is "dcon":
 		R, S = fpars
 		Rind, Sind = np.argmin(np.abs(r-R)), np.argmin(np.abs(r-S))
-		rho0 = 1.0/(R-S+2-np.exp(-S))
+		# rho0 = 1.0/(R-S+2-np.exp(-S))
+		rho0 = 1.0/(S+R+np.exp(-S)+0.5*R*R-0.5*S*S)
 		rho_WN = rho0 * np.hstack([np.exp(r[:Sind]-S),np.ones(Rind-Sind),np.exp(R-r[Rind:])])
 	elif ftype is "dlin":
 		R, S = fpars
 		Rind, Sind = np.argmin(np.abs(r-R)), np.argmin(np.abs(r-S))
-		rho0 = 1.0/(R-S+np.sqrt(np.pi/2)*(1.0+sp.special.erf(S/np.sqrt(2))))
+		# rho0 = 1.0/(R-S+np.sqrt(np.pi/2)*(1.0+sp.special.erf(S/np.sqrt(2))))
+		rho0 = 1.0/(np.exp(-0.5*S*S)+np.sqrt(np.pi/2)*S*sp.special.erf(S/np.sqrt(2))+0.5*R*R-0.5*S*S+np.sqrt(np.pi/2)*R)
 		rho_WN = rho0 * np.hstack([np.exp(-0.5*(S-r[:Sind])**2),np.ones(Rind-Sind),np.exp(-0.5*(r[Rind:]-R)**2)])
 	return rho_WN
 
