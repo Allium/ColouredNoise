@@ -1,5 +1,6 @@
 
 import numpy as np
+import scipy as sp
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import os, glob, optparse
@@ -103,7 +104,7 @@ def pressure_pdf_file(histfile, verbose):
 	
 	## Get pars from filename
 	pars = filename_pars(histfile)
-	[a,R,ftype] = [pars[key] for key in ["a","R","ftype"]]
+	[a,ftype,R,S] = [pars[key] for key in ["a","ftype","R","S"]]
 	assert (R is not None), me+"You are using the wrong program. R must be defined."
 	if verbose: print me+"alpha =",a,"and R =",R
 		
@@ -121,10 +122,11 @@ def pressure_pdf_file(histfile, verbose):
 	H = np.trapz(H/er, x=er, axis=1)
 	## Normalise as if extended to r=0
 	## H is now probability density rather than prob at r
-	H = Hr_norm(H/r,r,R)
+	# H = Hr_norm(H/r,r,R)
+	H = H/r / np.trapz(H/r, x=r, axis=0)
 
 	## White noise result
-	rho_WN = pdf_WN(r,R,ftype)
+	rho_WN = pdf_WN(r,[R,S],ftype)
 	
 	## Set up plot
 	if not plotpress:
@@ -201,6 +203,7 @@ def pressure_dir(dirpath, rawp, verbose):
 	## Initialise
 	A = np.zeros(numfiles) 
 	R = np.zeros(numfiles)
+	S = np.zeros(numfiles)
 	P = np.zeros(numfiles)
 	P_WN = np.zeros(numfiles)
 		
@@ -209,7 +212,7 @@ def pressure_dir(dirpath, rawp, verbose):
 	
 		## Get pars from filename
 		pars = filename_pars(histfile)
-		[A[i],R[i],ftype] = [pars[key] for key in ["a","R","ftype"]]
+		[A[i],ftype,R[i],S[i]] = [pars[key] for key in ["a","R","ftype"]]
 
 		## Space (for axes)
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -230,7 +233,7 @@ def pressure_dir(dirpath, rawp, verbose):
 		force = 0.5*(np.sign(R[i]-r)-1) * ((r-R[i]) if ftype is "linear" else 1)
 		## Pressure array -- sum rather than trapz
 		P[i] = -(force*H).sum() * (r[1]-r[0])
-		P_WN[i] = -(force*pdf_WN(r,R[i],ftype)).sum() * (r[1]-r[0])
+		P_WN[i] = -(force*pdf_WN(r,[R[i],S[i]],ftype)).sum() * (r[1]-r[0])
 		
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
@@ -293,17 +296,30 @@ def pressure_dir(dirpath, rawp, verbose):
 	return
 
 ##=============================================================================
-def pdf_WN(r,R,ftype):
+def pdf_WN(r,fpars,ftype):
 	"""
 	Theoretical radial pdf of a white noise gas.
 	"""
-	Rind = np.argmin(np.abs(r-R))
 	if ftype is "const":
+		R = fpars[0]
+		Rind = np.argmin(np.abs(r-R))
 		rho0 = 1.0/(R+1.0)
 		rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(R-r[Rind:])])
-	elif ftype is "linear":
+	elif ftype is "lin":
+		R = fpars[0]
+		Rind = np.argmin(np.abs(r-R))
 		rho0 = 1.0/(R+np.sqrt(np.pi/2))
 		rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(-0.5*(r[Rind:]-R)**2)])
+	elif ftype is "dcon":
+		R, S = fpars
+		Rind, Sind = np.argmin(np.abs(r-R)), np.argmin(np.abs(r-S))
+		rho0 = 1.0/(R-S+2-np.exp(-S))
+		rho_WN = rho0 * np.hstack([np.exp(r[:Sind]-S),np.ones(Rind-Sind),np.exp(R-r[Rind:])])
+	elif ftype is "dlin":
+		R, S = fpars
+		Rind, Sind = np.argmin(np.abs(r-R)), np.argmin(np.abs(r-S))
+		rho0 = 1.0/(R-S+np.sqrt(np.pi/2)*(1.0+sp.special.erf(S/np.sqrt(2))))
+		rho_WN = rho0 * np.hstack([np.exp(-0.5*(S-r[:Sind])**2),np.ones(Rind-Sind),np.exp(-0.5*(r[Rind:]-R)**2)])
 	return rho_WN
 
 def Hr_norm(H,r,R):

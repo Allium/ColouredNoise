@@ -138,7 +138,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	rmax = R+5.0
 	rmin = 0.0#max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
-	rini = 0.5*(rmin+R)
+	rini = 0.5*(max(rmin,R2)+R)
 		
 	## Histogramming; bin edges
 	Nrbin = 200
@@ -290,7 +290,7 @@ def force_dcon(xy,r,r2,R1,R1_2,R2,R2_2):
 	return force_const(xy,r,r2,R1,R1_2) - force_const(xy,r,-r2,R2,-R2_2)
 	
 def force_dlin(xy,r,r2,R1,R1_2,R2,R2_2):
-	return force_lin(xy,r,r2,R1,R1_2) - force_lin(xy,r,-r2,R2,-R2_2)
+	return force_lin(xy,r,r2,R1,R1_2) + force_lin(xy,r,-r2,R2,-R2_2)
 
 ## ====================================================================
 ## ====================================================================

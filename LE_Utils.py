@@ -153,7 +153,11 @@ def filename_pars(filename):
 	except ValueError:
 		S = None
 	## force type
-	ftype = "linear" if filename.find("_L_") > 0 else "const"
+	if filename.find("_L_") > 0:	ftype = "const"
+	elif filename.find("_L_") > 0: 	ftype = "lin"
+	elif filename.find("_LC_") > 0: ftype = "lico"
+	elif filename.find("_DC_") > 0: ftype = "dcon"
+	elif filename.find("_DL_") > 0: ftype = "dlin"
 	## Geometry
 	if filename.find("_CIR_") > 0: geo = "CIR"
 	elif filename.find("_1D_") > 0: geo = "1D"
