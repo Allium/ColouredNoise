@@ -56,7 +56,7 @@ def input():
 	parser.add_option("--ftype",
 		dest="ftype",default="const",type="str")
 	parser.add_option('-r','--nrun',
-        dest="Nrun",default=100,type="int")
+        dest="Nrun",default=1,type="int")
 	parser.add_option('--dt',
         dest="dt",default=0.01,type="float")		
 	parser.add_option('-t','--timefac',
@@ -116,15 +116,15 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 		fstr = "LC"
 		fparstr = ""
 	elif ftype == "dcon":
-		R, R2 = fpar
-		force = lambda xy, r, r2: force_dcon(xy,r,r2,R,R*R,R2,R2*R2)
+		R, S = fpar
+		force = lambda xy, r, r2: force_dcon(xy,r,r2,R,R*R,S,S*S)
 		fstr = "DC"
-		fparstr = "_S"+str(R2)
+		fparstr = "_S"+str(S)
 	elif ftype == "dlin":
-		R, R2 = fpar
-		force = lambda xy, r, r2: force_dlin(xy,r,r2,R,R*R,R2,R2*R2)
+		R, S = fpar
+		force = lambda xy, r, r2: force_dlin(xy,r,r2,R,R*R,S,S*S)
 		fstr = "DL"
-		fparstr = "_S"+str(R2)
+		fparstr = "_S"+str(S)
 	else:
 		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin}."
 	
@@ -138,10 +138,10 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	rmax = R+5.0
 	rmin = 0.0#max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
-	rini = 0.5*(max(rmin,R2)+R)
+	rini = 0.5*(S+R) if (ftype == "dcon" or ftype == "dlin") else 0.5*(rmin+R)
 		
 	## Histogramming; bin edges
-	Nrbin = 200
+	Nrbin = int(250 * rmax/5.0)	## Ensures 50 bins per unit length
 	Npbin = 50
 	rbins = np.linspace(rmin,rmax,Nrbin)
 	pbins = np.linspace(0.0,2*np.pi,Npbin)

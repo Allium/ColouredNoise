@@ -307,7 +307,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 			
 		if normIG: PP = [PP[i]/PPIG[i] for i in range(Ncurv)]
 			
-		if ftype is "linear": plt.plot(AA[0],np.sqrt(1/(AA[0]+1)),"b--",label="$(\\alpha+1)^{-1/2}$")
+		if ftype is "lin": plt.plot(AA[0],np.sqrt(1/(AA[0]+1)),"b--",label="$(\\alpha+1)^{-1/2}$")
 		for i in range(Ncurv):
 			plt.plot(AA[i], PP[i], 'o-', label=labels[i])
 			if not normIG: plt.axhline(PressIG[i], color=plt.gca().lines[-1].get_color(), linestyle="--")

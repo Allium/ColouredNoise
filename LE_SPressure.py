@@ -121,8 +121,6 @@ def pressure_pdf_file(histfile, verbose):
 	rini = 0.5*(max(rbins[0],S)+R)	## Start point for computing pressures
 	rinid = np.argmin(np.abs(r-rini))
 	dr = r[1]-r[0]
-	Rind = np.argmin(np.abs(r-R))
-	Sind = np.argmin(np.abs(r-S))
 	
 	## Load histogram, convert to normalised pdf
 	H = np.load(histfile)
@@ -151,7 +149,7 @@ def pressure_pdf_file(histfile, verbose):
 	ax.plot(r,rho_WN,"r-", label="WN theory")
 	## Accoutrements
 	ax.set_xlim(right=rmax)
-	ax.set_ylim(bottom=0.0, top=round(max(rho.max(),rho_WN.max())+0.05,1))
+	ax.set_ylim(bottom=0.0, top=min(20,round(max(rho.max(),rho_WN.max())+0.05,1)))
 	if not plotpress: ax.set_xlabel("$r$", fontsize=fsa)
 	ax.set_ylabel("$\\rho(r)$", fontsize=fsa)
 	ax.grid()
@@ -267,16 +265,12 @@ def pressure_dir(dirpath, rawp, verbose):
 		elif ftype == "dlin":	force = force_dlin(r,r,r*r,R[i],R[i]*R[i],S[i],S[i]*S[i])
 		
 		## Pressure array -- sum rather than trapz
-		if ftype == "const" or ftype == "lin" or ftype == "linco":
-			P[i]	= -2*np.pi*(force*rho*r).sum() * dr
-			P_WN[i]	= -2*np.pi*(force*rho_WN*r).sum() * dr
-		elif ftype == "dcon" or ftype == "dlin":
-			## Two pressures -- outer
-			P[i] 	= -2*np.pi*(force[bidx:]*rho[bidx:]*r).sum() * dr
-			P_WN[i]	= -2*np.pi*(force[bidx:]*rho_WN[bidx:]*r).sum() * dr
-			## Inner
-			Q[i]	= +2*np.pi*(force[:bidx]*rho[:bidx]*r).sum() * dr
-			Q_WN[i]	= +2*np.pi*(force[:bidx]*rho_WN[:bidx]*r).sum() * dr
+		P[i]	= -2*np.pi*(force*rho*r)[bidx:].sum() * dr
+		P_WN[i]	= -2*np.pi*(force*rho_WN*r)[bidx:].sum() * dr
+		if ftype == "dcon" or ftype == "dlin":
+			## Inner pressure
+			Q[i]	= +2*np.pi*(force*rho*r)[:bidx].sum() * dr
+			Q_WN[i]	= +2*np.pi*(force*rho_WN*r)[:bidx].sum() * dr
 		
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
@@ -353,13 +347,17 @@ def pressure_dir(dirpath, rawp, verbose):
 	
 	## ------------------------------------------------
 	## Plot pressure
+			
+	## E2 prediction
+	if ftype == "lin" or ftype == "dlin":
+		plt.plot(AA,np.sqrt(1/(AA+1)),"b:",label="$(\\alpha+1)^{-1/2}$",lw=2)
 	
 	if ftype == "const" or ftype == "lin" or ftype == "linco":
 		for i in range(RR.size):
 			ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$") 
 	elif ftype == "dcon" or ftype == "dlin":
 		for i in range(SS.size):
-			ax.plot(AA,PP[i,0,:],  "o-", label="$R = "+str(RR[0])+", S = "+str(SS[i])+"$") 
+			ax.plot(AA,PP[i,0,:],  "o-", label="$R = "+str(RR[0])+",\,S = "+str(SS[i])+"$") 
 			ax.plot(AA,QQ[i,0,:], "o--", color=ax.lines[-1].get_color()) 
 			
 	## ------------------------------------------------
