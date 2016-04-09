@@ -153,7 +153,7 @@ def filename_pars(filename):
 	except ValueError:
 		S = None
 	## force type
-	if filename.find("_L_") > 0:	ftype = "const"
+	if filename.find("_C_") > 0:	ftype = "const"
 	elif filename.find("_L_") > 0: 	ftype = "lin"
 	elif filename.find("_LC_") > 0: ftype = "lico"
 	elif filename.find("_DC_") > 0: ftype = "dcon"

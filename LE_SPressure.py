@@ -9,6 +9,7 @@ from time import time
 
 from LE_Utils import save_data, filename_pars
 from LE_Pressure import plot_wall
+from LE_SBS import force_const, force_lin, force_lico, force_dcon, force_dlin
 
 
 warnings.filterwarnings("ignore",
@@ -97,7 +98,7 @@ def pressure_pdf_file(histfile, verbose):
 	me = "LE_SPressure.pressure_pdf_file: "
 	t0 = time()
 	
-	plotpress = False
+	plotpress = True
 
 	## Filename
 	plotfile = os.path.dirname(histfile)+"/PDFP"+os.path.basename(histfile)[4:-4]+".png"
@@ -107,6 +108,8 @@ def pressure_pdf_file(histfile, verbose):
 	[a,ftype,R,S] = [pars[key] for key in ["a","ftype","R","S"]]
 	assert (R is not None), me+"You are using the wrong program. R must be defined."
 	if verbose: print me+"alpha =",a,"and R =",R
+	
+	fpars = [R,S] if (ftype=="dcon" or ftype=="dlin") else [R]
 		
 	## Space (for axes)
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -115,6 +118,11 @@ def pressure_pdf_file(histfile, verbose):
 	r = 0.5*(rbins[1:]+rbins[:-1])
 	erbins = bins["erbins"]
 	er = 0.5*(erbins[1:]+erbins[-1])
+	rini = 0.5*(max(rbins[0],S)+R)	## Start point for computing pressures
+	rinid = np.argmin(np.abs(r-rini))
+	dr = r[1]-r[0]
+	Rind = np.argmin(np.abs(r-R))
+	Sind = np.argmin(np.abs(r-S))
 	
 	## Load histogram, convert to normalised pdf
 	H = np.load(histfile)
@@ -137,7 +145,7 @@ def pressure_pdf_file(histfile, verbose):
 		
 	## PDF PLOT
 	## Wall
-	plot_wall(ax, ftype, r, R)
+	plot_wall(ax, ftype, fpars, r)
 	## PDF and WN PDF
 	ax.plot(r,H,"b-", label="CN simulation")
 	ax.plot(r,rho_WN,"r-", label="WN theory")
@@ -150,22 +158,32 @@ def pressure_pdf_file(histfile, verbose):
 	ax.legend(loc="upper right",fontsize=fsl)
 	
 	if plotpress:
+	
 		## Calculate force array
-		force = 0.5*(np.sign(R-r)-1) * ((r-R) if ftype is "linear" else 1)
-		## Pressure array -- sum rather than trapz
-		p = -(force*H).cumsum() * (r[1]-r[0])
-		p_WN = -(force*rho_WN).cumsum() * (r[1]-r[0])
+		if ftype == "const":	force = force_const(r,r,r*r,R,R*R)
+		elif ftype == "lin":	force = force_lin(r,r,r*r,R,R*R)
+		elif ftype == "lico":	force = force_lico(r,r,r*r,R,R*R,g)
+		elif ftype == "dcon":	force = force_dcon(r,r,r*r,R,R*R,S,S*S)
+		elif ftype == "dlin":	force = force_dlin(r,r,r*r,R,R*R,S,S*S)
 		
+		## Pressure array -- sum rather than trapz
+		p = -(force*H).cumsum() * dr
+		p_WN = -(force*rho_WN).cumsum() * dr
+		
+		p -= p.min()
+		p_WN -= p_WN.min()
+		
+		##-----------------------------------------------------------
 		## PRESSURE PLOT
 		ax = axs[1]
 		## Wall
-		plot_wall(ax, ftype, r, R)
+		plot_wall(ax, ftype, fpars, r)
 		## Pressure and WN pressure
 		ax.plot(r,p,"b-",label="CN simulation")
 		ax.plot(r,p_WN,"r-",label="WN theory")
 		## Accoutrements
-		ax.set_xlim(right=rmax)
-		ax.set_ylim(bottom=0.0, top=np.ceil(p.max()))
+		ax.set_xlim(left=0.0,right=rmax)
+		ax.set_ylim(bottom=0.0, top=round(p.max()+0.05,1))
 		ax.set_xlabel("$r$", fontsize=fsa)
 		ax.set_ylabel("$P(r)$", fontsize=fsa)
 		ax.grid()
@@ -195,6 +213,10 @@ def pressure_dir(dirpath, rawp, verbose):
 	me = "LE_SPressure.pressure_dir: "
 	t0 = time()
 	
+	## Directory parameters
+	dirpars = filename_pars(dirpath)
+	ftype, geo = dirpars["ftype"], dirpars["geo"]
+	
 	## File discovery
 	histfiles = np.sort(glob.glob(dirpath+"/BHIS_CIR_*.npy"))
 	numfiles = len(histfiles)
@@ -202,17 +224,19 @@ def pressure_dir(dirpath, rawp, verbose):
 	
 	## Initialise
 	A = np.zeros(numfiles) 
-	R = np.zeros(numfiles)
-	S = np.zeros(numfiles)
-	P = np.zeros(numfiles)
+	R = np.zeros(numfiles)	## Outer radii
+	S = np.zeros(numfiles)	## Inner radii
+	P = np.zeros(numfiles)	## Pressures on outer wall
+	Q = np.zeros(numfiles)	## Pressures on inner wall
 	P_WN = np.zeros(numfiles)
+	Q_WN = np.zeros(numfiles)
 		
 	## Loop over files
 	for i,histfile in enumerate(histfiles):
 	
 		## Get pars from filename
 		pars = filename_pars(histfile)
-		[A[i],ftype,R[i],S[i]] = [pars[key] for key in ["a","R","ftype"]]
+		[A[i],R[i],S[i]] = [pars[key] for key in ["a","R","S"]]
 
 		## Space (for axes)
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -221,6 +245,10 @@ def pressure_dir(dirpath, rawp, verbose):
 		r = 0.5*(rbins[1:]+rbins[:-1])
 		erbins = bins["erbins"]
 		er = 0.5*(erbins[1:]+erbins[-1])
+		## Start point for computing pressures
+		rini = 0.5*(max(rbins[0],S[i])+R[i])
+		rinidx = np.argmin(np.abs(r-rini))
+		dr = r[1]-r[0]
 		
 		## Load histogram, convert to normalised pdf
 		H = np.load(histfile)
@@ -230,10 +258,23 @@ def pressure_dir(dirpath, rawp, verbose):
 		H = Hr_norm(H/r,r,R[i])
 
 		## Calculate force array
-		force = 0.5*(np.sign(R[i]-r)-1) * ((r-R[i]) if ftype is "linear" else 1)
+		if ftype == "const":	force = force_const(r,r,r*r,R[i],R[i]*R[i])
+		elif ftype == "lin":	force = force_lin(r,r,r*r,R[i],R[i]*R[i])
+		elif ftype == "lico":	force = force_lico(r,r,r*r,R[i],R[i]*R[i],g)
+		elif ftype == "dcon":	force = force_dcon(r,r,r*r,R[i],R[i]*R[i],S[i],S[i]*S[i])
+		elif ftype == "dlin":	force = force_dlin(r,r,r*r,R[i],R[i]*R[i],S[i],S[i]*S[i])
+		
 		## Pressure array -- sum rather than trapz
-		P[i] = -(force*H).sum() * (r[1]-r[0])
-		P_WN[i] = -(force*pdf_WN(r,[R[i],S[i]],ftype)).sum() * (r[1]-r[0])
+		if ftype == "const" or ftype == "lin" or ftype == "linco":
+			P[i] = -(force*H).sum() * dr
+			P_WN[i] = -(force*pdf_WN(r,[R[i],S[i]],ftype)).sum() * dr
+		elif ftype == "dcon" or ftype == "dlin":
+			## Two pressures -- outer
+			P[i] = -(force[rinidx:]*H[rinidx:]).sum() * dr
+			P_WN[i] = -(force[rinidx:]*pdf_WN(r,[R[i],S[i]],ftype)[rinidx:]).sum() * dr
+			## Inner
+			Q[i] = +(force[:rinidx]*H[:rinidx]).sum() * dr
+			Q_WN[i] = +(force[:rinidx]*pdf_WN(r,[R[i],S[i]],ftype)[:rinidx]).sum() * dr
 		
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
@@ -241,26 +282,54 @@ def pressure_dir(dirpath, rawp, verbose):
 	## Ordered independent variable arrays
 	AA = np.unique(A)
 	RR = np.unique(R)
+	SS = np.unique(S)
 	
 	## 2D pressure array: [R,A]
-	PP = np.zeros([RR.size,AA.size])
-	PP_WN = np.zeros(PP.shape)
-	for i in range(RR.size):
-		Ridx = (R==RR[i])
-		for j in range(AA.size):
-			Aidx = (A==AA[j])
-			Pidx = Ridx*Aidx
-			try:
-				PP[i,j] = P[Pidx]
-				PP_WN[i,j] = P_WN[Pidx]
-			except ValueError:
-				## No value there
-				pass
+	if ftype == "const" or ftype == "lin" or ftype == "linco":
+		PP = np.zeros([RR.size,AA.size])
+		PP_WN = np.zeros(PP.shape)
+		for i in range(RR.size):
+			Ridx = (R==RR[i])
+			for j in range(AA.size):
+				Aidx = (A==AA[j])
+				Pidx = Ridx*Aidx
+				try:
+					PP[i,j] = P[Pidx]
+					PP_WN[i,j] = P_WN[Pidx]
+				except ValueError:
+					## No value there
+					pass
+		## Mask zeros
+		PP = np.ma.array(PP, mask = PP==0.0)
+		PP_WN = np.ma.array(PP_WN, mask = PP==0.0)
 	
-	## Mask zeros
-	PP = np.ma.array(PP, mask = PP==0.0)
-	PP_WN = np.ma.array(PP_WN, mask = PP==0.0)
-	
+	## 3D pressure array wall: [S,R,A]
+	elif  ftype == "dcon" or ftype == "dlin":
+		PP = np.zeros([SS.size,RR.size,AA.size])
+		QQ = np.zeros([SS.size,RR.size,AA.size])
+		PP_WN = np.zeros(PP.shape)
+		QQ_WN = np.zeros(QQ.shape)
+		for i in range(SS.size):
+			Sidx = (S==SS[i])
+			for j in range(RR.size):
+				Ridx = (R==RR[j])
+				for k in range(AA.size):
+					Aidx = (A==AA[k])
+					Pidx = Sidx*Ridx*Aidx
+					try:
+						PP[i,j,k] = P[Pidx]
+						QQ[i,j,k] = Q[Pidx]
+						PP_WN[i,j,k] = P_WN[Pidx]
+						QQ_WN[i,j,k] = Q_WN[Pidx]
+					except ValueError:
+						## No value there
+						pass
+		
+		## Mask zeros
+		PP = np.ma.array(PP, mask = PP==0.0)
+		QQ = np.ma.array(QQ, mask = QQ==0.0)
+		PP_WN = np.ma.array(PP_WN, mask = PP==0.0)
+		QQ_WN = np.ma.array(QQ_WN, mask = QQ==0.0)
 	
 	## ------------------------------------------------
 	## PLOTS
@@ -269,22 +338,41 @@ def pressure_dir(dirpath, rawp, verbose):
 	
 	## How to include WN result
 	if rawp:
+		## DEPRECIATED
 		[ax.plot(AA,PP_WN[i,:],"--",) for i in range(RR.size)]
 		ax.set_color_cycle(None)
-		title = "Pressure; "+dirpath
+		title = "Pressure; ftype = "+ftype
 		plotfile = dirpath+"/PAR1_rawp.png"
 	else:
 		PP /= PP_WN
-		title = "Pressure normalised by WN; "+dirpath
+		if  ftype == "dcon" or ftype == "dlin": QQ /= QQ_WN
+		title = "Pressure normalised by WN; ftype = "+ftype
 		plotfile = dirpath+"/PAR1.png"
-
-	for i in range(RR.size):
-		ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$") 
-
+	
+	## ------------------------------------------------
+	## Plot pressure
+	
+	if ftype == "const" or ftype == "lin" or ftype == "linco":
+		for i in range(RR.size):
+			ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$") 
+	elif ftype == "dcon" or ftype == "dlin":
+		for i in range(SS.size):
+			ax.plot(AA,PP[i,0,:],  "o-", label="$R = "+str(RR[0])+", S = "+str(SS[i])+"$") 
+			ax.plot(AA,QQ[i,0,:], "o--", color=ax.lines[-1].get_color()) 
+			
+	## ------------------------------------------------
+	## Accoutrements
+	
 	ax.set_xlim((AA[0],AA[-1]))
 	ax.set_ylim(bottom=0.0)
-	plt.xlabel(("$\\alpha=f_0^2\\tau/T\\zeta$" if ftype is "const" else "$\\alpha=k\\tau/\\zeta$"),fontsize=fsa)
+	
+	if ftype == "const" or ftype == "dcon":
+		xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$"
+	elif ftype == "lin" or ftype == "lico" or ftype == "dlin":
+		xlabel = "$\\alpha=k\\tau/\\zeta$"
+	ax.set_xlabel(xlabel,fontsize=fsa)
 	ax.set_ylabel("Pressure",fontsize=fsa)
+	
 	ax.grid()
 	ax.legend(loc="best",fontsize=fsl)
 	ax.set_title(title)

@@ -157,7 +157,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	
 	## Density plot
 	## Wall
-	plot_wall(ax, ftype, x, X)
+	plot_wall(ax, ftype, [X], x)
 	##### Will have to fix when D!=0
 	# ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
 	##
@@ -174,7 +174,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 		## Pressure plot
 		ax = axs[1]
 		## Wall
-		plot_wall(ax, ftype, x, X)
+		plot_wall(ax, ftype, [X], x)
 		##
 		ax.plot(x,press,"b-",linewidth=1, label="CN")
 		ax.axhline(press[-1],color="b",linestyle="--",linewidth=1)
@@ -425,12 +425,23 @@ def ideal_gas(x, X, D, force_x):
 	
 ##=============================================================================
 
-def plot_wall(ax, ftype, r, R):
-	if ftype is "linear":
+def plot_wall(ax, ftype, fpars, r):
+	if ftype is "const":
+		R = fpars[0]
+		ax.axvline(R,c="k",ls="--",label="Wall")
+	elif ftype is "linear":
+		R = fpars[0]
 		Ridx = np.argmin(np.abs(R-r))
 		ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Wall")
-	else:
+	elif ftype is "dcon":
+		R, S = fpars
 		ax.axvline(R,c="k",ls="--",label="Wall")
+		ax.axvline(S,c="k",ls="--")
+	elif ftype is "dlin":
+		R, S = fpars
+		Ridx = np.argmin(np.abs(R-r))
+		Sidx = np.argmin(np.abs(S-r))
+		ax.plot(r,np.hstack([S-r[:Sidx],np.zeros(Ridx-Sidx),r[Ridx:]-R]),"k--",label="Wall")
 	return
 
 	
