@@ -135,13 +135,13 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+5.0
+	rmax = R+6.0
 	rmin = 0.0#max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
 	rini = 0.5*(S+R) if (ftype == "dcon" or ftype == "dlin") else 0.5*(rmin+R)
 		
 	## Histogramming; bin edges
-	Nrbin = int(250 * rmax/5.0)	## Ensures 50 bins per unit length
+	Nrbin = int(50 * rmax)	## Ensures 50 bins per unit length
 	Npbin = 50
 	rbins = np.linspace(rmin,rmax,Nrbin)
 	pbins = np.linspace(0.0,2*np.pi,Npbin)
@@ -164,7 +164,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	## Filename; directory and file existence; readme
 	f_type = "C" if force == force_const else "L"
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
+			"_CIR_"+fstr+"_r"+str(Nrun)+"_dt"+str(dt)+"_2/"
 	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_r"+str(Nrun)+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
