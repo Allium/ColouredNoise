@@ -1,10 +1,12 @@
 import numpy as np
+import scipy as sp
 from matplotlib import pyplot as plt
 import os, optparse, glob
 from LE_Utils import filename_pars
 from LE_Utils import force_1D_const as force_x
 from LE_Pressure import pressure_x
 from LE_SPressure import Hr_norm, pdf_WN, plot_wall
+from LE_SBS import force_const, force_lin, force_lico, force_dcon, force_dlin
 
 
 def main():
@@ -44,19 +46,22 @@ def main():
 ##=============================================================================
 def plot_file(histfile):
 	## CALCULATIONS
-	x, Hx, e2E, c1, p, pars = bulk_const(histfile)
+	x, Q, e2E, c1, p, pars = bulk_const(histfile)
+	ftype = pars["ftype"]
 	ord = "r" if pars["geo"] == "CIR" else "r"
 	## PLOTTING
 	fig = plt.figure()
-	plot_wall(plt.gca(),pars["ftype"],x, (pars["X"] if pars["geo"] is "1D" else pars["R"]) )
-	plt.plot(x,Hx/Hx[0],label="$Q("+ord+")$")
-	plt.plot(x,e2E/e2E[0],label="$\\langle\\eta^2\\rangle("+ord+")$")
-	plt.plot(x,c1/c1[0],label="$Q\\cdot\\langle\\eta^2\\rangle$")
+	fpars = pars["X"] if pars["geo"] is "1D" else [pars["R"],pars["S"]]
+	plot_wall(plt.gca(), ftype, fpars, x)
+	refpoint = Q.shape[0]/2 if ftype is "dcon" or ftype is "dlin" else 0
+	plt.plot(x,Q/Q[refpoint],label="$Q("+ord+")$")
+	plt.plot(x,e2E/e2E[refpoint],label="$\\langle\\eta^2\\rangle("+ord+")$")
+	plt.plot(x,c1/c1[refpoint],label="$Q\\cdot\\langle\\eta^2\\rangle$")
 	plt.xlim(left=x[0])
-	plt.ylim(bottom=0.0,top=5.0)
+	plt.ylim(bottom=0.0,top=4.0)
 	plt.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.")
 	plt.xlabel("$"+ord+"$")
-	plt.ylabel("Quantity divided by first value")
+	plt.ylabel("Variable divided by first value")
 	plt.grid()
 	plt.legend(loc="best")
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".png"
@@ -84,9 +89,9 @@ def plot_dir(histdir):
 			R += [pars["R"]]
 			widx = np.argmin(np.abs(x-R[i]))
 			force = 0.5*(np.sign(R[i]-x)-1) * ((x-R[i]) if ftype is "linear" else 1)
-			P_WN += [-(force*pdf_WN(x,R[i],ftype)).sum()*(x[1]-x[0])]
+			P_WN += [-(force*pdf_WN(x,[R[i]],ftype)).sum()*(x[1]-x[0])]
 		C += [c1[:widx].mean()]
-		P += [p[-1]]
+		P += [p]
 	A = np.array(A); X = np.array(X); R = np.array(R); C = np.array(C)
 	P = np.array(P); P_WN = np.array(P_WN)
 	
@@ -112,7 +117,7 @@ def plot_dir(histdir):
 def bulk_const(histfile):
 
 	pars = filename_pars(histfile)
-	[a,X,R,D,ftype,geo] = [pars[key] for key in ["a","X","R","D","ftype","geo"]]
+	[a,X,R,S,D,ftype,geo] = [pars[key] for key in ["a","X","R","S","D","ftype","geo"]]
 
 	H = np.load(histfile)
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -125,39 +130,44 @@ def bulk_const(histfile):
 		eta = 0.5*(ebins[1:]+ebins[:-1])
 		H /= np.trapz(np.trapz(H,x=x,axis=1),x=eta,axis=0)
 		## Integrate over eta
-		Hx = np.trapz(H,x=eta,axis=0)
+		Q = np.trapz(H,x=eta,axis=0)
 		force = force_x(x,X,D)
-		p = pressure_x(force,Hx,x)
-		e2E = np.trapz(((H/Hx).T*(eta*eta)).T,x=eta,axis=0)
-		c1 = Hx*e2E
+		p = pressure_x(force,Q,x)
+		e2E = np.trapz(((H/Q).T*(eta*eta)).T,x=eta,axis=0)
+		c1 = Q*e2E
 		
 	## Circular sim
 	elif geo == "CIR":
 		H = H.T
-		## r->x for convenience
 		rbins = bins["rbins"]
 		erbins = bins["erbins"]
+		## r="x" for convenience
 		x = 0.5*(rbins[1:]+rbins[:-1])
 		eta = 0.5*(erbins[1:]+erbins[:-1]) ## Radial
-		## To get probability density rather than probability
+		## Normalise probability
 		H /= (H.sum()*np.outer(np.diff(erbins),np.diff(rbins)))
-		H /= np.outer(eta,x)
-		## Marginalise over eta and normalise
-		Hx = Hr_norm( np.trapz(H,x=eta,axis=0) ,x,R)
+		## Marginalise over eta turn into density
+		Q = sp.integrate.simps(H, x=eta, axis=0) / x
+		## To get probability density rather than probability
+		P = H / np.outer(eta,x)[::-1]
 		## Force
-		force = 0.5*(np.sign(R-x)-1) * ((x-R) if ftype is "linear" else 1)
-		p = -(force*Hx).cumsum() * (x[1]-x[0])
-		e2E = np.trapz(((H/Hx).T*(eta*eta)).T,x=eta,axis=0)
-		c1 = Hx*e2E
+		if ftype == "const":	force = force_const(x,x,x*x,R,R*R)
+		elif ftype == "lin":	force = force_lin(x,x,x*x,R,R*R)
+		elif ftype == "lico":	force = force_lico(x,x,x*x,R,R*R,g)
+		elif ftype == "dcon":	force = force_dcon(x,x,x*x,R,R*R,S,S*S)
+		elif ftype == "dlin":	force = force_dlin(x,x,x*x,R,R*R,S,S*S)
+		p = -sp.integrate.simps(force*Q, x=x)
+		e2E = sp.integrate.simps(((P/Q).T*(eta*eta)).T, x=eta, axis=0)
+		c1 = Q*e2E
 		
 	if 0:
 		print "eta pdfs"
 		for i in range(0,50,2):
-			plt.plot(eta, H[:,i]/Hx[i])
+			plt.plot(eta, H[:,i]/Q[i])
 		plt.show();exit()
 		
 	
-	return [x, Hx, e2E, c1, p, pars]
+	return [x, Q, e2E, c1, p, pars]
 	
 ##=============================================================================
 if __name__ == "__main__":
