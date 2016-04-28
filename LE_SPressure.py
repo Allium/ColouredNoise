@@ -61,8 +61,8 @@ def main():
 		dest="showfig", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
 		dest="verbose", default=False, action="store_true")
-	parser.add_option('--rawp',
-		dest="rawp", default=False, action="store_true")
+	parser.add_option('--nosave',
+		dest="nosave", default=False, action="store_true")
 	parser.add_option('-a','--plotall',
 		dest="plotall", default=False, action="store_true")
 	parser.add_option('-h','--help',
@@ -71,7 +71,7 @@ def main():
 	if opt.help: print main.__doc__; return
 	showfig = opt.showfig
 	verbose = opt.verbose
-	rawp	= opt.rawp
+	nosave	= opt.nosave
 	plotall = opt.plotall
 	
 	if plotall and os.path.isdir(args[0]):
@@ -81,7 +81,7 @@ def main():
 	if os.path.isfile(args[0]):
 		pressure_pdf_file(args[0],verbose)
 	elif os.path.isdir(args[0]):
-		pressure_dir(args[0],rawp,verbose)
+		pressure_dir(args[0],nosave,verbose)
 	else:
 		raise IOError, me+"You gave me rubbish. Abort."
 	
@@ -109,7 +109,8 @@ def pressure_pdf_file(histfile, verbose):
 	assert (R is not None), me+"You are using the wrong program. R must be defined."
 	if verbose: print me+"alpha =",a,"and R =",R
 	
-	fpars = [R,S] if (ftype=="dcon" or ftype=="dlin") else [R]
+	if S is None: S = 0.0
+	fpars = [R,S]
 		
 	## Space (for axes)
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -126,7 +127,6 @@ def pressure_pdf_file(histfile, verbose):
 	H = np.load(histfile)
 	## Noise dimension irrelevant here
 	H = np.trapz(H/er, x=er, axis=1)
-	## Normalise as if extended to r=0
 	## rho is probability density. H is probability at r
 	# rho = Hr_norm(H/r,r,R)
 	rho = H/r / np.trapz(H, x=r, axis=0)
@@ -136,8 +136,11 @@ def pressure_pdf_file(histfile, verbose):
 	
 	## Set up plot
 	if not plotpress:
+		## Only pdf plot
+		figtit = "Density for "+ftype+" wall; $\\alpha="+str(a)+"$, $R = "+str(R)+"$ and $S = "+str(S)+"$"
 		fig,ax = plt.subplots(1,1)
 	elif plotpress:
+		figtit = "Density and pressure for "+ftype+" wall; $\\alpha="+str(a)+"$, $R = "+str(R)+"$ and $S = "+str(S)+"$"
 		fig,axs = plt.subplots(2,1,sharex=True)
 		ax = axs[0]
 		
@@ -145,13 +148,13 @@ def pressure_pdf_file(histfile, verbose):
 	## Wall
 	plot_wall(ax, ftype, fpars, r)
 	## PDF and WN PDF
-	ax.plot(r,rho,"b-", label="CN simulation")
+	ax.plot(r,rho,   "b-", label="CN simulation")
 	ax.plot(r,rho_WN,"r-", label="WN theory")
 	## Accoutrements
 	ax.set_xlim(right=rmax)
 	ax.set_ylim(bottom=0.0, top=min(20,round(max(rho.max(),rho_WN.max())+0.05,1)))
 	if not plotpress: ax.set_xlabel("$r$", fontsize=fsa)
-	ax.set_ylabel("$\\rho(r)$", fontsize=fsa)
+	ax.set_ylabel("$\\rho(r,\\phi)$", fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="upper right",fontsize=fsl)
 	
@@ -164,12 +167,14 @@ def pressure_pdf_file(histfile, verbose):
 		elif ftype == "dcon":	force = force_dcon(r,r,r*r,R,R*R,S,S*S)
 		elif ftype == "dlin":	force = force_dlin(r,r,r*r,R,R*R,S,S*S)
 		
-		## Pressure array -- sum rather than trapz
-		p 	 = -2*np.pi*(force*rho*r).cumsum() * dr
-		p_WN = -2*np.pi*(force*rho_WN*r).cumsum() * dr
+		## Pressure array
+		p 	 = -np.array([np.trapz(force[:i]*rho[:i],   x=r[:i]) for i in xrange(r.shape[0])])
+		p_WN = -np.array([np.trapz(force[:i]*rho_WN[:i],x=r[:i]) for i in xrange(r.shape[0])])
 		
-		p -= p.min()
-		p_WN -= p_WN.min()
+		## Eliminate negative values -- is this useful?
+		if ftype == "dcon" or ftype == "dlin":
+			p	 -= p.min()
+			p_WN -= p_WN.min()
 		
 		##-----------------------------------------------------------
 		## PRESSURE PLOT
@@ -187,7 +192,7 @@ def pressure_pdf_file(histfile, verbose):
 		ax.grid()
 	
 	## Tidy figure
-	fig.suptitle(os.path.basename(plotfile),fontsize=fst)
+	fig.suptitle(figtit,fontsize=fst)
 	fig.tight_layout()
 	plt.subplots_adjust(top=0.9)	
 		
@@ -204,7 +209,7 @@ def allfiles(dirpath, verbose):
 	return
 
 ##=============================================================================
-def pressure_dir(dirpath, rawp, verbose):
+def pressure_dir(dirpath, nosave, verbose):
 	"""
 	Plot pressure at "infinity" against alpha for all files in directory.
 	"""
@@ -247,13 +252,11 @@ def pressure_dir(dirpath, rawp, verbose):
 		bidx = np.argmin(np.abs(r-0.5*(max(rbins[0],S[i])+R[i])))
 		dr = r[1]-r[0]
 		
-		## Load histogram, convert to normalised pdf
+		## Load histogram, normalise
 		H = np.load(histfile)
-		## Noise dimension irrelevant here
-		H = np.trapz(H/er, x=er, axis=1)
-		## Convert to normalised *pdf*
-		# rho = Hr_norm(H/r,r,R[i])
-		rho = H/r / np.trapz(H, x=r, axis=0)
+		H /= np.trapz(np.trapz(H, x=er, axis=1),x=r,axis=0)
+		## Noise dimension irrelevant here; convert to *pdf*
+		rho = np.trapz(H, x=er, axis=1)/r
 		
 		rho_WN = pdf_WN(r,[R[i],S[i]],ftype)
 
@@ -264,14 +267,14 @@ def pressure_dir(dirpath, rawp, verbose):
 		elif ftype == "dcon":	force = force_dcon(r,r,r*r,R[i],R[i]*R[i],S[i],S[i]*S[i])
 		elif ftype == "dlin":	force = force_dlin(r,r,r*r,R[i],R[i]*R[i],S[i],S[i]*S[i])
 		
-		## Pressure array -- sum rather than trapz
-		P[i]	= -2*np.pi*(force*rho*r)[bidx:].sum() * dr
-		P_WN[i]	= -2*np.pi*(force*rho_WN*r)[bidx:].sum() * dr
+		## Pressure array
+		P[i]    = -sp.integrate.simps((force*rho)[bidx:],    r[bidx:])
+		P_WN[i] = -sp.integrate.simps((force*rho_WN)[bidx:], r[bidx:])
 		if ftype == "dcon" or ftype == "dlin":
 			## Inner pressure
-			Q[i]	= +2*np.pi*(force*rho*r)[:bidx].sum() * dr
-			Q_WN[i]	= +2*np.pi*(force*rho_WN*r)[:bidx].sum() * dr
-		
+			Q[i]    = +sp.integrate.simps((force*rho)[:bidx],    r[:bidx])
+			Q_WN[i] = +sp.integrate.simps((force*rho_WN)[:bidx], r[:bidx])
+
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
 
@@ -282,7 +285,7 @@ def pressure_dir(dirpath, rawp, verbose):
 	
 	## 2D pressure array: [R,A]
 	if ftype == "const" or ftype == "lin" or ftype == "linco":
-		PP = np.zeros([RR.size,AA.size])
+		PP = -np.ones([RR.size,AA.size])
 		PP_WN = np.zeros(PP.shape)
 		for i in range(RR.size):
 			Ridx = (R==RR[i])
@@ -296,13 +299,13 @@ def pressure_dir(dirpath, rawp, verbose):
 					## No value there
 					pass
 		## Mask zeros
-		PP = np.ma.array(PP, mask = PP==0.0)
-		PP_WN = np.ma.array(PP_WN, mask = PP==0.0)
+		PP_WN = np.ma.array(PP_WN, mask = PP==-1)
+		PP = np.ma.array(PP, mask = PP==-1)
 	
 	## 3D pressure array wall: [S,R,A]
 	elif  ftype == "dcon" or ftype == "dlin":
-		PP = np.zeros([SS.size,RR.size,AA.size])
-		QQ = np.zeros([SS.size,RR.size,AA.size])
+		PP = -np.ones([SS.size,RR.size,AA.size])
+		QQ = -np.ones([SS.size,RR.size,AA.size])
 		PP_WN = np.zeros(PP.shape)
 		QQ_WN = np.zeros(QQ.shape)
 		for i in range(SS.size):
@@ -322,64 +325,79 @@ def pressure_dir(dirpath, rawp, verbose):
 						pass
 		
 		## Mask zeros
-		PP = np.ma.array(PP, mask = PP==0.0)
-		QQ = np.ma.array(QQ, mask = QQ==0.0)
-		PP_WN = np.ma.array(PP_WN, mask = PP==0.0)
-		QQ_WN = np.ma.array(QQ_WN, mask = QQ==0.0)
+		PP_WN = np.ma.array(PP_WN, mask = PP==-1)
+		QQ_WN = np.ma.array(QQ_WN, mask = QQ==-1)
+		PP = np.ma.array(PP, mask = PP==-1)
+		QQ = np.ma.array(QQ, mask = QQ==-1)
 	
 	## ------------------------------------------------
 	## PLOTS
 		
 	fig, ax = plt.subplots(1,1)
 	
-	## How to include WN result
-	if rawp:
-		## DEPRECIATED
-		[ax.plot(AA,PP_WN[i,:],"--",) for i in range(RR.size)]
-		ax.set_color_cycle(None)
-		title = "Pressure; ftype = "+ftype
-		plotfile = dirpath+"/PAR1_rawp.png"
-	else:
-		PP /= PP_WN
-		if  ftype == "dcon" or ftype == "dlin": QQ /= QQ_WN
-		title = "Pressure normalised by WN; ftype = "+ftype
-		plotfile = dirpath+"/PAR1.png"
+	## Default labels etc.
+	PP /= PP_WN
+	if  ftype == "dcon" or ftype == "dlin": QQ /= QQ_WN
+	title = "Pressure normalised by WN; ftype = "+ftype
+	plotfile = dirpath+"/PAR1.png"
+	ylabel = "Pressure"
+	if ftype == "const" or ftype == "dcon":
+		xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$"
+	elif ftype == "lin" or ftype == "lico" or ftype == "dlin":
+		xlabel = "$\\alpha=k\\tau/\\zeta$"
+	xlim = (AA[0],AA[-1])
 	
 	## ------------------------------------------------
 	## Plot pressure
 			
 	## E2 prediction
-	if ftype == "lin" or ftype == "dlin":
-		plt.plot(AA,np.sqrt(1/(AA+1)),"b:",label="$(\\alpha+1)^{-1/2}$",lw=2)
+	# if ftype == "lin" or ftype == "dlin":
+		# plt.plot(AA,np.sqrt(1/(AA+1)),"b:",label="$(\\alpha+1)^{-1/2}$",lw=2)
 	
+	## Plot pressure against alpha for R or for S
 	if ftype == "const" or ftype == "lin" or ftype == "linco":
 		for i in range(RR.size):
-			ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$") 
+			ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$")
+			
 	elif ftype == "dcon" or ftype == "dlin":
-		for i in range(SS.size):
-			ax.plot(AA,PP[i,0,:],  "o-", label="$R = "+str(RR[0])+",\,S = "+str(SS[i])+"$") 
-			ax.plot(AA,QQ[i,0,:], "o--", color=ax.lines[-1].get_color()) 
+		## Holding R fixed
+		if RR.size == 1:
+			for i in range(SS.size):
+				ax.plot(AA,PP[i,0,:],  "o-", label="$R = "+str(RR[0])+",\,S = "+str(SS[i])+"$") 
+				ax.plot(AA,QQ[i,0,:], "o--", color=ax.lines[-1].get_color())
+		## Constant interval
+		elif np.unique(RR-SS).size == 1:
+			PP *= PP_WN; QQ *= QQ_WN
+			title = "Pressure difference, $P_R-P_S$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
+			##
+			# plotfile = dirpath+"/DPAR.png"
+			# for i in range(RR.size):		## To plot against alpha
+				# ax.plot(AA,np.diagonal(PP-QQ).T[i,:], "o-", label="$R = "+str(RR[i])+"$")
+				# ax.plot(AA,np.diagonal(PP_WN-QQ_WN).T[i,:], "--", color=ax.lines[-1].get_color())
+			plotfile = dirpath+"/DPRA.png"
+			xlabel = "$R$"; ylabel = "Pressure Difference"; xlim = (RR[0],RR[-1])
+			for i in range(AA.size/2):	## To plot against R
+				ax.plot(RR,np.diagonal(PP-QQ).T[:,2*i], "o-", label="$\\alpha = "+str(AA[2*i])+"$") 
+				ax.plot(RR,np.diagonal(PP_WN-QQ_WN).T[:,2*i], "--", color=ax.lines[-1].get_color()) 
 			
 	## ------------------------------------------------
 	## Accoutrements
 	
-	ax.set_xlim((AA[0],AA[-1]))
-	ax.set_ylim(bottom=0.0)
+	ax.set_xlim(xlim)
+	# ax.set_ylim(bottom=0.0)
+	# ax.set_ylim(top=2.0)
 	
-	if ftype == "const" or ftype == "dcon":
-		xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$"
-	elif ftype == "lin" or ftype == "lico" or ftype == "dlin":
-		xlabel = "$\\alpha=k\\tau/\\zeta$"
 	ax.set_xlabel(xlabel,fontsize=fsa)
-	ax.set_ylabel("Pressure",fontsize=fsa)
+	ax.set_ylabel(ylabel,fontsize=fsa)
 	
 	ax.grid()
 	ax.legend(loc="best",fontsize=fsl)
-	ax.set_title(title)
+	ax.set_title(title,fontsize=fst)
 	
 	plt.tight_layout()
-	plt.savefig(plotfile)
-	if verbose: print me+"plot saved to",plotfile
+	if not nosave:
+		plt.savefig(plotfile)
+		if verbose: print me+"plot saved to",plotfile
 		
 	return
 
