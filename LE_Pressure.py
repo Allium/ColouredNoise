@@ -297,9 +297,11 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 		PPIG = [[]]*Ncurv
 		if D==0.0:
 			if ftype is "const":
-				PPIG = [1.0/(1.0-np.exp(-4.0)+XX[i]-calculate_xmin(XX[i],AA[i])) for i in range(Ncurv)]
-			elif ftype is "linear":
-				PPIG = [1.0/(np.sqrt(np.pi/2)-np.exp(-4.0)+XX[i]-calculate_xmin(XX[i],AA[i])) for i in range(Ncurv)]
+				# PPIG = [1.0/(1.0-np.exp(-4.0)+XX[i]-calculate_xmin(XX[i],AA[i])) for i in range(Ncurv)]
+				PPIG = [1.0/(1.0-np.exp(-6.0)+XX[i]-0.0) for i in range(Ncurv)]
+			elif ftype is "lin":
+				# PPIG = [1.0/(np.sqrt(np.pi/2)-np.exp(-6.0)+XX[i]-calculate_xmin(XX[i],AA[i])) for i in range(Ncurv)]
+				PPIG = [1.0/(np.sqrt(np.pi/2)-np.exp(-6.0)+XX[i]-0.0) for i in range(Ncurv)]
 		else:
 			## Needs update!
 			raise AttributeError, me+"no can do."
@@ -426,10 +428,13 @@ def ideal_gas(x, X, D, force_x):
 ##=============================================================================
 
 def plot_wall(ax, ftype, fpars, r):
+	"""
+	Plot the wall profile of type ftype on ax
+	"""
 	if ftype is "const":
 		R = fpars[0]
 		ax.axvline(R,c="k",ls="--",label="Wall")
-	elif ftype is "linear":
+	elif ftype is "lin":
 		R = fpars[0]
 		Ridx = np.argmin(np.abs(R-r))
 		ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Wall")
