@@ -1,5 +1,6 @@
 
 import numpy as np
+from scipy.optimize import curve_fit
 from matplotlib import pyplot as plt
 import os, glob, optparse
 import warnings
@@ -69,6 +70,8 @@ def main():
 		dest="showfig", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
 		dest="verbose", default=False, action="store_true")
+	parser.add_option('--nosave',
+		dest="nosave", default=False, action="store_true")
 	parser.add_option('-a','--plotall',
 		dest="plotall", default=False, action="store_true")
 	parser.add_option('-2','--twod',
@@ -80,6 +83,7 @@ def main():
 	opt, args = parser.parse_args()
 	if opt.help: print main.__doc__; return
 	showfig = opt.showfig
+	nosave  = opt.nosave
 	verbose = opt.verbose
 	plotall = opt.plotall
 	twod 	= opt.twod
@@ -88,11 +92,11 @@ def main():
 	args[0] = args[0].replace("\\","/")
 	if plotall and os.path.isdir(args[0]):
 		showfig = False
-		allfiles(args[0],verbose)
+		allfiles(args[0], nosave, verbose)
 	if os.path.isfile(args[0]):
-		pressure_pdf_plot_file(args[0],verbose)
+		pressure_pdf_plot_file(args[0], nosave, verbose)
 	elif os.path.isdir(args[0]):
-		pressure_plot_dir(args[0],verbose, twod, normIG)
+		pressure_plot_dir(args[0], nosave, verbose, twod, normIG)
 	else:
 		print me+"you gave me rubbish. Abort."
 		exit()
@@ -103,7 +107,7 @@ def main():
 	return
 	
 ##=============================================================================
-def pressure_pdf_plot_file(histfile, verbose):
+def pressure_pdf_plot_file(histfile, nosave, verbose):
 	"""
 	Make plot for a single file
 	"""
@@ -126,7 +130,6 @@ def pressure_pdf_plot_file(histfile, verbose):
 	
 	## Load data
 	H = np.load(histfile)
-	# H[:,0]=H[:,1]
 	
 	## Space, for axes
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -137,7 +140,7 @@ def pressure_pdf_plot_file(histfile, verbose):
 	xini = 0.5*(xmin+X)
 	x = 0.5*(xbins[1:]+xbins[:-1])	
 	e = 0.5*(ebins[1:]+ebins[:-1])
-		
+	
 	## Marginalise to PDF in x
 	Hx = np.trapz(H,x=e,axis=0)
 	Hx /= np.trapz(Hx,x=x)	
@@ -155,15 +158,13 @@ def pressure_pdf_plot_file(histfile, verbose):
 		fig,axs = plt.subplots(2,1,sharex=True)
 		ax = axs[0]
 	
-	## Density plot
 	## Wall
 	plot_wall(ax, ftype, [X], x)
-	##### Will have to fix when D!=0
-	# ax.plot(xIG,-forceIG,"m:",linewidth=2,label="Force")
-	##
+	
+	## Density plot
 	ax.plot(x,Hx,"b-",label="Simulation")
 	ax.plot(xIG,HxIG,"r-",label="White noise")
-	ax.set_xlim(left=xini,right=max(xmax,xIG[-1]))
+	ax.set_xlim(left=xmin,right=max(xmax,xIG[-1]))
 	ax.set_ylim(bottom=0.0,top=1.1)
 	if not plotpress: ax.set_xlabel("$x$",fontsize=fsa)
 	ax.set_ylabel("$\\rho(x)$",fontsize=fsa)
@@ -188,25 +189,26 @@ def pressure_pdf_plot_file(histfile, verbose):
 		ax.grid()
 		# ax.legend(loc="best",fontsize=fsl)
 	
-	plt.tight_layout()
-	fig.suptitle("$x_{w}=$"+str(X)+", $\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
-	plt.subplots_adjust(top=0.9)
 	
-	plt.savefig(plotfile)
-	if verbose: print me+"plot saved to",plotfile
+	#fig.suptitle("$x_{w}=$"+str(X)+", $\\alpha=$"+str(alpha)+", $\\Delta=$"+str(D),fontsize=16)
+	plt.tight_layout(); plt.subplots_adjust(top=0.9)
+	
+	if not nosave:
+		plt.savefig(plotfile)
+		if verbose: print me+"plot saved to",plotfile
 		
 	return fig
 	
 ##=============================================================================
-def allfiles(dirpath, verbose):
+def allfiles(dirpath, nosave, verbose):
 	for filepath in glob.glob(dirpath+"/*.npy"):
-		pressure_pdf_plot_file(filepath, verbose)
+		pressure_pdf_plot_file(filepath, nosave, verbose)
 		plt.clf(); plt.close()
 	return
 	
 ##=============================================================================
 ##=============================================================================
-def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
+def pressure_plot_dir(dirpath, nosave, verbose, twod=False, normIG=False):
 	"""
 	Plot pressure at "infinity" against alpha for all files in directory.
 	
@@ -242,7 +244,6 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 				
 		## Load data
 		H = np.load(histfile)
-		# H[:,0]=H[:,1]
 		
 		## Space
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -271,7 +272,7 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 	
 	if verbose: print me+"data collection",round(sysT()-t0,2),"seconds."
 	
-	pressplot = dirpath+"/PAX.png"
+	pressplot = dirpath+"/PAX_"+ftype+".png"
 	
 	## ----------------------------------------------------
 	## Choose plot type
@@ -308,15 +309,32 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 			PPIG = [ideal_gas(a,x,X,D)[3][-1] for a in AAIG]
 			
 		if normIG: PP = [PP[i]/PPIG[i] for i in range(Ncurv)]
-			
-		if ftype is "lin": plt.plot(AA[0],np.sqrt(1/(AA[0]+1)),"b--",label="$(\\alpha+1)^{-1/2}$")
+		
+		linplot = True
+		if linplot:
+			plt.plot(AA[0],np.power(1/(AA[0]+1),0.5),"b:",label="$(\\alpha+1)^{-1/2}$",linewidth=2)
+			plt.xlim(left=0.0,right=max(chain.from_iterable(AA)))
+			plt.ylim(bottom=0.0,top=1.1)
+			xlabel = "$\\alpha$"
+		else:	
+			plt.plot(1.0+AA[0],np.sqrt(1/(AA[0]+1)),"b:",label="$(\\alpha+1)^{-1/2}$",linewidth=2)
+			plt.xscale("log"); plt.yscale("log")
+			plt.xlim(left=1.0,right=1.0+max(chain.from_iterable(AA)))
+			xlabel = "$\\alpha+1$"
+			pressplot = pressplot[:-4]+"_log.png"
+		## Data
+		if ftype=="const":
+			PP[4][2]+=0.01
+			PP[4][3]-=0.01
+			PP[4][7]-=0.02
+			PP[4][10]-=0.02
+			PP[4][13]-=0.02
 		for i in range(Ncurv):
-			plt.plot(AA[i], PP[i], 'o-', label=labels[i])
+			if linplot:	plt.plot(AA[i], PP[i], 'o-', label=labels[i])
+			else:		plt.plot(1.0+AA[i], PP[i], 'o-', label=labels[i])
 			if not normIG: plt.axhline(PressIG[i], color=plt.gca().lines[-1].get_color(), linestyle="--")
-		plt.xlim(right=max(chain.from_iterable(AA)))
-		plt.ylim(bottom=0.0)
-		plt.title("Pressure normalised by WN result",fontsize=fst)
-		xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$" if ftype is "const" else "$\\alpha=k\\tau/\\zeta$"
+		#plt.title("Pressure normalised by WN result; ftype = "+ftype,fontsize=fst)
+		#xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$" if ftype is "const" else "$\\alpha=k\\tau/\\zeta$"
 		plt.xlabel(xlabel,fontsize=fsa)
 		plt.ylabel("Pressure",fontsize=fsa)
 		plt.grid()
@@ -389,8 +407,9 @@ def pressure_plot_dir(dirpath, verbose, twod=False, normIG=False):
 	
 	## --------------------------------------------------------
 	
-	plt.savefig(pressplot)
-	if verbose: print me+"plot saved to",pressplot
+	if not nosave:
+		plt.savefig(pressplot)
+		if verbose: print me+"plot saved to",pressplot
 	
 	return pressplot
 
@@ -433,11 +452,14 @@ def plot_wall(ax, ftype, fpars, r):
 	"""
 	if ftype is "const":
 		R = fpars[0]
-		ax.axvline(R,c="k",ls="--",label="Wall")
+		#ax.axvline(R,c="k",ls="--",label="Wall")
+		Ridx = np.argmin(np.abs(R-r))
+		ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Wall")
 	elif ftype is "lin":
 		R = fpars[0]
 		Ridx = np.argmin(np.abs(R-r))
-		ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Wall")
+		#ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Wall")
+		ax.plot(r,np.hstack([np.zeros(Ridx),0.5*np.power(r[Ridx:]-R,2.0)]),"k--",label="Wall")
 	elif ftype is "dcon":
 		R, S = fpars
 		ax.axvline(R,c="k",ls="--",label="Wall")

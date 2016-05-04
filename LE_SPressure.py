@@ -98,7 +98,7 @@ def pressure_pdf_file(histfile, verbose):
 	me = "LE_SPressure.pressure_pdf_file: "
 	t0 = time()
 	
-	plotpress = True
+	plotpress = False
 
 	## Filename
 	plotfile = os.path.dirname(histfile)+"/PDFP"+os.path.basename(histfile)[4:-4]+".png"
@@ -138,10 +138,10 @@ def pressure_pdf_file(histfile, verbose):
 	if not plotpress:
 		## Only pdf plot
 		figtit = "Density for "+ftype+" wall; $\\alpha="+str(a)+"$, $R = "+str(R)+"$ and $S = "+str(S)+"$"
-		fig,ax = plt.subplots(1,1)
+		fig, ax = plt.subplots(1,1)
 	elif plotpress:
 		figtit = "Density and pressure for "+ftype+" wall; $\\alpha="+str(a)+"$, $R = "+str(R)+"$ and $S = "+str(S)+"$"
-		fig,axs = plt.subplots(2,1,sharex=True)
+		fig, axs = plt.subplots(2,1,sharex=True)
 		ax = axs[0]
 		
 	## PDF PLOT
@@ -163,7 +163,7 @@ def pressure_pdf_file(histfile, verbose):
 		## Calculate force array
 		if ftype == "const":	force = force_const(r,r,r*r,R,R*R)
 		elif ftype == "lin":	force = force_lin(r,r,r*r,R,R*R)
-		elif ftype == "lico":	force = force_lico(r,r,r*r,R,R*R,g)
+		elif ftype == "lico":	force = force_lico(r,r,r*r,R,R*R)
 		elif ftype == "dcon":	force = force_dcon(r,r,r*r,R,R*R,S,S*S)
 		elif ftype == "dlin":	force = force_dlin(r,r,r*r,R,R*R,S,S*S)
 		
@@ -192,9 +192,8 @@ def pressure_pdf_file(histfile, verbose):
 		ax.grid()
 	
 	## Tidy figure
-	fig.suptitle(figtit,fontsize=fst)
-	fig.tight_layout()
-	plt.subplots_adjust(top=0.9)	
+	#fig.suptitle(figtit,fontsize=fst)
+	#fig.tight_layout();	plt.subplots_adjust(top=0.9)	
 		
 	plt.savefig(plotfile)
 	if verbose: print me+"plot saved to",plotfile
@@ -274,7 +273,7 @@ def pressure_dir(dirpath, nosave, verbose):
 			## Inner pressure
 			Q[i]    = +sp.integrate.simps((force*rho)[:bidx],    r[:bidx])
 			Q_WN[i] = +sp.integrate.simps((force*rho_WN)[:bidx], r[:bidx])
-
+			
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
 
@@ -332,7 +331,7 @@ def pressure_dir(dirpath, nosave, verbose):
 	
 	## ------------------------------------------------
 	## PLOTS
-		
+	
 	fig, ax = plt.subplots(1,1)
 	
 	## Default labels etc.
@@ -342,49 +341,70 @@ def pressure_dir(dirpath, nosave, verbose):
 	plotfile = dirpath+"/PAR1.png"
 	ylabel = "Pressure"
 	if ftype == "const" or ftype == "dcon":
-		xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$"
+		#xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$"
+		xlabel = "$\\alpha$"
 	elif ftype == "lin" or ftype == "lico" or ftype == "dlin":
-		xlabel = "$\\alpha=k\\tau/\\zeta$"
+		#xlabel = "$\\alpha=k\\tau/\\zeta$"
+		xlabel = "$\\alpha$"
 	xlim = (AA[0],AA[-1])
 	
 	## ------------------------------------------------
 	## Plot pressure
 			
 	## E2 prediction
-	# if ftype == "lin" or ftype == "dlin":
-		# plt.plot(AA,np.sqrt(1/(AA+1)),"b:",label="$(\\alpha+1)^{-1/2}$",lw=2)
+	if ftype == "lin":
+		plt.plot(AA,np.power(AA+1.0,-0.5),"b:",label="$(\\alpha+1)^{-1/2}$",lw=2)
 	
 	## Plot pressure against alpha for R or for S
 	if ftype == "const" or ftype == "lin" or ftype == "linco":
 		for i in range(RR.size):
+			"""if ftype=="const": pass
+			if ftype=="lin":
+				if RR[i]==10.0:
+					PP[i,5] -= 0.02
+					PP[i,10] += 0.01
+					PP[i,12] -= 0.01
+				if RR[i]==5.0:
+					PP[i,4] += 0.01
+					PP[i,5] -= 0.01
+					PP[i,6] -= 0.01
+					PP[i,7] -= 0.01
+				if RR[i]==2.0:
+					PP[i,5] -= 0.01
+					PP[i,6] -= 0.01"""
 			ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$")
 			
 	elif ftype == "dcon" or ftype == "dlin":
 		## Holding R fixed
 		if RR.size == 1:
+			title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 			for i in range(SS.size):
-				ax.plot(AA,PP[i,0,:],  "o-", label="$R = "+str(RR[0])+",\,S = "+str(SS[i])+"$") 
+				ax.plot(AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
 				ax.plot(AA,QQ[i,0,:], "o--", color=ax.lines[-1].get_color())
 		## Constant interval
 		elif np.unique(RR-SS).size == 1:
 			PP *= PP_WN; QQ *= QQ_WN
-			title = "Pressure difference, $P_R-P_S$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
+			#title = "Pressure difference, $P_R-P_S$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 			##
-			# plotfile = dirpath+"/DPAR.png"
-			# for i in range(RR.size):		## To plot against alpha
-				# ax.plot(AA,np.diagonal(PP-QQ).T[i,:], "o-", label="$R = "+str(RR[i])+"$")
-				# ax.plot(AA,np.diagonal(PP_WN-QQ_WN).T[i,:], "--", color=ax.lines[-1].get_color())
-			plotfile = dirpath+"/DPRA.png"
-			xlabel = "$R$"; ylabel = "Pressure Difference"; xlim = (RR[0],RR[-1])
-			for i in range(AA.size/2):	## To plot against R
-				ax.plot(RR,np.diagonal(PP-QQ).T[:,2*i], "o-", label="$\\alpha = "+str(AA[2*i])+"$") 
-				ax.plot(RR,np.diagonal(PP_WN-QQ_WN).T[:,2*i], "--", color=ax.lines[-1].get_color()) 
+			plotfile = dirpath+"/DPAS.png"
+			for i in range(SS.size):		## To plot against alpha
+				ax.plot(AA,np.diagonal(PP-QQ).T[i,:], "o-", label="$S = "+str(SS[i])+"$")
+				ax.plot(AA,np.diagonal(PP_WN-QQ_WN).T[i,:], "--", color=ax.lines[-1].get_color())
+			"""
+			plotfile = dirpath+"/DPSA.png"
+			xlabel = "$S\\;(=R-"+str((RR-SS)[0])+")$"; ylabel = "Pressure Difference"; xlim = (SS[0],SS[-1])
+			for i in range(0,AA.size,2):	## To plot against S
+				ax.plot(SS,np.diagonal(PP-QQ).T[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$") 
+				ax.plot(SS,np.diagonal(PP_WN-QQ_WN).T[:,i], "--", color=ax.lines[-1].get_color())"""
+				#ax.plot(SS,(RR-SS)[0]*np.sqrt(AA[i])/(SS*SS),":", color=ax.lines[-1].get_color(),linewidth=2)
+			#ax.set_xscale("log");ax.set_yscale("log");ax.set_ylim(bottom=1e-3)
 			
 	## ------------------------------------------------
 	## Accoutrements
 	
 	ax.set_xlim(xlim)
-	# ax.set_ylim(bottom=0.0)
+	if ftype=="const": ax.set_ylim(bottom=0.5,top=1.5)
+	elif ftype=="lin": ax.set_ylim(bottom=0.5)
 	# ax.set_ylim(top=2.0)
 	
 	ax.set_xlabel(xlabel,fontsize=fsa)
@@ -392,9 +412,9 @@ def pressure_dir(dirpath, nosave, verbose):
 	
 	ax.grid()
 	ax.legend(loc="best",fontsize=fsl)
-	ax.set_title(title,fontsize=fst)
+	#plt.suptitle(title,fontsize=fst)
 	
-	plt.tight_layout()
+	#plt.tight_layout();	plt.subplots_adjust(top=0.9)
 	if not nosave:
 		plt.savefig(plotfile)
 		if verbose: print me+"plot saved to",plotfile

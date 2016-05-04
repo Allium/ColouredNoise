@@ -3,11 +3,14 @@ import scipy as sp
 from matplotlib import pyplot as plt
 import os, optparse, glob
 from LE_Utils import filename_pars
-from LE_Utils import force_1D_const as force_x
+from LE_Utils import force_1D_const, force_1D_lin
 from LE_Pressure import pressure_x
 from LE_SPressure import Hr_norm, pdf_WN, plot_wall
 from LE_SBS import force_const, force_lin, force_lico, force_dcon, force_dlin
 
+
+from LE_Utils import plot_fontsizes
+fsa,fsl,fst = plot_fontsizes()
 
 def main():
 	"""
@@ -48,22 +51,22 @@ def plot_file(histfile):
 	## CALCULATIONS
 	x, Q, e2E, c1, p, pars = bulk_const(histfile)
 	ftype = pars["ftype"]
-	ord = "r" if pars["geo"] == "CIR" else "r"
+	ord = "r" if pars["geo"] == "CIR" else "x"
 	## PLOTTING
 	fig = plt.figure()
-	fpars = pars["X"] if pars["geo"] is "1D" else [pars["R"],pars["S"]]
+	fpars = [pars["X"]] if pars["geo"] is "1D" else [pars["R"],pars["S"]]
 	plot_wall(plt.gca(), ftype, fpars, x)
 	refpoint = Q.shape[0]/2 if ftype is "dcon" or ftype is "dlin" else 0
-	plt.plot(x,Q/Q[refpoint],label="$Q("+ord+")$")
+	plt.plot(x,Q/Q[refpoint],label="$\\rho("+ord+")$")
 	plt.plot(x,e2E/e2E[refpoint],label="$\\langle\\eta^2\\rangle("+ord+")$")
-	plt.plot(x,c1/c1[refpoint],label="$Q\\cdot\\langle\\eta^2\\rangle$")
-	plt.xlim(left=x[0])
+	plt.plot(x,c1/c1[refpoint],label="$\\rho\\cdot\\langle\\eta^2\\rangle$")
+	plt.xlim(left=x[0],right=10.0)
 	plt.ylim(bottom=0.0,top=4.0)
-	plt.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.")
-	plt.xlabel("$"+ord+"$")
-	plt.ylabel("Variable divided by first value")
+	#plt.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.",fontsize=fst)
+	plt.xlabel("$"+ord+"$",fontsize=fsa)
+	plt.ylabel("Variable divided by first value",fontsize=fsa)
 	plt.grid()
-	plt.legend(loc="best")
+	plt.legend(loc="upper left",fontsize=fsl+2)
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".png"
 	plt.savefig(plotfile)
 	return plotfile
@@ -131,7 +134,9 @@ def bulk_const(histfile):
 		H /= np.trapz(np.trapz(H,x=x,axis=1),x=eta,axis=0)
 		## Integrate over eta
 		Q = np.trapz(H,x=eta,axis=0)
-		force = force_x(x,X,D)
+		## Force
+		if ftype == "const":	force = force_1D_const(x,X,D)
+		elif ftype == "lin":	force = force_1D_lin(x,X,D)
 		p = pressure_x(force,Q,x)
 		e2E = np.trapz(((H/Q).T*(eta*eta)).T,x=eta,axis=0)
 		c1 = Q*e2E

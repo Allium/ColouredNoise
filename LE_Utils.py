@@ -86,7 +86,8 @@ def plot_fontsizes():
 	"""
 	Axes, legend, title
 	"""
-	return 18,14,18
+	#return 18,14,18
+	return 26,16,20
 
 	
 ##==========================================
@@ -135,12 +136,14 @@ def filename_pars(filename):
 	except ValueError:
 		D = 0.0
 	## dt
-	try:
-		start = filename.find("_dt") + 3
-		dt = float(filename[start:filename.find(".npy",start)])
-	except ValueError:
-		start = filename.find("_dt",start) + 3
-		dt = float(filename[start:filename.find(".npy",start)])
+	# try:
+		# start = filename.find("_dt") + 3
+		# dt = float(filename[start:filename.find(".npy",start)])
+	# except ValueError:
+		# start = filename.find("_dt",start) + 3
+		# dt = float(filename[start:filename.find(".npy",start)])
+	# except ValueError:
+	dt = 0.01
 	## R
 	try:
 		start = filename.find("_R") + 2

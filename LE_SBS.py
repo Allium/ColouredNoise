@@ -141,13 +141,13 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	rini = 0.5*(S+R) if (ftype == "dcon" or ftype == "dlin") else 0.5*(rmin+R)
 		
 	## Histogramming; bin edges
-	Nrbin = int(50 * rmax)	## Ensures 50 bins per unit length
+	Nrbin = int(200 * rmax)	## Ensures number of bins per unit length
 	Npbin = 50
-	rbins = np.linspace(rmin,rmax,Nrbin)
+	rbins = np.linspace(rmin,rmax,Nrbin+1)
 	pbins = np.linspace(0.0,2*np.pi,Npbin)
+	ermax = 4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)
 	Nerbin = 150
-	Nepbin = 50
-	erbins = np.linspace(0.0,(4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)),Nerbin)
+	erbins = np.linspace(0.0,ermax,Nerbin+1)
 	bins = [rbins,erbins]
 	
 	## Particles	
@@ -162,10 +162,9 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	## ----------------------------------------------------------------
 
 	## Filename; directory and file existence; readme
-	f_type = "C" if force == force_const else "L"
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_r"+str(Nrun)+"_dt"+str(dt)+"_2/"
-	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_r"+str(Nrun)+"_dt"+str(dt)
+			"_CIR_"+fstr+"_dt"+str(dt)+"_DRS0.5/"
+	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
@@ -177,7 +176,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	## ----------------------------------------------------------------
 	## SIMULATION
 	
-	if vb: print me+"Computing",Nparticles,"trajectories."
+	if vb: print me+"Computing",Nparticles,"trajectories. Arena: CIR. Force: "+str(ftype)+"."
 	
 	## ----------------------------------------------------------------
 	
@@ -197,7 +196,8 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	
 	
 	## Initialise histogram in space
-	H = np.zeros((Nrbin-1,Nerbin-1))
+	# H = np.zeros((Nrbin-1,Nerbin-1))
+	H = np.zeros((Nrbin,Nerbin))
 	## Counter for noise initial conditions
 	i = 0
 
@@ -212,11 +212,6 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 			H += np.histogram2d(r,er,bins=bins,normed=False)[0]
 			i += 1
 	## Divide by bin area and number of particles
-	# coords = [np.diff(b) for b in bins]
-	# newshapes = np.diag(np.array(map(len, coords))-1)+1
-	# reshaped = [x.reshape(y) for x,y in zip(coords, newshapes)]
-	# H /= reduce(np.multiply, np.ix_(*coords))
-	# H = H.T
 	H /= np.outer(np.diff(rbins),np.diff(erbins))
 	H /= Nparticles
 	

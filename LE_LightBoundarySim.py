@@ -10,7 +10,7 @@ from LE_Utils import save_data
 from LE_Utils import force_1D_const, force_1D_lin
 
 
-def main():
+def input():
 	"""
 	NAME
 		LE_LightBoundarySim.py
@@ -44,7 +44,7 @@ def main():
 		01 February 2016	Adopted white noise x variable
 	"""	
 	
-	me = "LE_LightBoundarySim.main: "
+	me = "LE_LightBoundarySim.input: "
 	t0 = time.time()
 	
 	## ----------------------------------------------------------------
@@ -55,8 +55,8 @@ def main():
         dest="alpha",default=0.1,type="float")
 	parser.add_option("-X","--wallpos",
         dest="X",default=10.0,type="float")
-	parser.add_option("--HO",
-		dest="harmonic_potential",default=False,action="store_true")
+	parser.add_option("--ftype",
+		dest="ftype",default="const",type="str")
 	parser.add_option("-D","--Delta",
         dest="Delta",default=0.0,type="float")		
 	parser.add_option("-r","--nrun",
@@ -72,50 +72,64 @@ def main():
 	opt, args = parser.parse_args()
 	if opt.help: print main.__doc__; return
 	a		= opt.alpha
+	ftype	= opt.ftype
 	X		= opt.X
 	Delta	= opt.Delta
 	Nrun	= opt.Nrun
 	global dt; dt = opt.dt
 	timefac = opt.timefac
 	vb		= opt.verbose
-
-	## Choose potential type
-	if opt.harmonic_potential:
-		force_x = force_1D_lin
-		ftype = "L"
-		Delta = 0.0
-	else:
-		force_x = force_1D_const
-		ftype = "C"
 	
-	if vb: print "\n==  "+me+"a =",a," Nruns =",Nrun," ==\n"
+	if vb: print "\n==\n"+me+"Input parameters:\n\t",opt
+	
+	main(a,ftype,X,Delta,Nrun,dt,timefac,vb)
+	
+	if vb: print me+"execution time",round(time.time()-t0,2),"seconds"
+	
+	return
+
+##=============================================================================
+def main(a,ftype,X,Delta,Nrun,dt,timefac,vb):
+	"""
+	"""
+	me = "LE_LightBoundarySim.main: "
+	t0 = time.time()
 
 	## ----------------------------------------------------------------
 	## Parameters
+	
+	## Choose potential type
+	if ftype=="const":
+		force_x = force_1D_const
+		fstr = "C"
+	elif ftype=="lin":
+		force_x = force_1D_lin
+		fstr = "L"
+		Delta = 0.0
 	
 	## Simulation time
 	tmax = 5e2*timefac
 	
 	## Space
-	xmax = lookup_xmax(X,a)
-	xmin = calculate_xmin(X,a)	## Simulation cutoff
-	xini = calculate_xini(X,a)	## Particle initial x
+	xmax = X+6.0#lookup_xmax(X,a)
+	xmin = 0.0#calculate_xmin(X,a)	## Simulation cutoff
+	xini = 0.5*(xmin+X)#calculate_xini(X,a)	## Particle initial x
 	emax = 4/np.sqrt(a) if a!=0.0 else 4/np.sqrt(dt)
 	
 	## Histogramming; xbins and ebins are bin edges.
-	Nxbin = 250
-	Nebin = 200
+	Nxbin = int(150 * xmax)
+	Nebin = 50
 	xbins = np.linspace(xmin,xmax,Nxbin+1)#calculate_xbin(xini,X,xmax,Nxbin)
 	ebins = np.linspace(-emax,emax,Nebin+1)
 		
 	## Initial conditions
 	X0E0 = np.array([[xini,e0] for e0 in ebins])
 	Nparticles = Nebin*Nrun
-	if vb: print me+"initial condition injection line; computing",Nparticles,"trajectories"
+	if vb: print me+"Computing",Nparticles,"trajectories"
 	
 	## Filename; directory and file existence; readme
-	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_1D_"+ftype+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)+"/"
-	hisfile = "BHIS_1D_"+ftype+"_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_r"+str(Nrun)+"_dt"+str(dt)
+	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_1D_"+fstr+"_D"+str(Delta)+"_dt"+str(dt)+"/"
+	hisfile = "BHIS_1D_"+fstr+"_a"+str(a)+"_X"+str(X)+"_D"+str(Delta)+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	hisfile = hisdir+hisfile
 	check_path(hisfile, vb)
@@ -147,13 +161,16 @@ def main():
 
 	## Initialise histogram
 	H = np.zeros((Nxbin,Nebin))
+	i = 1
 	## Loop over initial y-position
 	for x0e0 in X0E0:
 		for run in xrange(Nrun):
+			if vb: print me+"Run",i,"of",Nparticles
 			## x, e are coordinates as a function of time
-			x, e = boundary_sim(x0e0, a, X, force_x, Delta, xmin, tmax, expmt, (vb and run%50==0))
+			x, e = boundary_sim(x0e0, a, X, force_x, Delta, xmin, tmax, dt, expmt, (vb and run%50==0))
 			h = np.histogram2d(x,e,bins=[xbins,ebins],normed=False)[0]
 			H += h*histogram_weight(x0e0[1], e[-1], a)
+			i += 1
 	H = (H.T)[::-1]
 	## When normed=False, need to divide by the bin area
 	H /= np.outer(np.diff(ebins),np.diff(xbins))
@@ -163,13 +180,11 @@ def main():
 	check_path(hisfile, vb)
 	save_data(hisfile, H, vb)
 	
-	if vb: print me+"execution time",round(time.time()-t0,2),"seconds"
-	
 	return hisfile
 	
 ## ====================================================================
 
-def boundary_sim(x0e0, a, X, force_x, D, xmin, tmax, expmt, vb=False):
+def boundary_sim(x0e0, a, X, force_x, D, xmin, tmax, dt, expmt, vb=False):
 	"""
 	Run the LE simulation from (x0,e0), stopping if x<xmin.
 	Dynamically adds more space to arrays.
@@ -183,7 +198,7 @@ def boundary_sim(x0e0, a, X, force_x, D, xmin, tmax, expmt, vb=False):
 	x0,e0 = x0e0
 	nstp = int(tmax/dt)
 	exstp = nstp/10
-	if vb: print me+"[a, X] = ",[a,X],"; IC =",x0e0
+	if vb: print me+"[a, X] = ",np.around([a,X],1)
 	
 	## Simulate eta
 	if vb: t0 = time.time()
@@ -323,4 +338,4 @@ def create_readme(hisfile, vb):
 
 ## ====================================================================
 ## ====================================================================
-if __name__=="__main__": main()
+if __name__=="__main__": input()

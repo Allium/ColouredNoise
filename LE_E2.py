@@ -25,7 +25,7 @@ def main():
 	assert os.path.isdir(dirpath), me+"Need directory as argument."
 	assert a >= 0.0, me+"Must specify alpha."
 	dirpars = filename_pars(dirpath)
-	assert dirpars["ftype"] is "linear", me+"Check input."
+	assert dirpars["ftype"] is "lin", me+"Check input."
 	
 	if dirpars["geo"] is "CIR":
 		plotfile = dirpath+"/E2_CIRLPDF_a"+str(a)+".png"
@@ -48,22 +48,24 @@ def plot_pdfs(histfiles,a,vb):
 	geo = filename_pars(histfiles[0])["geo"]
 	[wall,xbin,ebin] = ["R","rbins","erbins"] if geo is "CIR" else ["X","xbins","ebins"]
 
-	fig, axs = plt.subplots((len(histfiles)+1)/2+1,2,sharey=True)
+	fig, axs = plt.subplots((len(histfiles)+1)/2,2,sharey=True)
 	axs = np.ravel(axs)
 	
 	for i,hf in enumerate(histfiles):
 		
 		R = filename_pars(hf)[wall]
 		
-		H = np.load(hf)
-		if geo is "CIR": H = H.T[::-1]
 		bins = np.load(os.path.dirname(hf)+"/BHISBIN"+os.path.basename(hf)[4:-4]+".npz")
 		rbins  = bins[xbin]
 		erbins = bins[ebin]
 		r = 0.5*(rbins[1:]+rbins[:-1])
 		er = 0.5*(erbins[1:]+erbins[:-1])
 		
-		if geo is "CIR": H /= np.multiply(*np.meshgrid(r,er))
+		H = np.load(hf)
+		if geo is "CIR":
+			## Pay attention to order of flip and scale
+			# H /= np.multiply(*np.meshgrid(er,r))
+			H = H.T[::-1]
 		H /= H.max()
 		
 		ax = axs[i]
@@ -78,14 +80,14 @@ def plot_pdfs(histfiles,a,vb):
 	r = 0.5*(rbins[1:]+rbins[:-1])
 	er = 0.5*(erbins[1:]+erbins[:-1])
 	
-	ax = axs[-2]
-	ax.imshow(pdf_E2(r,er,a), extent=[rbins[0],rbins[-1],erbins[0],erbins[-1]],vmin=0.0,vmax=1.0,aspect="auto")
+	ax = axs[-1]
+	ax.imshow(pdf_E2(r,er,a)*np.outer(r,er), extent=[rbins[0],rbins[-1],erbins[0],erbins[-1]],vmin=0.0,vmax=1.0,aspect="auto")
 	ax.set_title("Theory $"+wall+" = 0.0$")
 
-	ax = axs[-1]
-	R, ER = np.meshgrid(r,er); ER = ER[::-1]
-	ax.imshow(np.exp(-0.5*R*R-0.5*ER*ER), extent=[rbins[0],rbins[-1],erbins[0],erbins[-1]],aspect="auto")
-	ax.set_title("Uncorrelated")
+	# ax = axs[-1]
+	# R, ER = np.meshgrid(r,er); ER = ER[::-1]
+	# ax.imshow(np.exp(-0.5*R*R-0.5*ER*ER), extent=[rbins[0],rbins[-1],erbins[0],erbins[-1]],aspect="auto")
+	# ax.set_title("Uncorrelated")
 	
 	plt.tight_layout()
 	fig.suptitle("$\\alpha = "+str(a)+"$",fontsize=16)
@@ -99,7 +101,8 @@ def pdf_E2(x,eta,a):
 	ETA = ETA[::-1]
 	rho0 = 2*np.pi / (np.sqrt(a)*(a+1))
 	rho = np.exp(-0.5*(a+1)**2*X*X-0.5*a*(a+1)*ETA*ETA+a*(a+1)*X*ETA)
-	return rho0 * rho
+	# return rho0 * rho
+	return rho / rho.max()
 	
 def sort_AN(filelist, var):
 	varlist = [filename_pars(filename)[var] for filename in filelist]
