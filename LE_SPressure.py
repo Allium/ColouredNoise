@@ -126,9 +126,8 @@ def pressure_pdf_file(histfile, verbose):
 	## Load histogram, convert to normalised pdf
 	H = np.load(histfile)
 	## Noise dimension irrelevant here
-	H = np.trapz(H/er, x=er, axis=1)
+	H = np.trapz(H, x=er, axis=1)
 	## rho is probability density. H is probability at r
-	# rho = Hr_norm(H/r,r,R)
 	rho = H/r / np.trapz(H, x=r, axis=0)
 
 	## White noise result

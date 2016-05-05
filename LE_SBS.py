@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import os, time
 from datetime import datetime
 import optparse
@@ -11,34 +11,20 @@ from LE_LightBoundarySim import check_path, create_readme, sim_eta
 
 def input():
 	"""
-	NAME
-		LE_SBS.py
-	
 	PURPOSE
-		Simulate coloured noise trajectories in 2D circular geometry.
-	
-	EXECUTION
+		Simulate coloured noise trajectories in 2D disc geometry.
 		
-	FLAGS
+	INPUT
 		-a --alpha		0.1		Slope of the potential
 		-R --bulkrad	10.0	Position of wall
 		   --HO			False	Switch from linear to harmonic potential
 		-r --nruns		100		Number of runs for each (x0,y0)
 		   --dt			0.01	Timestep
 		-t --time		1.0		Multiply t_max by factor
+	
+	FLAGS
 		-v --verbose	False	Print useful information to screen
 		-h --help		False	Print docstring and exit
-	
-	EXAMPLE
-	
-	NOTES
-	
-	BUGS
-	
-	HISTORY
-		10 March 2016	Started
-		25 March 2016	Added linear force option
-		29 March 2016	Switchd to 2D histogram in r-eta_r space
 	"""	
 	me = "LE_SBS.input: "
 	t0 = time.time()
@@ -135,13 +121,13 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+6.0
+	rmax = R+4.0
 	rmin = 0.0#max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
 	rini = 0.5*(S+R) if (ftype == "dcon" or ftype == "dlin") else 0.5*(rmin+R)
 		
 	## Histogramming; bin edges
-	Nrbin = int(200 * rmax)	## Ensures number of bins per unit length
+	Nrbin = int(150 * rmax)	## Ensures number of bins per unit length
 	Npbin = 50
 	rbins = np.linspace(rmin,rmax,Nrbin+1)
 	pbins = np.linspace(0.0,2*np.pi,Npbin)
@@ -163,7 +149,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+"_DRS0.5/"
+			"_CIR_"+fstr+"_dt"+str(dt)+"/"
 	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
