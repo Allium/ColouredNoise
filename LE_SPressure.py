@@ -8,8 +8,8 @@ import warnings
 from time import time
 
 from LE_Utils import save_data, filename_pars
-from LE_Pressure import plot_wall
-from LE_SBS import force_const, force_lin, force_lico, force_dcon, force_dlin
+from LE_SBS import force_const, force_lin, force_lico, force_dcon, force_dlin,\
+					force_tan, force_dtan
 
 
 warnings.filterwarnings("ignore",
@@ -98,7 +98,7 @@ def pressure_pdf_file(histfile, verbose):
 	me = "LE_SPressure.pressure_pdf_file: "
 	t0 = time()
 	
-	plotpress = False
+	plotpress = True
 
 	## Filename
 	plotfile = os.path.dirname(histfile)+"/PDFP"+os.path.basename(histfile)[4:-4]+".png"
@@ -165,6 +165,8 @@ def pressure_pdf_file(histfile, verbose):
 		elif ftype == "lico":	force = force_lico(r,r,r*r,R,R*R)
 		elif ftype == "dcon":	force = force_dcon(r,r,r*r,R,R*R,S,S*S)
 		elif ftype == "dlin":	force = force_dlin(r,r,r*r,R,R*R,S,S*S)
+		elif ftype == "tan":	force = force_tan(r,r,r*r,R,R*R)
+		elif ftype == "dtan":	force = force_dtan(r,r,r*r,R,R*R,S,S*S)
 		
 		## Pressure array
 		p 	 = -np.array([np.trapz(force[:i]*rho[:i],   x=r[:i]) for i in xrange(r.shape[0])])
@@ -264,11 +266,13 @@ def pressure_dir(dirpath, nosave, verbose):
 		elif ftype == "lico":	force = force_lico(r,r,r*r,R[i],R[i]*R[i],g)
 		elif ftype == "dcon":	force = force_dcon(r,r,r*r,R[i],R[i]*R[i],S[i],S[i]*S[i])
 		elif ftype == "dlin":	force = force_dlin(r,r,r*r,R[i],R[i]*R[i],S[i],S[i]*S[i])
+		elif ftype == "tan":	force = force_tan(r,r,r*r,R,R*R)
+		elif ftype == "dtan":	force = force_dtan(r,r,r*r,R,R*R,S,S*S)
 		
 		## Pressure array
 		P[i]    = -sp.integrate.simps((force*rho)[bidx:],    r[bidx:])
 		P_WN[i] = -sp.integrate.simps((force*rho_WN)[bidx:], r[bidx:])
-		if ftype == "dcon" or ftype == "dlin":
+		if ftype[0] is "d":
 			## Inner pressure
 			Q[i]    = +sp.integrate.simps((force*rho)[:bidx],    r[:bidx])
 			Q_WN[i] = +sp.integrate.simps((force*rho_WN)[:bidx], r[:bidx])
@@ -282,7 +286,7 @@ def pressure_dir(dirpath, nosave, verbose):
 	SS = np.unique(S)
 	
 	## 2D pressure array: [R,A]
-	if ftype == "const" or ftype == "lin" or ftype == "linco":
+	if ftype[0] is not "d":
 		PP = -np.ones([RR.size,AA.size])
 		PP_WN = np.zeros(PP.shape)
 		for i in range(RR.size):
@@ -301,7 +305,7 @@ def pressure_dir(dirpath, nosave, verbose):
 		PP = np.ma.array(PP, mask = PP==-1)
 	
 	## 3D pressure array wall: [S,R,A]
-	elif  ftype == "dcon" or ftype == "dlin":
+	elif  ftype[0] is "d":
 		PP = -np.ones([SS.size,RR.size,AA.size])
 		QQ = -np.ones([SS.size,RR.size,AA.size])
 		PP_WN = np.zeros(PP.shape)
@@ -335,15 +339,15 @@ def pressure_dir(dirpath, nosave, verbose):
 	
 	## Default labels etc.
 	PP /= PP_WN
-	if  ftype == "dcon" or ftype == "dlin": QQ /= QQ_WN
+	if  ftype[0] is "d": QQ /= QQ_WN
 	title = "Pressure normalised by WN; ftype = "+ftype
 	plotfile = dirpath+"/PAR1.png"
 	ylabel = "Pressure"
-	if ftype == "const" or ftype == "dcon":
-		#xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$"
-		xlabel = "$\\alpha$"
-	elif ftype == "lin" or ftype == "lico" or ftype == "dlin":
+	if ftype == "lin" or ftype == "lico" or ftype == "dlin":
 		#xlabel = "$\\alpha=k\\tau/\\zeta$"
+		xlabel = "$\\alpha$"
+	else:
+		#xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$"
 		xlabel = "$\\alpha$"
 	xlim = (AA[0],AA[-1])
 	
@@ -355,25 +359,11 @@ def pressure_dir(dirpath, nosave, verbose):
 		plt.plot(AA,np.power(AA+1.0,-0.5),"b:",label="$(\\alpha+1)^{-1/2}$",lw=2)
 	
 	## Plot pressure against alpha for R or for S
-	if ftype == "const" or ftype == "lin" or ftype == "linco":
+	if ftype[0] is not "d":
 		for i in range(RR.size):
-			"""if ftype=="const": pass
-			if ftype=="lin":
-				if RR[i]==10.0:
-					PP[i,5] -= 0.02
-					PP[i,10] += 0.01
-					PP[i,12] -= 0.01
-				if RR[i]==5.0:
-					PP[i,4] += 0.01
-					PP[i,5] -= 0.01
-					PP[i,6] -= 0.01
-					PP[i,7] -= 0.01
-				if RR[i]==2.0:
-					PP[i,5] -= 0.01
-					PP[i,6] -= 0.01"""
 			ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$")
 			
-	elif ftype == "dcon" or ftype == "dlin":
+	elif ftype[0] is "d":
 		## Holding R fixed
 		if RR.size == 1:
 			title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
@@ -404,14 +394,13 @@ def pressure_dir(dirpath, nosave, verbose):
 	ax.set_xlim(xlim)
 	if ftype=="const": ax.set_ylim(bottom=0.5,top=1.5)
 	elif ftype=="lin": ax.set_ylim(bottom=0.5)
-	# ax.set_ylim(top=2.0)
 	
 	ax.set_xlabel(xlabel,fontsize=fsa)
 	ax.set_ylabel(ylabel,fontsize=fsa)
 	
 	ax.grid()
 	ax.legend(loc="best",fontsize=fsl)
-	#plt.suptitle(title,fontsize=fst)
+	plt.suptitle(title,fontsize=fst)
 	
 	#plt.tight_layout();	plt.subplots_adjust(top=0.9)
 	if not nosave:
@@ -425,43 +414,81 @@ def pdf_WN(r,fpars,ftype):
 	"""
 	Theoretical radial pdf of a white noise gas.
 	"""
+	me = "LE_SPressure.pdf_WN: "
+	R, S = fpars[:2]
 	if ftype is "const":
-		R = fpars[0]
 		Rind = np.argmin(np.abs(r-R))
 		# rho0 = 1.0/(R+1.0)
 		rho0 = 1.0/(0.5*R*R+R+1.0)
 		rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(R-r[Rind:])])
 	elif ftype is "lin":
-		R = fpars[0]
 		Rind = np.argmin(np.abs(r-R))
 		# rho0 = 1.0/(R+np.sqrt(np.pi/2))
 		rho0 = 1.0/(0.5*R*R+np.sqrt(np.pi/2)*R+1.0)
 		rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(-0.5*(r[Rind:]-R)**2)])
 	elif ftype is "dcon":
-		R, S = fpars
 		Rind, Sind = np.argmin(np.abs(r-R)), np.argmin(np.abs(r-S))
 		# rho0 = 1.0/(R-S+2-np.exp(-S))
 		rho0 = 1.0/(S+R+np.exp(-S)+0.5*R*R-0.5*S*S)
 		rho_WN = rho0 * np.hstack([np.exp(r[:Sind]-S),np.ones(Rind-Sind),np.exp(R-r[Rind:])])
 	elif ftype is "dlin":
-		R, S = fpars
 		Rind, Sind = np.argmin(np.abs(r-R)), np.argmin(np.abs(r-S))
 		# rho0 = 1.0/(R-S+np.sqrt(np.pi/2)*(1.0+sp.special.erf(S/np.sqrt(2))))
 		rho0 = 1.0/(np.exp(-0.5*S*S)+np.sqrt(np.pi/2)*S*sp.special.erf(S/np.sqrt(2))+0.5*R*R-0.5*S*S+np.sqrt(np.pi/2)*R)
 		rho_WN = rho0 * np.hstack([np.exp(-0.5*(S-r[:Sind])**2),np.ones(Rind-Sind),np.exp(-0.5*(r[Rind:]-R)**2)])
+	elif ftype is "tan":
+		Rind = np.argmin(np.abs(r-R))
+		# rho0 = 1.0/(R+2/np.sqrt(np.pi)*sp.special.gamma(0.5*(1.0+1.0))/sp.special.gamma(0.5*(1.0)))/(2*np.pi)
+		rho0 = 1.0
+		print me+"Warning! Normalisation calculated numerically."
+		rho_WN = rho0 * np.hstack([np.ones(Rind),np.power(np.cos(0.5*np.pi*(r[Rind:]-R)/1.0),1.0)])
+		rho_WN /= np.trapz(rho_WN*r, x=r, axis=0)
+	elif ftype is "dtan":
+		Rind, Sind = np.argmin(np.abs(r-R)), np.argmin(np.abs(r-S))
+		rho0 = 1.0
+		print me+"Warning! Normalisation calculated numerically."
+		rho_WN = rho0 * np.hstack([np.power(np.cos(0.5*np.pi*(r[:Sind]-S)/1.0),1.0),\
+					np.ones(Rind-Sind),np.power(np.cos(0.5*np.pi*(r[Rind:]-R)/1.0),1.0)])
+		rho_WN /= np.trapz(rho_WN*r, x=r, axis=0)
+	else:
+		print me+"Functionality not written yet."
+		rho_WN = np.zeros(r.size)
 	return rho_WN
-
-def Hr_norm(H,r,R):
+	
+	
+def plot_wall(ax, ftype, fpars, r):
 	"""
-	H is probability density per unit area (flat in the bulk).
-	Hr is probability density.
+	Plot the wall profile of type ftype on ax
 	"""
-	# H[0]=H[1]
-	rext = np.hstack([np.linspace(0.0,r[0],2),r])
-	Hext = np.hstack([H[:np.argmin(np.abs(r-R))/2].mean()*np.ones(2),H])
-	# H /= np.trapz(rext*Hext,x=rext)
-	H /= np.trapz(Hext,x=rext)
-	return H
+	me = "LE_SPressure.plot_wall: "
+	R, S = fpars
+	if ftype is "const":
+		#ax.axvline(R,c="k",ls="--",label="Wall")
+		Ridx = np.argmin(np.abs(R-r))
+		ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Potential")
+	elif ftype is "lin":
+		Ridx = np.argmin(np.abs(R-r))
+		#ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Potential")
+		ax.plot(r,np.hstack([np.zeros(Ridx),0.5*np.power(r[Ridx:]-R,2.0)]),"k--",label="Potential")
+	elif ftype is "dcon":
+		"""UPDATE"""
+		ax.axvline(R,c="k",ls="--",label="Potential")
+		ax.axvline(S,c="k",ls="--")
+	elif ftype is "dlin":
+		"""UPDATE"""
+		Ridx = np.argmin(np.abs(R-r))
+		Sidx = np.argmin(np.abs(S-r))
+		ax.plot(r,np.hstack([S-r[:Sidx],np.zeros(Ridx-Sidx),r[Ridx:]-R]),"k--",label="Potential")
+	elif ftype is "tan":
+		Ridx = np.argmin(np.abs(R-r))
+		U_fn = lambda Dr: -1.0*np.log(np.cos(0.5*np.pi*(Dr)/1.0))
+		ax.plot(r,np.hstack([np.zeros(Ridx),U_fn(r[Ridx:]-R)]),"k--",label="Potential")
+	elif ftype is "dtan":
+		Ridx = np.argmin(np.abs(R-r))
+		Sidx = np.argmin(np.abs(S-r))
+		U_fn = lambda Dr: -1.0*np.log(np.cos(0.5*np.pi*(Dr)/1.0))
+		ax.plot(r,np.hstack([U_fn(S-r[:Sidx]),np.zeros(Ridx-Sidx),U_fn(r[Ridx:]-R)]),"k--",label="Potential")
+	return
 
 	
 ##=============================================================================

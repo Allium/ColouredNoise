@@ -1,12 +1,9 @@
 import numpy as np
-# import matplotlib.pyplot as plt
-import os, time
-from datetime import datetime
-import optparse
 from scipy.signal import fftconvolve
+import optparse, os, time
+from datetime import datetime
 
 from LE_Utils import save_data
-
 from LE_LightBoundarySim import check_path, create_readme, sim_eta
 
 def input():
@@ -39,7 +36,7 @@ def input():
         dest="R",default=10.0,type="float")
 	parser.add_option('-S','--inrad',
         dest="S",default=-1.0,type="float")
-	parser.add_option("--ftype",
+	parser.add_option("-f","--ftype",
 		dest="ftype",default="const",type="str")
 	parser.add_option('-r','--nrun',
         dest="Nrun",default=1,type="int")
@@ -62,13 +59,9 @@ def input():
 	timefac = opts.timefac
 	vb		= opts.vb
 	
-	if ftype == "const" or ftype == "lin":
-		fpar = [R]
-	elif ftype == "dcon" or ftype == "dlin":
+	if ftype[0] == "d":
 		assert S>=0.0, me+"Must specify inner radius S for double circus."
-		fpar = [R,S]
-	else:
-		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin}."
+	fpar = [R,S]
 			
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
 	
@@ -86,33 +79,37 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	
 	## ----------------------------------------------------------------
 	## CHOOSE FORCE
+	R, S = fpar[:2]
 	if ftype == "const":
-		R = fpar[0]
 		force = lambda xy, r, r2: force_const(xy,r,r2,R,R*R)
 		fstr = "C"
 		fparstr = ""
 	elif ftype == "lin":
-		R = fpar[0]
 		force = lambda xy, r, r2: force_lin(xy,r,r2,R,R*R)
 		fstr = "L"
 		fparstr = ""
 	elif ftype == "lico":
-		R, g = fpar
 		force = lambda xy, r, r2: force_lico(xy,r,r2,R,R*R,g)
 		fstr = "LC"
 		fparstr = ""
 	elif ftype == "dcon":
-		R, S = fpar
 		force = lambda xy, r, r2: force_dcon(xy,r,r2,R,R*R,S,S*S)
 		fstr = "DC"
 		fparstr = "_S"+str(S)
 	elif ftype == "dlin":
-		R, S = fpar
 		force = lambda xy, r, r2: force_dlin(xy,r,r2,R,R*R,S,S*S)
 		fstr = "DL"
 		fparstr = "_S"+str(S)
+	elif ftype == "tan":
+		force = lambda xy, r, r2: force_tan(xy,r,r2,R,R*R)
+		fstr = "T"
+		fparstr = ""
+	elif ftype == "dtan":
+		force = lambda xy, r, r2: force_dtan(xy,r,r2,R,R*R,S,S*S)
+		fstr = "DT"
+		fparstr = "_S"+str(S)
 	else:
-		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin}."
+		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin, tan, dtan}."
 	
 	## ----------------------------------------------------------------
 	## SET UP CALCULATIONS
@@ -121,10 +118,10 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+4.0
+	rmax = R+4.0 if ftype[-3:] is not "tan" else R+1.0
 	rmin = 0.0#max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
-	rini = 0.5*(S+R) if (ftype == "dcon" or ftype == "dlin") else 0.5*(rmin+R)
+	rini = 0.5*(S+R) if ftype[0] is "d" else 0.5*(rmin+R)
 		
 	## Histogramming; bin edges
 	Nrbin = int(150 * rmax)	## Ensures number of bins per unit length
@@ -265,6 +262,7 @@ def force_lin(xy,r,r2,R,R_2):
 	return force_const(xy,r,r2,R,R_2) * (r-R)
 	
 def force_lico(xy,r,r2,R,R_2,g):
+	"""NOT TESTED"""
 	return force_lin(xy,r,r2,R,R2) + g
 	
 def force_dcon(xy,r,r2,R1,R1_2,R2,R2_2):
@@ -272,6 +270,12 @@ def force_dcon(xy,r,r2,R1,R1_2,R2,R2_2):
 	
 def force_dlin(xy,r,r2,R1,R1_2,R2,R2_2):
 	return force_lin(xy,r,r2,R1,R1_2) + force_lin(xy,r,-r2,R2,-R2_2)
+
+def force_tan(xy,r,r2,R,R_2):
+	return force_const(xy,r,r2,R,R_2) * 0.5*np.pi*np.tan(0.5*np.pi * (r-R)/1.0)
+	
+def force_dtan(xy,r,r2,R1,R1_2,R2,R2_2):
+	return force_tan(xy,r,r2,R1,R1_2) + force_tan(xy,r,-r2,R2,-R2_2)
 
 ## ====================================================================
 ## ====================================================================

@@ -446,29 +446,19 @@ def ideal_gas(x, X, D, force_x):
 	
 ##=============================================================================
 
-def plot_wall(ax, ftype, fpars, r):
+def plot_wall(ax, ftype, X, x):
 	"""
 	Plot the wall profile of type ftype on ax
 	"""
+	me = "LE_Pressure.plot_wall"
 	if ftype is "const":
-		R = fpars[0]
 		#ax.axvline(R,c="k",ls="--",label="Wall")
-		Ridx = np.argmin(np.abs(R-r))
-		ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Wall")
+		Xidx = np.argmin(np.abs(X-x))
+		ax.plot(x,np.hstack([np.zeros(Xidx),x[Xidx:]-X]),"k--",label="Wall")
 	elif ftype is "lin":
-		R = fpars[0]
-		Ridx = np.argmin(np.abs(R-r))
+		Ridx = np.argmin(np.abs(X-x))
 		#ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Wall")
-		ax.plot(r,np.hstack([np.zeros(Ridx),0.5*np.power(r[Ridx:]-R,2.0)]),"k--",label="Wall")
-	elif ftype is "dcon":
-		R, S = fpars
-		ax.axvline(R,c="k",ls="--",label="Wall")
-		ax.axvline(S,c="k",ls="--")
-	elif ftype is "dlin":
-		R, S = fpars
-		Ridx = np.argmin(np.abs(R-r))
-		Sidx = np.argmin(np.abs(S-r))
-		ax.plot(r,np.hstack([S-r[:Sidx],np.zeros(Ridx-Sidx),r[Ridx:]-R]),"k--",label="Wall")
+		ax.plot(x,np.hstack([np.zeros(Xidx),0.5*np.power(x[Xidx:]-X,2.0)]),"k--",label="Wall")
 	return
 
 	

@@ -161,6 +161,8 @@ def filename_pars(filename):
 	elif filename.find("_LC_") > 0: ftype = "lico"
 	elif filename.find("_DC_") > 0: ftype = "dcon"
 	elif filename.find("_DL_") > 0: ftype = "dlin"
+	elif filename.find("_T_") > 0:	ftype = "tan"
+	elif filename.find("_DT_") > 0: ftype = "dtan"
 	## Geometry
 	if filename.find("_CIR_") > 0: geo = "CIR"
 	elif filename.find("_1D_") > 0: geo = "1D"
