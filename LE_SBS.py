@@ -118,7 +118,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+4.0 if ftype[-3:] is not "tan" else R+1.0
+	rmax = R+4.0 if ftype[-3:] != "tan" else R+1.0
 	rmin = 0.0#max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
 	rini = 0.5*(S+R) if ftype[0] is "d" else 0.5*(rmin+R)
