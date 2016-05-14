@@ -85,33 +85,33 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	## CHOOSE FORCE
 	R, S, lam = fpar
 	if ftype == "const":
-		force = lambda xy, r, r2: force_const(xy,r,r2,R,R*R)
+		force = lambda xy, r, r2: force_const(xy,r,R)
 		fstr = "C"
 		fparstr = ""
 	elif ftype == "lin":
-		force = lambda xy, r, r2: force_lin(xy,r,r2,R,R*R)
+		force = lambda xy, r, r2: force_lin(xy,r,R)
 		fstr = "L"
 		fparstr = ""
 	elif ftype == "lico":
-		force = lambda xy, r, r2: force_lico(xy,r,r2,R,R*R,g)
+		force = lambda xy, r, r2: force_lico(xy,r,R,g)
 		fstr = "LC"
 		fparstr = ""
 	elif ftype == "dcon":
-		force = lambda xy, r, r2: force_dcon(xy,r,r2,R,R*R,S,S*S)
+		force = lambda xy, r, r2: force_dcon(xy,r,R,S)
 		fstr = "DC"
 		fparstr = "_S"+str(S)
 	elif ftype == "dlin":
-		force = lambda xy, r, r2: force_dlin(xy,r,r2,R,R*R,S,S*S)
+		force = lambda xy, r, r2: force_dlin(xy,r,R,S)
 		fstr = "DL"
 		fparstr = "_S"+str(S)
 	elif ftype == "tan":
-		force = lambda xy, r, r2: force_tan(xy,r,r2,R,R*R,lam)
+		force = lambda xy, r, r2: force_tan(xy,r,R,lam)
 		fstr = "T"
 		fparstr = "_l"+str(lam)
 	elif ftype == "dtan":
-		force = lambda xy, r, r2: force_dtan(xy,r,r2,R,R*R,lam,lam*lam,lam)
+		force = lambda xy, r, r2: force_dtan(xy,r,R,S,lam)
 		fstr = "DT"
-		fparstr = "_l"+str(lam)
+		fparstr = "_S"+str(S)+"_l"+str(lam)
 	else:
 		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin, tan, dtan}."
 	
@@ -273,11 +273,11 @@ def force_lin(xy,r,R):
 def force_tan(xy,r,R,lam):
 	return -0.5*np.pi*np.tan(0.5*np.pi*(r-R)/lam)*xy/r * (r>R)
 	
-def force_dcon(xy,r,R1,R2):
-	return force_const(xy,r,R1) + force_const(xy,-r,-R2)
+def force_dcon(xy,r,R,S):
+	return force_const(xy,r,R) + force_const(xy,-r,-S)
 	
-def force_dlin(xy,r,R1,R2):
-	return force_lin(xy,r,R1) + force_lin(xy,-r,-R2)
+def force_dlin(xy,r,R,S):
+	return force_lin(xy,r,R) + force_lin(xy,-r,-S)
 	
 def force_dtan(xy,r,R,S,lam):
 	return force_tan(xy,r,R,lam) + force_tan(xy,-r,-S,lam)
