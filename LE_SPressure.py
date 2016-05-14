@@ -264,13 +264,13 @@ def pressure_dir(dirpath, nosave, verbose):
 		rho_WN = pdf_WN(r,[R[i],S[i],lam],ftype)
 
 		## Calculate force array
-		if ftype == "const":	force = force_const(r,r,r*r,R[i],R[i]*R[i])
-		elif ftype == "lin":	force = force_lin(r,r,r*r,R[i],R[i]*R[i])
-		elif ftype == "lico":	force = force_lico(r,r,r*r,R[i],R[i]*R[i],g)
-		elif ftype == "dcon":	force = force_dcon(r,r,r*r,R[i],R[i]*R[i],S[i],S[i]*S[i])
-		elif ftype == "dlin":	force = force_dlin(r,r,r*r,R[i],R[i]*R[i],S[i],S[i]*S[i])
-		elif ftype == "tan":	force = force_tan(r,r,r*r,R[i],R[i]*R[i],lam)
-		elif ftype == "dtan":	force = force_dtan(r,r,r*r,R[i],R[i]*R[i],S[i],S[i]*S[i],lam)
+		if ftype == "const":	force = force_const(r,r,R[i])
+		elif ftype == "lin":	force = force_lin(r,r,R[i])
+		elif ftype == "lico":	force = force_lico(r,r,R[i],g)
+		elif ftype == "dcon":	force = force_dcon(r,r,R[i],S[i])
+		elif ftype == "dlin":	force = force_dlin(r,r,R[i],S[i])
+		elif ftype == "tan":	force = force_tan(r,r,R[i],lam)
+		elif ftype == "dtan":	force = force_dtan(r,r,R[i],S[i],lam)
 		
 		## Pressure array
 		P[i]    = -sp.integrate.simps((force*rho)[bidx:],    r[bidx:])
