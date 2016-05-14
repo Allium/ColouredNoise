@@ -31,21 +31,23 @@ def input():
 	
 	parser = optparse.OptionParser(conflict_handler="resolve")	
 	parser.add_option('-a','--alpha',
-        dest="a",default=0.1,type="float")
+		dest="a",default=0.1,type="float")
 	parser.add_option('-R','--outrad',
-        dest="R",default=10.0,type="float")
+		dest="R",default=10.0,type="float")
 	parser.add_option('-S','--inrad',
-        dest="S",default=-1.0,type="float")
+		dest="S",default=-1.0,type="float")
+	parser.add_option('-l','--lambda',
+		dest="lam",default=-1.0,type="float")
 	parser.add_option("-f","--ftype",
 		dest="ftype",default="const",type="str")
 	parser.add_option('-r','--nrun',
-        dest="Nrun",default=1,type="int")
+		dest="Nrun",default=1,type="int")
 	parser.add_option('--dt',
-        dest="dt",default=0.01,type="float")		
+		dest="dt",default=0.01,type="float")		
 	parser.add_option('-t','--timefac',
-        dest="timefac",default=1.0,type="float")	 
+		dest="timefac",default=1.0,type="float")	 
 	parser.add_option('-v','--verbose',
-        dest="vb",default=False,action="store_true")
+		dest="vb",default=False,action="store_true")
 	parser.add_option('-h','--help',
 		dest="help", default=False, action="store_true")				  
 	opts, argv = parser.parse_args()
@@ -53,15 +55,17 @@ def input():
 	a		= opts.a
 	R		= opts.R
 	S		= opts.S
+	lam		= opts.lam
 	ftype	= opts.ftype
 	Nrun	= opts.Nrun
 	dt		= opts.dt
 	timefac = opts.timefac
 	vb		= opts.vb
 	
-	if ftype[0] == "d":
-		assert S>=0.0, me+"Must specify inner radius S for double circus."
-	fpar = [R,S]
+	if ftype[0] == "d":	assert S>=0.0, me+"Must specify inner radius S for double circus."
+	if ftype[-3:] == "tan":	assert lam>=0.0, me+"Must specify lengthscale lambda for tan potential."
+	
+	fpar = [R,S,lam]
 			
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
 	
@@ -79,7 +83,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	
 	## ----------------------------------------------------------------
 	## CHOOSE FORCE
-	R, S = fpar[:2]
+	R, S, lam = fpar
 	if ftype == "const":
 		force = lambda xy, r, r2: force_const(xy,r,r2,R,R*R)
 		fstr = "C"
@@ -101,13 +105,13 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 		fstr = "DL"
 		fparstr = "_S"+str(S)
 	elif ftype == "tan":
-		force = lambda xy, r, r2: force_tan(xy,r,r2,R,R*R)
+		force = lambda xy, r, r2: force_tan(xy,r,r2,R,R*R,lam)
 		fstr = "T"
-		fparstr = ""
+		fparstr = "_l"+str(lam)
 	elif ftype == "dtan":
-		force = lambda xy, r, r2: force_dtan(xy,r,r2,R,R*R,S,S*S)
+		force = lambda xy, r, r2: force_dtan(xy,r,r2,R,R*R,lam,lam*lam,lam)
 		fstr = "DT"
-		fparstr = "_S"+str(S)
+		fparstr = "_l"+str(lam)
 	else:
 		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin, tan, dtan}."
 	
@@ -118,20 +122,25 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+4.0 if ftype[-3:] != "tan" else R+1.0
+	rmax = R+4.0 if ftype[-3:] != "tan" else R+2.0*lam
 	rmin = 0.0#max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
 	rini = 0.5*(S+R) if ftype[0] is "d" else 0.5*(rmin+R)
-		
+	
+	## ------------
 	## Histogramming; bin edges
-	Nrbin = int(150 * rmax)	## Ensures number of bins per unit length
+	rbins = calc_rbins(ftype,fpar,rmin,rmax)
+	Nrbin = rbins.size - 1
+	
 	Npbin = 50
-	rbins = np.linspace(rmin,rmax,Nrbin+1)
 	pbins = np.linspace(0.0,2*np.pi,Npbin)
+	
 	ermax = 4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)
 	Nerbin = 150
 	erbins = np.linspace(0.0,ermax,Nerbin+1)
+	
 	bins = [rbins,erbins]
+	## ------------
 	
 	## Particles	
 	Nparticles = Npbin*Nrun
@@ -255,27 +264,76 @@ def boundary_sim(xyini, exyini, a, force, fpar, rmin, rmax, dt, tmax, expmt, vb=
 	
 ## ====================================================================
 
-def force_const(xy,r,r2,R,R_2):
-	return 0.5*(np.sign(R_2-r2)-1) * xy/(r+0.0001*(r==0.0))
+def force_const(xy,r,R):
+	return -xy/r * (r>R)
 
-def force_lin(xy,r,r2,R,R_2):
-	return force_const(xy,r,r2,R,R_2) * (r-R)
+def force_lin(xy,r,R):
+	return -(r-R)*xy/r * (r>R)
 	
-def force_lico(xy,r,r2,R,R_2,g):
-	"""NOT TESTED"""
-	return force_lin(xy,r,r2,R,R2) + g
+def force_tan(xy,r,R,lam):
+	return -0.5*np.pi*np.tan(0.5*np.pi*(r-R)/lam)*xy/r * (r>R)
 	
-def force_dcon(xy,r,r2,R1,R1_2,R2,R2_2):
-	return force_const(xy,r,r2,R1,R1_2) - force_const(xy,r,-r2,R2,-R2_2)
+def force_dcon(xy,r,R1,R2):
+	return force_const(xy,r,R1) + force_const(xy,-r,-R2)
 	
-def force_dlin(xy,r,r2,R1,R1_2,R2,R2_2):
-	return force_lin(xy,r,r2,R1,R1_2) + force_lin(xy,r,-r2,R2,-R2_2)
+def force_dlin(xy,r,R1,R2):
+	return force_lin(xy,r,R1) + force_lin(xy,-r,-R2)
+	
+def force_dtan(xy,r,R,S,lam):
+	return force_tan(xy,r,R,lam) + force_tan(xy,-r,-S,lam)
+	
+"""tan written with less interdependency. Less elegant but cheaper."""
+"""
+def force_tan(xy,r,r2,R,R_2,lam):
+	## Bulk
+	if r < R:
+		force = [0.0,0.0]
+	## Wall
+	elif r < R+lam:
+		force = -0.5*np.pi*np.tan(0.5*np.pi * (r-R)/lam) * xy/r
+	## Beyond wall
+	else:
+		force = -0.5*np.pi*np.tan(0.5*np.pi) * xy/r *1e6
+		## tan evaluates large positive
+	return force
+	
+def force_dtan(xy,r,r2,R,R_2,S,S_2,lam):
+	## Bulk and outer wall
+	if r > S:
+		force = force_tan(xy,r,r2,R,R_2,lam)
+	## Inner wall
+	elif r > S-lam:
+		force = +0.5*np.pi*np.tan(0.5*np.pi * (S-r)/lam) * xy/r
+	## Beyond inner wall
+	else:
+		force = +0.5*np.pi*np.tan(0.5*np.pi) * xy/r	## tan evaluates large positive
+	return force
+"""
+## ====================================================================
 
-def force_tan(xy,r,r2,R,R_2):
-	return force_const(xy,r,r2,R,R_2) * 0.5*np.pi*np.tan(0.5*np.pi * (r-R)/1.0)
+def calc_rbins(ftype, fpar, rmin, rmax):
+	"""
+	Want to ensure a sensible number of bins per unit length.
+	Returns positins of bin edges.
+	"""
+	## When potential changes rapidly, need many bins
+	if 0:#ftype[-3:] == "tan":
+		R, S, lam = fpar
+		## Wall bins
+		NrRbin = int(max(100,150*(rmax-R)))
+		NrSbin = int(max(100,150*(S-rmin)))*(S>0.0)
+		## Bulk bins
+		NrBbin = int(150 * (R-S))
+		rbins = np.hstack([np.linspace(rmin,S,NrSbin+1),\
+				np.linspace(S,R,NrBbin+1),\
+				np.linspace(R,rmax,NrRbin+1)])
+		rbins = np.unique(rbins)
+	## Keep things simple when potential is low-order
+	else:
+		Nrbin = int(150 * (rmax-rmin))
+		rbins = np.linspace(rmin,rmax,Nrbin+1)
+	return rbins
 	
-def force_dtan(xy,r,r2,R1,R1_2,R2,R2_2):
-	return force_tan(xy,r,r2,R1,R1_2) + force_tan(xy,r,-r2,R2,-R2_2)
 
 ## ====================================================================
 ## ====================================================================
