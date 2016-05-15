@@ -126,7 +126,7 @@ def pressure_pdf_file(histfile, verbose):
 	#rho_WN = pdf_WN(r-r[0],[R,S,lam],ftype,verbose)
 	r_WN = np.linspace(dr,r[-1],r.size*5)
 	rho_WN = pdf_WN(r_WN,[R,S,lam],ftype,verbose)
-	
+				
 	## Set up plot
 	if not plotpress:
 		## Only pdf plot
@@ -161,14 +161,14 @@ def pressure_pdf_file(histfile, verbose):
 		elif ftype == "lico":	force = force_lico(r,r,R)
 		elif ftype == "dcon":	force = force_dcon(r,r,R,S)
 		elif ftype == "dlin":	force = force_dlin(r,r,R,S)
-		elif ftype == "tan":	force = force_tan(r,r,R,lam)
-		elif ftype == "dtan":	force = force_dtan(r,r,R,S,lam)
+		elif ftype == "tan":	force, force_WN = force_tan(r,r,R,lam), force_tan(r_WN,r_WN,R,lam)
+		elif ftype == "dtan":	force, force_WN = force_dtan(r,r,R,S,lam), force_dtan(r_WN,r_WN,R,S,lam)
 		
 		## Pressure array
 		p		= -np.array([np.trapz(force[:i]*rho[:i],   x=r[:i]) for i in xrange(r.shape[0])])
 		#p_WN	= -np.array([np.trapz(force[:i]*rho_WN[:i],x=r[:i]) for i in xrange(r.shape[0])])
-		p_WN	= -np.array([np.trapz(force_tan(r_WN,r_WN,R,lam)[:i]*rho_WN[:i],x=r_WN[:i]) for i in xrange(r_WN.shape[0])])
-		
+		p_WN	= -np.array([np.trapz(force_WN[:i]*rho_WN[:i],x=r_WN[:i]) for i in xrange(r_WN.shape[0])])
+			
 		## Eliminate negative values -- is this useful?
 		if ftype[0] == "d":
 			p		-= p.min()
@@ -439,16 +439,16 @@ def pdf_WN(r,fpars,ftype,vb=False):
 		Rind = np.argmin(np.abs(r-R))
 		# rho0 = 1.0/(R+2/np.sqrt(np.pi)*sp.special.gamma(0.5*(1.0+1.0))/sp.special.gamma(0.5*(1.0)))/(2*np.pi)
 		rho0 = 1.0
-		if vb:	print me+"Warning! Normalisation calculated numerically."
+		if vb:	print me+"Normalisation calculated numerically."
 		rho_WN = rho0 * np.hstack([np.ones(Rind),np.nan_to_num(np.power(np.cos(0.5*np.pi*(r[Rind:]-R)/lam),lam))])
 		rho_WN /= np.trapz(rho_WN*r, x=r, axis=0)
 	elif ftype is "dtan":
 		lam = fpars[2]
 		Rind, Sind = np.argmin(np.abs(r-R)), np.argmin(np.abs(r-S))
 		rho0 = 1.0
-		if vb:	print me+"Warning! Normalisation calculated numerically."
-		rho_WN = rho0 * np.hstack([np.power(np.cos(0.5*np.pi*(r[:Sind]-S)/lam),lam),\
-					np.ones(Rind-Sind),np.power(np.cos(0.5*np.pi*(r[Rind:]-R)/lam),lam)])
+		if vb:	print me+"Normalisation calculated numerically."
+		rho_WN = rho0 * np.hstack([np.nan_to_num(np.power(np.cos(0.5*np.pi*(r[:Sind]-S)/lam),lam)),\
+					np.ones(Rind-Sind),np.nan_to_num(np.power(np.cos(0.5*np.pi*(r[Rind:]-R)/lam),lam))])
 		rho_WN /= np.trapz(rho_WN*r, x=r, axis=0)
 	else:
 		print me+"Functionality not written yet."
