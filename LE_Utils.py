@@ -86,8 +86,8 @@ def plot_fontsizes():
 	"""
 	Axes, legend, title
 	"""
-	#return 18,14,18
-	return 26,16,20
+	return 16,10,16
+	#return 26,16,20
 
 	
 ##==========================================
@@ -155,6 +155,12 @@ def filename_pars(filename):
 		S = float(filename[start:filename.find("_",start)])
 	except ValueError:
 		S = None
+	## lambda lengthscale
+	try:
+		start = filename.find("_l") + 2
+		lam = float(filename[start:filename.find("_",start)])
+	except ValueError:
+		lam = 1.0
 	## force type
 	if filename.find("_C_") > 0:	ftype = "const"
 	elif filename.find("_L_") > 0: 	ftype = "lin"
@@ -168,8 +174,8 @@ def filename_pars(filename):
 	elif filename.find("_1D_") > 0: geo = "1D"
 	elif filename.find("_2D_") > 0: geo = "2D"
 	## Collect into lists
-	names = ["a","X","D","dt","R","S","ftype","geo"]
-	pars  = [a,X,D,dt,R,S,ftype,geo]
+	pars  = [a,X,D,dt,R,S,lam,ftype,geo]
+	names = ["a","X","D","dt","R","S","lam","ftype","geo"]
 	##
 	return dict(zip(names,pars))
 

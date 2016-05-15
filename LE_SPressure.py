@@ -16,7 +16,10 @@ warnings.filterwarnings("ignore",
 	"No labelled objects found. Use label='...' kwarg on individual plots.",
 	UserWarning)
 warnings.filterwarnings("ignore",
-	"invalid value encountered in sign",
+	"invalid value encountered in log",
+	RuntimeWarning)
+warnings.filterwarnings("ignore",
+	"invalid value encountered in power",
 	RuntimeWarning)
 
 ## Global variables
@@ -28,29 +31,18 @@ def main():
 	NAME
 		LE_SPressure.py
 	
-	PURPOSE
-	
 	EXECUTION
+		python LE_SPressure.py [path] [flags]
 	
 	ARGUMENTS
 		histfile	path to density histogram
-		directory 	path to directory containing histfiles
-	
-	OPTIONS
-	
-	FLAGS
-		-v --verbose
-		-s --show
-		-a --plotall
-	
-	EXAMPLE
+		dirpath 	path to directory containing histfiles
 		
-	NOTES
-	
-	BUGS / TODO
-	
-	HISTORY
-		21/03/2016	Started
+	FLAGS
+		-v	--verbose
+		-s	--show
+			--nosave	False
+		-a	--plotall
 	"""
 	me = "LE_SPressure.main: "
 	t0 = time()
@@ -131,7 +123,9 @@ def pressure_pdf_file(histfile, verbose):
 	rho = H/r / np.trapz(H, x=r, axis=0)
 
 	## White noise result
-	rho_WN = pdf_WN(r,[R,S,lam],ftype)
+	#rho_WN = pdf_WN(r-r[0],[R,S,lam],ftype,verbose)
+	r_WN = np.linspace(dr,r[-1],r.size*5)
+	rho_WN = pdf_WN(r_WN,[R,S,lam],ftype,verbose)
 	
 	## Set up plot
 	if not plotpress:
@@ -150,7 +144,7 @@ def pressure_pdf_file(histfile, verbose):
 	plot_wall(ax, ftype, fpars, r)
 	## PDF and WN PDF
 	ax.plot(r,rho,   "b-", label="CN simulation")
-	ax.plot(r,rho_WN,"r-", label="WN theory")
+	ax.plot(r_WN,rho_WN,"r-", label="WN theory")
 	## Accoutrements
 	ax.set_xlim(right=rmax)
 	ax.set_ylim(bottom=0.0, top=min(20,round(max(rho.max(),rho_WN.max())+0.05,1)))
@@ -172,7 +166,8 @@ def pressure_pdf_file(histfile, verbose):
 		
 		## Pressure array
 		p		= -np.array([np.trapz(force[:i]*rho[:i],   x=r[:i]) for i in xrange(r.shape[0])])
-		p_WN	= -np.array([np.trapz(force[:i]*rho_WN[:i],x=r[:i]) for i in xrange(r.shape[0])])
+		#p_WN	= -np.array([np.trapz(force[:i]*rho_WN[:i],x=r[:i]) for i in xrange(r.shape[0])])
+		p_WN	= -np.array([np.trapz(force_tan(r_WN,r_WN,R,lam)[:i]*rho_WN[:i],x=r_WN[:i]) for i in xrange(r_WN.shape[0])])
 		
 		## Eliminate negative values -- is this useful?
 		if ftype[0] == "d":
@@ -186,7 +181,7 @@ def pressure_pdf_file(histfile, verbose):
 		plot_wall(ax, ftype, fpars, r)
 		## Pressure and WN pressure
 		ax.plot(r,p,"b-",label="CN simulation")
-		ax.plot(r,p_WN,"r-",label="WN theory")
+		ax.plot(r_WN,p_WN,"r-",label="WN theory")
 		## Accoutrements
 		ax.set_xlim(left=0.0,right=rmax)
 		ax.set_ylim(bottom=0.0, top=round(max(p.max(),p_WN.max())+0.05,1))
@@ -445,7 +440,7 @@ def pdf_WN(r,fpars,ftype,vb=False):
 		# rho0 = 1.0/(R+2/np.sqrt(np.pi)*sp.special.gamma(0.5*(1.0+1.0))/sp.special.gamma(0.5*(1.0)))/(2*np.pi)
 		rho0 = 1.0
 		if vb:	print me+"Warning! Normalisation calculated numerically."
-		rho_WN = rho0 * np.hstack([np.ones(Rind),np.power(np.cos(0.5*np.pi*(r[Rind:]-R)/lam),lam)])
+		rho_WN = rho0 * np.hstack([np.ones(Rind),np.nan_to_num(np.power(np.cos(0.5*np.pi*(r[Rind:]-R)/lam),lam))])
 		rho_WN /= np.trapz(rho_WN*r, x=r, axis=0)
 	elif ftype is "dtan":
 		lam = fpars[2]
@@ -483,12 +478,12 @@ def plot_wall(ax, ftype, fpars, r):
 		ax.plot(r,np.hstack([S-r[:Sidx],np.zeros(Ridx-Sidx),r[Ridx:]-R]),"k--",label="Potential")
 	elif ftype is "tan":
 		Ridx = np.argmin(np.abs(R-r))
-		U_fn = lambda Dr: -1.0*np.log(np.cos(0.5*np.pi*(Dr)/lam))
-		ax.plot(r,np.hstack([np.zeros(Ridx),U_fn(r[Ridx:]-R)]),"k--",label="Potential")
+		Ufn = lambda Dr: -1.0*np.log(np.cos(0.5*np.pi*(Dr)/lam))
+		ax.plot(r,np.hstack([np.zeros(Ridx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
 	elif ftype is "dtan":
 		Ridx, Sidx = np.argmin(np.abs(R-r)), np.argmin(np.abs(S-r))
-		U_fn = lambda Dr: -1.0*np.log(np.cos(0.5*np.pi*(Dr)/lam))
-		ax.plot(r,np.hstack([U_fn(S-r[:Sidx]),np.zeros(Ridx-Sidx),U_fn(r[Ridx:]-R)]),"k--",label="Potential")
+		Ufn = lambda Dr: -1.0*np.log(np.cos(0.5*np.pi*(Dr)/lam))
+		ax.plot(r,np.hstack([Ufn(S-r[:Sidx]),np.zeros(Ridx-Sidx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
 	return
 	
 	

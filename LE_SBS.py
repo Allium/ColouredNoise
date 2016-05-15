@@ -85,31 +85,31 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	## CHOOSE FORCE
 	R, S, lam = fpar
 	if ftype == "const":
-		force = lambda xy, r, r2: force_const(xy,r,R)
+		force = lambda xy, r: force_const(xy,r,R)
 		fstr = "C"
 		fparstr = ""
 	elif ftype == "lin":
-		force = lambda xy, r, r2: force_lin(xy,r,R)
+		force = lambda xy, r: force_lin(xy,r,R)
 		fstr = "L"
 		fparstr = ""
 	elif ftype == "lico":
-		force = lambda xy, r, r2: force_lico(xy,r,R,g)
+		force = lambda xy, r: force_lico(xy,r,R,g)
 		fstr = "LC"
 		fparstr = ""
 	elif ftype == "dcon":
-		force = lambda xy, r, r2: force_dcon(xy,r,R,S)
+		force = lambda xy, r: force_dcon(xy,r,R,S)
 		fstr = "DC"
 		fparstr = "_S"+str(S)
 	elif ftype == "dlin":
-		force = lambda xy, r, r2: force_dlin(xy,r,R,S)
+		force = lambda xy, r: force_dlin(xy,r,R,S)
 		fstr = "DL"
 		fparstr = "_S"+str(S)
 	elif ftype == "tan":
-		force = lambda xy, r, r2: force_tan(xy,r,R,lam)
+		force = lambda xy, r: force_tan(xy,r,R,lam)
 		fstr = "T"
 		fparstr = "_l"+str(lam)
 	elif ftype == "dtan":
-		force = lambda xy, r, r2: force_dtan(xy,r,R,S,lam)
+		force = lambda xy, r: force_dtan(xy,r,R,S,lam)
 		fstr = "DT"
 		fparstr = "_S"+str(S)+"_l"+str(lam)
 	else:
@@ -122,13 +122,16 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+4.0 if ftype[-3:] != "tan" else R+2.0*lam
-	rmin = 0.0#max([0.0, 0.9*R-5*np.sqrt(a)])
+	rmax = R+4.0 if ftype[-3:] != "tan" else R+lam
+	rmin = 0.0 #max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
 	rini = 0.5*(S+R) if ftype[0] is "d" else 0.5*(rmin+R)
+	## Limits for finite potential
+	wb2 = [(R+lam)**2,(S>0.0)*(S-lam)**2] if ftype[-3:] == "tan" else [False,False]
 	
 	## ------------
-	## Histogramming; bin edges
+	## Bin edges
+	
 	rbins = calc_rbins(ftype,fpar,rmin,rmax)
 	Nrbin = rbins.size - 1
 	
@@ -200,7 +203,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 		for run in xrange(Nrun):
 			if vb: print me+"Run",i,"of",Nparticles
 			## r, er are radial coordinates as a function of time
-			r,er = boundary_sim(xyini, eIC[i], a, force, fpar, rmin, rmax, dt, tmax, expmt, (vb and run%50==0))
+			r,er = boundary_sim(xyini, eIC[i], a, force, wb2, rmin, dt, tmax, expmt, (vb and run%50==0))
 			H += np.histogram2d(r,er,bins=bins,normed=False)[0]
 			i += 1
 	## Divide by bin area and number of particles
@@ -216,14 +219,14 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	
 ## ====================================================================
 
-def boundary_sim(xyini, exyini, a, force, fpar, rmin, rmax, dt, tmax, expmt, vb=False):
+def boundary_sim(xyini, exyini, a, force, wb2, rmin, dt, tmax, expmt, vb=False):
 	"""
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
-	Dynamically adds more space to arrays.
 	"""
 	me = "LE_SBS.boundary_sim: "
 	
 	rmin2 = rmin*rmin
+	wob2, wib2 = wb2
 	
 	## Initialisation
 	x0,y0 = xyini
@@ -244,13 +247,16 @@ def boundary_sim(xyini, exyini, a, force, fpar, rmin, rmax, dt, tmax, expmt, vb=
 	## Calculate trajectory
 	for i in xrange(0,nstp-1):
 		r2 = (xy[:,i]*xy[:,i]).sum()
-		fxy = force(xy[:,i],np.sqrt(r2),r2)
+		## For finite potential -- no-penetrate condition
+		if   (wob2 and r2>wob2):	fxy = -1e10*xy[:,i]/np.sqrt(r2)
+		elif (wib2 and r2<wib2): 	fxy = +1e10*xy[:,i]/np.sqrt(r2)
+		else:						fxy = force(xy[:,i],np.sqrt(r2))
 		xy[:,i+1] = xy[:,i] + dt*( fxy + exy[:,i] )
 		## Apply BC
-		if r2 < rmin2:
-			xy[:,i] *= 1-(2*rmin)/np.sqrt(r2)
-			j += 1
-	if (vb and j==0 and rmin2>0.0): print me+"rmin never encountered."
+		#if r2 < rmin2:
+		#	xy[:,i] *= 1-(2*rmin)/np.sqrt(r2)
+		#	j += 1
+	#if (vb and j==0 and rmin2>0.0): print me+"rmin never encountered."
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 	
 	# xx = np.linspace(0,2*np.pi,100)
@@ -317,11 +323,11 @@ def calc_rbins(ftype, fpar, rmin, rmax):
 	Returns positins of bin edges.
 	"""
 	## When potential changes rapidly, need many bins
-	if 0:#ftype[-3:] == "tan":
+	if ftype[-3:] == "tan":
 		R, S, lam = fpar
 		## Wall bins
-		NrRbin = int(max(100,150*(rmax-R)))
-		NrSbin = int(max(100,150*(S-rmin)))*(S>0.0)
+		NrRbin = int(max(50,150*(rmax-R)))
+		NrSbin = int(max(50,150*(S-rmin)))*(S>0.0)
 		## Bulk bins
 		NrBbin = int(150 * (R-S))
 		rbins = np.hstack([np.linspace(rmin,S,NrSbin+1),\
