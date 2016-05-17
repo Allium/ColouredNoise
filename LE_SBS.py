@@ -112,6 +112,10 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 		force = lambda xy, r: force_dtan(xy,r,R,S,lam)
 		fstr = "DT"
 		fparstr = "_S"+str(S)+"_l"+str(lam)
+	elif ftype == "dtan":
+		force = lambda xy, r: force_dtan(xy,r,R,S,lam)
+		fstr = "DT"
+		fparstr = "_S"+str(S)+"_l"+str(lam)
 	else:
 		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin, tan, dtan}."
 	
@@ -122,7 +126,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+4.0 if ftype[-3:] != "tan" else R+lam
+	rmax = R+4.0 if ftype[-3:] != "tan" else R+lam+0.1
 	rmin = 0.0 #max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
 	rini = 0.5*(S+R) if ftype[0] is "d" else 0.5*(rmin+R)
@@ -158,7 +162,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+"/"
+			"_CIR_"+fstr+"_dt"+str(dt)+"_test/"
 	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
@@ -191,7 +195,6 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	
 	
 	## Initialise histogram in space
-	# H = np.zeros((Nrbin-1,Nerbin-1))
 	H = np.zeros((Nrbin,Nerbin))
 	## Counter for noise initial conditions
 	i = 0
