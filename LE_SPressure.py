@@ -9,7 +9,7 @@ from time import time
 
 from LE_Utils import save_data, filename_pars
 from LE_SBS import force_const, force_lin, force_dcon, force_dlin,\
-					force_tan, force_dtan
+					force_tan, force_dtan, force_nu
 
 
 warnings.filterwarnings("ignore",
@@ -97,12 +97,12 @@ def pressure_pdf_file(histfile, verbose):
 	
 	## Get pars from filename
 	pars = filename_pars(histfile)
-	[a,ftype,R,S,lam] = [pars[key] for key in ["a","ftype","R","S","lam"]]
+	[a,ftype,R,S,lam,nu] = [pars[key] for key in ["a","ftype","R","S","lam","nu"]]
 	assert (R is not None), me+"You are using the wrong program. R must be defined."
 	if verbose: print me+"alpha =",a,"and R =",R
 	
 	if S is None: S = 0.0
-	fpars = [R,S,lam]
+	fpars = [R,S,lam,nu]
 		
 	## Space (for axes)
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -124,7 +124,7 @@ def pressure_pdf_file(histfile, verbose):
 
 	## White noise result
 	r_WN = np.linspace(dr,r[-1]+0.5*(r[1]-r[0]),r.size*5+1)
-	rho_WN = pdf_WN(r_WN,[R,S,lam],ftype,verbose)
+	rho_WN = pdf_WN(r_WN,fpars,ftype,verbose)
 	
 	##---------------------------------------------------------------			
 	## PLOT SET-UP
@@ -140,6 +140,7 @@ def pressure_pdf_file(histfile, verbose):
 		plotfile = plotfile[:-4]+"_P.png"
 	figtit += ftype+"; $\\alpha="+str(a)+"$, $R = "+str(R)+"$, $S = "+str(S)+"$"
 	if ftype[-3:] == "tan": figtit += ", $\\lambda="+str(lam)+"$"
+	if ftype[-2:] == "nu":  figtit += ", $\\lambda="+str(lam)+"$, $\\nu="+str(nu)+"$"
 		
 	##---------------------------------------------------------------	
 	## PDF PLOT
@@ -170,6 +171,7 @@ def pressure_pdf_file(histfile, verbose):
 		elif ftype == "dlin":	force = force_dlin(r,r,R,S)
 		elif ftype == "tan":	force, force_WN = force_tan(r,r,R,lam), force_tan(r_WN,r_WN,R,lam)
 		elif ftype == "dtan":	force, force_WN = force_dtan(r,r,R,S,lam), force_dtan(r_WN,r_WN,R,S,lam)
+		elif ftype == "nu":		force, force_WN = force_nu(r,r,R,lam,nu), force_dtan(r_WN,r_WN,R,lam,nu)
 		
 		## Pressure array
 		p		= -np.array([np.trapz(force[:i]*rho[:i],   x=r[:i]) for i in xrange(r.shape[0])])
@@ -501,8 +503,15 @@ def pdf_WN(r,fpars,ftype,vb=False):
 		rho_WN = rho0 * np.hstack([np.nan_to_num(np.power(np.cos(0.5*np.pi*(r[:Sind]-S)/lam),lam)),\
 					np.ones(Rind-Sind),np.nan_to_num(np.power(np.cos(0.5*np.pi*(r[Rind:]-R)/lam),lam))])
 		rho_WN /= np.trapz(rho_WN*r, x=r, axis=0)
+	elif ftype is "nu":
+		lam, nu = fpars[2:4]
+		Rind = np.argmin(np.abs(r-R))
+		rho0 = 1.0/(np.pi*lam**(2*lam*nu)*\
+					(R*R+lam*lam/(lam*nu+1.0)+\
+						+R*lam*np.sqrt(np.pi)*sp.special.gamma(nu*lam+1.0)/sp.special.gamma(nu*lam+1.5)))
+		rho_WN = rho0 * np.hstack([lam**(2*lam*nu)*np.ones(Rind),np.power(lam*lam-np.power(r[Rind:]-R,2.0),lam*nu)])
 	else:
-		print me+"Functionality not written yet."
+		print me+"Functionality not available."
 		rho_WN = np.zeros(r.size)
 	return rho_WN
 	
@@ -512,12 +521,11 @@ def plot_wall(ax, ftype, fpars, r):
 	Plot the wall profile of type ftype on ax
 	"""
 	me = "LE_SPressure.plot_wall: "
-	R, S, lam = fpars
+	R, S, lam = fpars[:3]
+	Ridx, Sidx = np.argmin(np.abs(R-r)), np.argmin(np.abs(S-r))
 	if ftype is "const":
-		Ridx = np.argmin(np.abs(R-r))
 		ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Potential")
 	elif ftype is "lin":
-		Ridx = np.argmin(np.abs(R-r))
 		ax.plot(r,np.hstack([np.zeros(Ridx),0.5*np.power(r[Ridx:]-R,2.0)]),"k--",label="Potential")
 	elif ftype is "dcon":
 		"""NEEDS UPDATE"""
@@ -525,16 +533,17 @@ def plot_wall(ax, ftype, fpars, r):
 		ax.axvline(S,c="k",ls="--")
 	elif ftype is "dlin":
 		"""NEEDS UPDATE"""
-		Ridx, Sidx = np.argmin(np.abs(R-r)), np.argmin(np.abs(S-r))
 		ax.plot(r,np.hstack([S-r[:Sidx],np.zeros(Ridx-Sidx),r[Ridx:]-R]),"k--",label="Potential")
 	elif ftype is "tan":
-		Ridx = np.argmin(np.abs(R-r))
 		Ufn = lambda Dr: -1.0*np.log(np.cos(0.5*np.pi*(Dr)/lam))
 		ax.plot(r,np.hstack([np.zeros(Ridx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
 	elif ftype is "dtan":
-		Ridx, Sidx = np.argmin(np.abs(R-r)), np.argmin(np.abs(S-r))
 		Ufn = lambda Dr: -1.0*np.log(np.cos(0.5*np.pi*(Dr)/lam))
 		ax.plot(r,np.hstack([Ufn(S-r[:Sidx]),np.zeros(Ridx-Sidx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
+	elif ftype is "nu":
+		nu = fpars[3]
+		Ufn = lambda Dr: -1.0*nu*(np.log(lam*lam-Dr*Dr)-2*np.log(lam))
+		ax.plot(r,np.hstack([np.zeros(Ridx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
 	return
 	
 	

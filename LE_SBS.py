@@ -38,6 +38,8 @@ def input():
 		dest="S",default=-1.0,type="float")
 	parser.add_option('-l','--lambda',
 		dest="lam",default=-1.0,type="float")
+	parser.add_option('-n','--nu',
+		dest="nu",default=-1.0,type="float")
 	parser.add_option("-f","--ftype",
 		dest="ftype",default="const",type="str")
 	parser.add_option('-r','--nrun',
@@ -56,16 +58,18 @@ def input():
 	R		= opts.R
 	S		= opts.S
 	lam		= opts.lam
+	nu		= opts.nu
 	ftype	= opts.ftype
 	Nrun	= opts.Nrun
 	dt		= opts.dt
 	timefac = opts.timefac
 	vb		= opts.vb
 	
-	if ftype[0] == "d":	assert S>=0.0, me+"Must specify inner radius S for double circus."
-	if ftype[-3:] == "tan":	assert lam>=0.0, me+"Must specify lengthscale lambda for tan potential."
+	if ftype[0] == "d":		assert S>=0.0, me+"Must specify inner radius S for double circus."
+	if ftype[-3:] == "tan":	assert lam>0.0,	me+"Must specify lengthscale lambda for tan potential."
+	if ftype[-2:] == "nu":	assert nu>0.0,	me+"Must specify potential multipier nu for nu potential."
 	
-	fpar = [R,S,lam]
+	fpar = [R,S,lam,nu]
 			
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
 	
@@ -83,7 +87,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	
 	## ----------------------------------------------------------------
 	## CHOOSE FORCE
-	R, S, lam = fpar
+	R, S, lam, nu = fpar
 	if ftype == "const":
 		force = lambda xy, r: force_const(xy,r,R)
 		fstr = "C"
@@ -112,12 +116,15 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 		force = lambda xy, r: force_dtan(xy,r,R,S,lam)
 		fstr = "DT"
 		fparstr = "_S"+str(S)+"_l"+str(lam)
-	elif ftype == "dtan":
-		force = lambda xy, r: force_dtan(xy,r,R,S,lam)
-		fstr = "DT"
-		fparstr = "_S"+str(S)+"_l"+str(lam)
+	elif ftype == "nu":
+		force = lambda xy, r: force_nu(xy,r,R,lam,nu)
+		fstr = "N"
+		fparstr = "_l"+str(lam)+"_n"+str(nu)
 	else:
-		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin, tan, dtan}."
+		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin, tan, dtan, nu}."
+	
+	doubpot = True if ftype[0] == "d" else False
+	finipot = True if (ftype[-3:] == "tan" or ftype[-2:] == "nu") else False
 	
 	## ----------------------------------------------------------------
 	## SET UP CALCULATIONS
@@ -126,17 +133,17 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+4.0 if ftype[-3:] != "tan" else R+lam+0.1
+	rmax = R+lam if finipot else R+5.0
 	rmin = 0.0 #max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
-	rini = 0.5*(S+R) if ftype[0] is "d" else 0.5*(rmin+R)
+	rini = 0.5*(S+R) if doubpot else 0.5*(rmin+R)
 	## Limits for finite potential
-	wb2 = [(R+lam)**2,(S>0.0)*(S-lam)**2] if ftype[-3:] == "tan" else [False,False]
+	wb2 = [(R+lam)**2,(S>0.0)*(S-lam)**2] if finipot else [False,False]
 	
 	## ------------
 	## Bin edges
 	
-	rbins = calc_rbins(ftype,fpar,rmin,rmax)
+	rbins = calc_rbins(finipot,fpar,rmin,rmax)
 	Nrbin = rbins.size - 1
 	
 	Npbin = 50
@@ -162,7 +169,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+"_test/"
+			"_CIR_"+fstr+"_dt"+str(dt)+"/"
 	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
@@ -291,6 +298,10 @@ def force_dlin(xy,r,R,S):
 def force_dtan(xy,r,R,S,lam):
 	return force_tan(xy,r,R,lam) + force_tan(xy,-r,-S,lam)
 	
+def force_nu(xy,r,R,lam,nu):
+	Dr = (r-R) * (r>R)
+	return -lam*nu*2.0*Dr/(lam*lam-Dr*Dr)*xy/(r+0.00001*(r==0.0)) * (r>R)
+	
 """tan written with less interdependency. Less elegant but cheaper."""
 """
 def force_tan(xy,r,r2,R,R_2,lam):
@@ -320,14 +331,14 @@ def force_dtan(xy,r,r2,R,R_2,S,S_2,lam):
 """
 ## ====================================================================
 
-def calc_rbins(ftype, fpar, rmin, rmax):
+def calc_rbins(finipot, fpar, rmin, rmax):
 	"""
 	Want to ensure a sensible number of bins per unit length.
 	Returns positins of bin edges.
 	"""
 	## When potential changes rapidly, need many bins
-	if ftype[-3:] == "tan":
-		R, S, lam = fpar
+	if finipot:
+		R, S, lam = fpar[:3]
 		## Wall bins
 		NrRbin = int(max(50,150*(rmax-R)))
 		NrSbin = int(max(50,150*(S-rmin)))*(S>0.0)

@@ -86,7 +86,7 @@ def plot_fontsizes():
 	"""
 	Axes, legend, title
 	"""
-	return 16,10,16
+	return 16,12,16
 	#return 26,16,20
 
 	
@@ -154,13 +154,19 @@ def filename_pars(filename):
 		start = filename.find("_S") + 2
 		S = float(filename[start:filename.find("_",start)])
 	except ValueError:
-		S = None
+		S = 0.0
 	## lambda lengthscale
 	try:
 		start = filename.find("_l") + 2
 		lam = float(filename[start:filename.find("_",start)])
 	except ValueError:
 		lam = 1.0
+	## nu multiplier
+	try:
+		start = filename.find("_n") + 2
+		nu = float(filename[start:filename.find("_",start)])
+	except ValueError:
+		nu = None
 	## force type
 	if filename.find("_C_") > 0:	ftype = "const"
 	elif filename.find("_L_") > 0: 	ftype = "lin"
@@ -169,13 +175,14 @@ def filename_pars(filename):
 	elif filename.find("_DL_") > 0: ftype = "dlin"
 	elif filename.find("_T_") > 0:	ftype = "tan"
 	elif filename.find("_DT_") > 0: ftype = "dtan"
+	elif filename.find("_N_") > 0: ftype = "nu"
 	## Geometry
 	if filename.find("_CIR_") > 0: geo = "CIR"
 	elif filename.find("_1D_") > 0: geo = "1D"
 	elif filename.find("_2D_") > 0: geo = "2D"
 	## Collect into lists
-	pars  = [a,X,D,dt,R,S,lam,ftype,geo]
-	names = ["a","X","D","dt","R","S","lam","ftype","geo"]
+	pars  = [a,X,D,dt,R,S,lam,nu,ftype,geo]
+	names = ["a","X","D","dt","R","S","lam","nu","ftype","geo"]
 	##
 	return dict(zip(names,pars))
 
