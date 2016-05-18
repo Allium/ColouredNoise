@@ -120,7 +120,7 @@ def pressure_pdf_file(histfile, verbose):
 	## Noise dimension irrelevant here
 	H = np.trapz(H, x=er, axis=1)
 	## rho is probability density. H is probability at r
-	rho = H/r / np.trapz(H, x=r, axis=0)
+	rho = H/(2*np.pi*r) / np.trapz(H, x=r, axis=0)
 
 	## White noise result
 	r_WN = np.linspace(dr,r[-1]+0.5*(r[1]-r[0]),r.size*5+1)
@@ -171,13 +171,13 @@ def pressure_pdf_file(histfile, verbose):
 		elif ftype == "dlin":	force = force_dlin(r,r,R,S)
 		elif ftype == "tan":	force, force_WN = force_tan(r,r,R,lam), force_tan(r_WN,r_WN,R,lam)
 		elif ftype == "dtan":	force, force_WN = force_dtan(r,r,R,S,lam), force_dtan(r_WN,r_WN,R,S,lam)
-		elif ftype == "nu":		force, force_WN = force_nu(r,r,R,lam,nu), force_dtan(r_WN,r_WN,R,lam,nu)
+		elif ftype == "nu":		force, force_WN = force_nu(r,r,R,lam,nu), force_nu(r_WN,r_WN,R,lam,nu)
 		
 		## Pressure array
-		p		= -np.array([np.trapz(force[:i]*rho[:i],   x=r[:i]) for i in xrange(r.shape[0])])
-		p_WN	= -np.array([np.trapz(force_WN[:i]*rho_WN[:i],x=r_WN[:i]) for i in xrange(r_WN.shape[0])])
-			
-		## Eliminate negative values -- is this useful?
+		p		= -np.array([np.trapz(force[:i]*rho[:i], x=r[:i]) for i in xrange(r.shape[0])])
+		p_WN	= -np.array([np.trapz(force_WN[:i]*rho_WN[:i], x=r_WN[:i]) for i in xrange(r_WN.shape[0])])
+					
+		## Eliminate negative values
 		if ftype[0] == "d":
 			p		-= p.min()
 			p_WN	-= p_WN.min()
@@ -211,7 +211,7 @@ def pressure_pdf_file(histfile, verbose):
 	
 ##=============================================================================
 def allfiles(dirpath, verbose):
-	for filepath in glob.glob(dirpath+"/BHIS_CIR_*.npy"):
+	for filepath in glob.glob(dirpath+"/BHIS_CIR_*a*.npy"):
 		pressure_pdf_file(filepath, verbose)
 		plt.close()
 	return
@@ -232,12 +232,13 @@ def pressure_dir(dirpath, nosave, verbose):
 	histfiles = np.sort(glob.glob(dirpath+"/BHIS_CIR_*.npy"))
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
-	
+		
 	## Initialise
 	A = np.zeros(numfiles) 
 	R = np.zeros(numfiles)	## Outer radii
 	S = np.zeros(numfiles)	## Inner radii
-	L = np.zeros(numfiles)	
+	L = np.zeros(numfiles)	## Size of wall when finite
+	N = np.zeros(numfiles)	## Wall strength parameter
 	P = np.zeros(numfiles)	## Pressures on outer wall
 	Q = np.zeros(numfiles)	## Pressures on inner wall
 	P_WN = np.zeros(numfiles)
@@ -248,7 +249,7 @@ def pressure_dir(dirpath, nosave, verbose):
 	
 		## Get pars from filename
 		pars = filename_pars(histfile)
-		[A[i],R[i],S[i],L[i]] = [pars[key] for key in ["a","R","S","lam"]]
+		[A[i],R[i],S[i],L[i],N[i]] = [pars[key] for key in ["a","R","S","lam","nu"]]
 
 		## Space (for axes)
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -263,12 +264,12 @@ def pressure_dir(dirpath, nosave, verbose):
 		
 		## Load histogram, normalise
 		H = np.load(histfile)
-		H /= np.trapz(np.trapz(H, x=er, axis=1),x=r,axis=0)
+		H = np.trapz(H, x=er, axis=1)
 		## Noise dimension irrelevant here; convert to *pdf*
-		rho = np.trapz(H, x=er, axis=1)/r
+		rho = H/(2*np.pi*r) / np.trapz(H, x=r, axis=0)
 		
-		rho_WN = pdf_WN(r,[R[i],S[i],L[i]],ftype)
-
+		rho_WN = pdf_WN(r,[R[i],S[i],L[i],N[i]],ftype)
+		
 		## Calculate force array
 		if ftype == "const":	force = force_const(r,r,R[i])
 		elif ftype == "lin":	force = force_lin(r,r,R[i])
@@ -277,6 +278,7 @@ def pressure_dir(dirpath, nosave, verbose):
 		elif ftype == "dlin":	force = force_dlin(r,r,R[i],S[i])
 		elif ftype == "tan":	force = force_tan(r,r,R[i],L[i])
 		elif ftype == "dtan":	force = force_dtan(r,r,R[i],S[i],L[i])
+		elif ftype == "nu":		force = force_nu(r,r,R[i],L[i],N[i])
 		
 		## Pressure array
 		P[i]    = -sp.integrate.simps((force*rho)[bidx:],    r[bidx:])
@@ -285,7 +287,7 @@ def pressure_dir(dirpath, nosave, verbose):
 			## Inner pressure
 			Q[i]    = +sp.integrate.simps((force*rho)[:bidx],    r[:bidx])
 			Q_WN[i] = +sp.integrate.simps((force*rho_WN)[:bidx], r[:bidx])
-			
+				
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
 
@@ -294,9 +296,10 @@ def pressure_dir(dirpath, nosave, verbose):
 	RR = np.unique(R)
 	SS = np.unique(S)
 	LL = np.unique(L)
-	
+	NN = np.unique(N)
+		
 	## 2D pressure array: [R,A]
-	if (ftype[0] is not "d" and ftype[-3:] is not "tan"):
+	if (ftype[0] != "d" and ftype[-3:] != "tan" and ftype[-2:]!="nu"):
 		PP = -np.ones([RR.size,AA.size])
 		PP_WN = np.zeros(PP.shape)
 		for i in range(RR.size):
@@ -315,7 +318,7 @@ def pressure_dir(dirpath, nosave, verbose):
 		PP = np.ma.array(PP, mask = PP==-1)
 	
 	## 3D pressure array: [S,R,A]
-	elif  (ftype[0] is "d" and ftype[-3:] is not "tan"):
+	elif  (ftype[0] == "d" and ftype[-3:] != "tan" and ftype[-2:] != "nu"):
 		PP = -np.ones([SS.size,RR.size,AA.size])
 		QQ = -np.ones([SS.size,RR.size,AA.size])
 		PP_WN = np.zeros(PP.shape)
@@ -336,8 +339,8 @@ def pressure_dir(dirpath, nosave, verbose):
 						## No value there
 						pass
 			
-	## 3D pressure array for TAN force: [l,R,A]
-	elif ftype is "tan":
+	## 3D pressure array for TAN force: [L,R,A]
+	elif ftype[-3:] == "tan":
 		PP = -np.ones([LL.size,RR.size,AA.size])
 		QQ = -np.ones([LL.size,RR.size,AA.size])
 		PP_WN = np.zeros(PP.shape)
@@ -358,12 +361,33 @@ def pressure_dir(dirpath, nosave, verbose):
 						## No value there
 						pass
 						
+	## 3D pressure array for NU force: [N,L,A]
+	## Assume all R equal
+	elif ftype == "nu":
+		PP = -np.ones([NN.size,LL.size,AA.size])
+		QQ = -np.ones([NN.size,LL.size,AA.size])
+		PP_WN = np.zeros(PP.shape)
+		QQ_WN = np.zeros(QQ.shape)
+		for i in range(NN.size):
+			Nidx = (N==NN[i])
+			for j in range(LL.size):
+				Lidx = (L==LL[j])
+				for k in range(AA.size):
+					Aidx = (A==AA[k])
+					Pidx = Nidx*Lidx*Aidx
+					try:
+						PP[i,j,k] = P[Pidx]
+						PP_WN[i,j,k] = P_WN[Pidx]
+					except ValueError:
+						## No value there
+						pass
+					
 		## Mask zeros
 		PP_WN = np.ma.array(PP_WN, mask = PP==-1)
 		QQ_WN = np.ma.array(QQ_WN, mask = QQ==-1)
 		PP = np.ma.array(PP, mask = PP==-1)
 		QQ = np.ma.array(QQ, mask = QQ==-1)
-	
+		
 	## ------------------------------------------------
 	## PLOTS
 	
@@ -392,12 +416,12 @@ def pressure_dir(dirpath, nosave, verbose):
 	
 	## Single circus; non-finite
 	## Plot pressure against alpha for R or for S
-	if (ftype[0] != "d" and ftype[-3:] != "tan"):
+	if (ftype[0] != "d" and ftype[-3:] != "tan" and ftype[-2:] != "nu"):
 		for i in range(RR.size):
 			ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$")
 	
 	## Double circus; non-finite		
-	elif (ftype[0] == "d" and ftype[-3:] != "tan"):
+	elif (ftype[0] == "d" and ftype[-3:] != "tan" and ftype[-2:] != "nu"):
 		## Holding R fixed
 		if RR.size == 1:
 			title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
@@ -423,7 +447,7 @@ def pressure_dir(dirpath, nosave, verbose):
 			#ax.set_xscale("log");ax.set_yscale("log");ax.set_ylim(bottom=1e-3); plotfile = plotfile[:-4]+"_loglog.png"
 	
 	## Single circus; TAN
-	elif (ftype is "tan"):
+	elif ftype == "tan":
 		plotfile = dirpath+"/PAL.png"
 		title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 		for i in range(LL.size):
@@ -431,7 +455,7 @@ def pressure_dir(dirpath, nosave, verbose):
 		#ax.set_xscale("log");ax.set_yscale("log"); plotfile = plotfile[:-4]+"_loglog.png"
 	
 	## Double circus; DTAN
-	elif (ftype is "dtan"):
+	elif (ftype == "dtan"):
 		plotfile = dirpath+"/PAL.png"
 		title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 		for i in range(LL.size):
@@ -439,12 +463,20 @@ def pressure_dir(dirpath, nosave, verbose):
 			ax.plot(AA,QQ[i,0,:], "o--", color=ax.lines[-1].get_color())
 		#ax.set_xscale("log");ax.set_yscale("log"); plotfile = plotfile[:-4]+"_loglog.png"
 			
+	## Single circus; NU
+	elif ftype == "nu":
+		plotfile = dirpath+"/PALN.png"
+		title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
+		for i in range(LL.size):
+			ax.plot(AA,PP[0,i,:],   "o-", label="$\\lambda, \\nu = "+str(LL[i])+", "+str(NN[0]) +"$")
+			ax.plot(AA,PP[-1,i,:], "o--", color=ax.lines[-1].get_color(), label="$\\lambda, \\nu = "+str(LL[i])+", "+str(NN[-1])+"$")
+		#ax.set_xscale("log");ax.set_yscale("log"); plotfile = plotfile[:-4]+"_loglog.png"
+	
 	## ------------------------------------------------
 	## Accoutrements
 	
 	ax.set_xlim(xlim)
-	#if ftype=="const": ax.set_ylim(bottom=0.5,top=1.5)
-	#elif ftype=="lin": ax.set_ylim(bottom=0.5)
+	ax.set_ylim(bottom=0.0)
 	
 	ax.set_xlabel(xlabel,fontsize=fsa)
 	ax.set_ylabel(ylabel,fontsize=fsa)
@@ -455,7 +487,7 @@ def pressure_dir(dirpath, nosave, verbose):
 	
 	#plt.tight_layout();	plt.subplots_adjust(top=0.9)
 	if not nosave:
-		plt.savefig(plotfile)
+		fig.savefig(plotfile)
 		if verbose: print me+"plot saved to",plotfile
 		
 	return
@@ -470,22 +502,22 @@ def pdf_WN(r,fpars,ftype,vb=False):
 	if ftype is "const":
 		Rind = np.argmin(np.abs(r-R))
 		# rho0 = 1.0/(R+1.0)
-		rho0 = 1.0/(0.5*R*R+R+1.0)
+		rho0 = 1.0/(2.0*np.pi) * 1.0/(0.5*R*R+R+1.0)
 		rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(R-r[Rind:])])
 	elif ftype is "lin":
 		Rind = np.argmin(np.abs(r-R))
 		# rho0 = 1.0/(R+np.sqrt(np.pi/2))
-		rho0 = 1.0/(0.5*R*R+np.sqrt(np.pi/2)*R+1.0)
+		rho0 = 1.0/(2.0*np.pi) * 1.0/(0.5*R*R+np.sqrt(np.pi/2)*R+1.0)
 		rho_WN = rho0 * np.hstack([np.ones(Rind),np.exp(-0.5*(r[Rind:]-R)**2)])
 	elif ftype is "dcon":
 		Rind, Sind = np.argmin(np.abs(r-R)), np.argmin(np.abs(r-S))
 		# rho0 = 1.0/(R-S+2-np.exp(-S))
-		rho0 = 1.0/(S+R+np.exp(-S)+0.5*R*R-0.5*S*S)
+		rho0 = 1.0/(2.0*np.pi) * 1.0/(S+R+np.exp(-S)+0.5*R*R-0.5*S*S)
 		rho_WN = rho0 * np.hstack([np.exp(r[:Sind]-S),np.ones(Rind-Sind),np.exp(R-r[Rind:])])
 	elif ftype is "dlin":
 		Rind, Sind = np.argmin(np.abs(r-R)), np.argmin(np.abs(r-S))
 		# rho0 = 1.0/(R-S+np.sqrt(np.pi/2)*(1.0+sp.special.erf(S/np.sqrt(2))))
-		rho0 = 1.0/(np.exp(-0.5*S*S)+np.sqrt(np.pi/2)*S*sp.special.erf(S/np.sqrt(2))+0.5*R*R-0.5*S*S+np.sqrt(np.pi/2)*R)
+		rho0 = 1.0/(2.0*np.pi) *  1.0/(np.exp(-0.5*S*S)+np.sqrt(np.pi/2)*S*sp.special.erf(S/np.sqrt(2))+0.5*R*R-0.5*S*S+np.sqrt(np.pi/2)*R)
 		rho_WN = rho0 * np.hstack([np.exp(-0.5*(S-r[:Sind])**2),np.ones(Rind-Sind),np.exp(-0.5*(r[Rind:]-R)**2)])
 	elif ftype is "tan":
 		lam = fpars[2]
@@ -506,10 +538,9 @@ def pdf_WN(r,fpars,ftype,vb=False):
 	elif ftype is "nu":
 		lam, nu = fpars[2:4]
 		Rind = np.argmin(np.abs(r-R))
-		rho0 = 1.0/(np.pi*lam**(2*lam*nu)*\
-					(R*R+lam*lam/(lam*nu+1.0)+\
-						+R*lam*np.sqrt(np.pi)*sp.special.gamma(nu*lam+1.0)/sp.special.gamma(nu*lam+1.5)))
-		rho_WN = rho0 * np.hstack([lam**(2*lam*nu)*np.ones(Rind),np.power(lam*lam-np.power(r[Rind:]-R,2.0),lam*nu)])
+		rho0 = 1.0/(np.pi) * 1.0/(R*R+lam*lam/(lam*nu+1.0)+\
+						+R*lam*np.sqrt(np.pi)*sp.special.gamma(nu*lam+1.0)/sp.special.gamma(nu*lam+1.5))
+		rho_WN = rho0 * np.hstack([np.ones(Rind),np.power(1.0-((r[Rind:]-R)/lam)**2.0,lam*nu)])
 	else:
 		print me+"Functionality not available."
 		rho_WN = np.zeros(r.size)
@@ -542,7 +573,7 @@ def plot_wall(ax, ftype, fpars, r):
 		ax.plot(r,np.hstack([Ufn(S-r[:Sidx]),np.zeros(Ridx-Sidx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
 	elif ftype is "nu":
 		nu = fpars[3]
-		Ufn = lambda Dr: -1.0*nu*(np.log(lam*lam-Dr*Dr)-2*np.log(lam))
+		Ufn = lambda Dr: -1.0*nu*(np.log(1.0-(Dr*Dr)/(lam*lam)))
 		ax.plot(r,np.hstack([np.zeros(Ridx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
 	return
 	
