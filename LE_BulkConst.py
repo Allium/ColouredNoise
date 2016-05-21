@@ -5,7 +5,8 @@ from matplotlib import pyplot as plt
 import os, optparse, glob
 from LE_Utils import filename_pars
 from LE_Utils import force_1D_const, force_1D_lin
-from LE_SBS import force_const, force_lin, force_lico, force_dcon, force_dlin
+from LE_SBS import force_const, force_lin, force_dcon, force_dlin,\
+					force_tan, force_dtan, force_nu, force_dnu
 from LE_Pressure import pressure_x
 from LE_SPressure import pdf_WN, plot_wall
 
@@ -55,7 +56,7 @@ def plot_file(histfile,nosave):
 	## CALCULATIONS
 	x, Q, e2E, c1, p, pars = bulk_const(histfile)
 	ftype = pars["ftype"]
-	fpars = [pars["X"]] if pars["geo"] is "1D" else [pars["R"],pars["S"]]
+	fpars = [pars["X"]] if pars["geo"] is "1D" else [pars["R"],pars["S"],pars["lam"],pars["nu"]]
 	ord = "r" if pars["geo"] == "CIR" else "x"
 	## PLOT
 	fig = plt.figure()
@@ -125,7 +126,7 @@ def plot_dir(histdir,nosave):
 def bulk_const(histfile):
 
 	pars = filename_pars(histfile)
-	[a,X,R,S,D,ftype,geo] = [pars[key] for key in ["a","X","R","S","D","ftype","geo"]]
+	[a,X,R,S,D,lam,nu,ftype,geo] = [pars[key] for key in ["a","X","R","S","D","lam","nu","ftype","geo"]]
 
 	H = np.load(histfile)
 	if len(H.shape)==4:
@@ -159,36 +160,43 @@ def bulk_const(histfile):
 		erbins = bins["erbins"]
 		epbins = bins["epbins"]
 		## r="x" for convenience
-		x = 0.5*(rbins[1:]+rbins[:-1])
+		r = 0.5*(rbins[1:]+rbins[:-1])
 		etar = 0.5*(erbins[1:]+erbins[:-1])
 		etap = 0.5*(epbins[1:]+epbins[:-1])
 		## Normalise probability
-		H /= simps(simps(simps(H,etap,axis=2),etar,axis=1),x,axis=0)
+		H /= simps(simps(simps(H,etap,axis=2),etar,axis=1),r,axis=0)
 		## Marginalise over eta turn into density
-		Q = simps(simps(H,etap,axis=2),etar,axis=1) / x
+		Q = simps(simps(H,etap,axis=2),etar,axis=1) / r
 		## To get probability density rather than probability
-		# rho = (H.T / eta).T / x
-		rho = H / reduce(np.multiply, np.ix_(x,etar,etap))
+		# rho = (H.T / eta).T / r
+		rho = H / reduce(np.multiply, np.ix_(r,etar,etap))
 		## Force
-		if ftype == "const":	force = force_const(x,x,x*x,R,R*R)
-		elif ftype == "lin":	force = force_lin(x,x,x*x,R,R*R)
-		elif ftype == "lico":	force = force_lico(x,x,x*x,R,R*R,g)
-		elif ftype == "dcon":	force = force_dcon(x,x,x*x,R,R*R,S,S*S)
-		elif ftype == "dlin":	force = force_dlin(x,x,x*x,R,R*R,S,S*S)
+		if ftype == "const":	force = force_const(r,r,R)
+		elif ftype == "lin":	force = force_lin(r,r,R)
+		elif ftype == "dcon":	force = force_dcon(r,r,R,S)
+		elif ftype == "dlin":	force = force_dlin(r,r,R,S)
+		elif ftype == "tan":	force = force_tan(r,r,R,lam)
+		elif ftype == "dtan":	force = force_dtan(r,r,R,S,lam)
+		elif ftype == "nu":		force = force_nu(r,r,R,lam,nu)
+		elif ftype == "dnu":	force = force_dnu(r,r,R,S,lam,nu)
+		else: raise ValueError, me+"ftype not recognised."
 		
 		## Calculations
-		p = -simps(force*Q, x=x)
+		p = -simps(force*Q, r)
 		
 		ETAR = etar[np.newaxis,:,np.newaxis].repeat(H.shape[0],axis=0).repeat(H.shape[2],axis=2)
 		ETAP = etap[np.newaxis,np.newaxis,:].repeat(H.shape[0],axis=0).repeat(H.shape[1],axis=1)
-		er2E = simps(simps((H.T/Q).T*ETAR*ETAR, etap,axis=2), etar,axis=1)/x
-		ep2E = simps(simps((H.T/Q).T*ETAP*ETAP, etap,axis=2), etar,axis=1)/x
+		er2E = simps(simps((H.T/Q).T*ETAR*ETAR, etap,axis=2), etar,axis=1)/r
+		ep2E = simps(simps((H.T/Q).T*ETAP*ETAP, etap,axis=2), etar,axis=1)/r
 		e2E = er2E*er2E+ep2E*ep2E
 		e2E[np.isnan(e2E)] = 0.0
 		c1 = Q*e2E
 		c1 = sp.ndimage.filters.gaussian_filter(c1,1,order=0)
 	
-	return [x, Q, e2E, c1, p, pars]
+	try: 	x = r
+	except UnboundLocalError:	pass
+	
+	return [r, Q, e2E, c1, p, pars]
 	
 ##=============================================================================
 if __name__ == "__main__":

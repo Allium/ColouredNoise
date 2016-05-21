@@ -266,7 +266,7 @@ def pressure_dir(dirpath, nosave, verbose):
 		dr = r[1]-r[0]
 		
 		## Load histogram, normalise
-		H = np.load(histfile)
+		H = np.load(histfile).sum(axis=2)
 		H = np.trapz(H, x=er, axis=1)
 		## Noise dimension irrelevant here; convert to *pdf*
 		rho = H/(2*np.pi*r) / np.trapz(H, x=r, axis=0)
