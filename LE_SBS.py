@@ -120,6 +120,10 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 		force = lambda xy, r: force_nu(xy,r,R,lam,nu)
 		fstr = "N"
 		fparstr = "_l"+str(lam)+"_n"+str(nu)
+	elif ftype == "dnu":
+		force = lambda xy, r: force_dnu(xy,r,R,S,lam,nu)
+		fstr = "DN"
+		fparstr = "_S"+str(S)+"_l"+str(lam)+"_n"+str(nu)
 	else:
 		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin, tan, dtan, nu}."
 	
@@ -286,21 +290,26 @@ def force_const(xy,r,R):
 def force_lin(xy,r,R):
 	return -(r-R)*xy/r * (r>R)
 	
-def force_tan(xy,r,R,lam):
-	return -0.5*np.pi*np.tan(0.5*np.pi*(r-R)/lam)*xy/r * (r>R)
-	
 def force_dcon(xy,r,R,S):
 	return force_const(xy,r,R) + force_const(xy,-r,-S)
 	
 def force_dlin(xy,r,R,S):
 	return force_lin(xy,r,R) + force_lin(xy,-r,-S)
+
+## Finite-distance
+	
+def force_tan(xy,r,R,lam):
+	return -0.5*np.pi*np.tan(0.5*np.pi*(r-R)/lam)*xy/r * (r>R)
+	
+def force_nu(xy,r,R,lam,nu):
+	Dr = (r-R) * (r>R)
+	return -lam*nu*2.0*Dr/(lam*lam-Dr*Dr)*xy/r * (r>R)
 	
 def force_dtan(xy,r,R,S,lam):
 	return force_tan(xy,r,R,lam) + force_tan(xy,-r,-S,lam)
 	
-def force_nu(xy,r,R,lam,nu):
-	Dr = (r-R) * (r>R)
-	return -lam*nu*2.0*Dr/(lam*lam-Dr*Dr)*xy/(r+0.00001*(r==0.0)) * (r>R)
+def force_dnu(xy,r,R,S,lam,nu):
+	return force_nu(xy,r,R,lam,nu) + force_nu(xy,-r,-S,lam,nu)
 	
 """tan written with less interdependency. Less elegant but cheaper."""
 """

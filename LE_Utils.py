@@ -176,6 +176,7 @@ def filename_pars(filename):
 	elif filename.find("_T_") > 0:	ftype = "tan"
 	elif filename.find("_DT_") > 0: ftype = "dtan"
 	elif filename.find("_N_") > 0: ftype = "nu"
+	elif filename.find("_DN_") > 0: ftype = "dnu"
 	## Geometry
 	if filename.find("_CIR_") > 0: geo = "CIR"
 	elif filename.find("_1D_") > 0: geo = "1D"
