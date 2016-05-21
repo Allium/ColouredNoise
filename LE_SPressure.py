@@ -117,7 +117,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	dr = r[1]-r[0]
 	
 	## Load histogram, convert to normalised pdf
-	H = np.load(histfile)
+	H = np.load(histfile).sum(axis=2)
 	## Noise dimension irrelevant here
 	H = np.trapz(H, x=er, axis=1)
 	## rho is probability density. H is probability at r

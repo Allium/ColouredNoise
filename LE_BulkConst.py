@@ -1,5 +1,6 @@
 import numpy as np
 import scipy as sp
+from scipy.integrate import simps
 from matplotlib import pyplot as plt
 import os, optparse, glob
 from LE_Utils import filename_pars
@@ -64,7 +65,8 @@ def plot_file(histfile,nosave):
 	plt.plot(x,e2E/e2E.mean(),label="$\\langle\\eta^2\\rangle("+ord+")$")
 	plt.plot(x,c1/c1.mean(),label="$\\rho\\cdot\\langle\\eta^2\\rangle$")
 	plt.xlim(left=x[0],right=x[-1])
-	plt.ylim(bottom=0.0)
+	ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()])
+	plt.ylim(bottom=0.0,top=ymax)
 	plt.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.",fontsize=fst)
 	plt.xlabel("$"+ord+"$",fontsize=fsa)
 	plt.ylabel("Variable divided by first value",fontsize=fsa)
@@ -126,6 +128,13 @@ def bulk_const(histfile):
 	[a,X,R,S,D,ftype,geo] = [pars[key] for key in ["a","X","R","S","D","ftype","geo"]]
 
 	H = np.load(histfile)
+	if len(H.shape)==4:
+		H = H.sum(axis=1)
+		import LE_Utils
+		LE_Utils.save_data(histfile, H)
+		print "summed and resaved\n"
+		exit()
+		
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 	
 	## 1D sim
@@ -146,42 +155,38 @@ def bulk_const(histfile):
 		
 	## Circular sim
 	elif geo == "CIR":
-		H = H.T
 		rbins = bins["rbins"]
 		erbins = bins["erbins"]
+		epbins = bins["epbins"]
 		## r="x" for convenience
 		x = 0.5*(rbins[1:]+rbins[:-1])
-		eta = 0.5*(erbins[1:]+erbins[:-1]) ## Radial
+		etar = 0.5*(erbins[1:]+erbins[:-1])
+		etap = 0.5*(epbins[1:]+epbins[:-1])
 		## Normalise probability
-		H /= sp.integrate.simps(sp.integrate.simps(H,x,axis=1),eta,axis=0)
+		H /= simps(simps(simps(H,etap,axis=2),etar,axis=1),x,axis=0)
 		## Marginalise over eta turn into density
-		Q = sp.integrate.simps(H, x=eta, axis=0) / x
+		Q = simps(simps(H,etap,axis=2),etar,axis=1) / x
 		## To get probability density rather than probability
-		rho = (H.T / eta).T / x
+		# rho = (H.T / eta).T / x
+		rho = H / reduce(np.multiply, np.ix_(x,etar,etap))
 		## Force
 		if ftype == "const":	force = force_const(x,x,x*x,R,R*R)
 		elif ftype == "lin":	force = force_lin(x,x,x*x,R,R*R)
 		elif ftype == "lico":	force = force_lico(x,x,x*x,R,R*R,g)
 		elif ftype == "dcon":	force = force_dcon(x,x,x*x,R,R*R,S,S*S)
 		elif ftype == "dlin":	force = force_dlin(x,x,x*x,R,R*R,S,S*S)
+		
 		## Calculations
-		p = -sp.integrate.simps(force*Q, x=x)
-		e2E = sp.integrate.simps(((rho/Q).T*(eta*eta*eta)).T, x=eta, axis=0)
-		# e1E = H.mean(axis=0)
-		# e2E2 = H.var(axis=0) + e1E*e1E
-		# plt.plot(x,e1E)
-		# plt.plot(x,e2E2)
-		# # plt.plot(x,Q*e2E)
-		# plt.grid(); plt.xlim(right=R+1); plt.ylim(top=1); plt.show(); exit()
+		p = -simps(force*Q, x=x)
+		
+		ETAR = etar[np.newaxis,:,np.newaxis].repeat(H.shape[0],axis=0).repeat(H.shape[2],axis=2)
+		ETAP = etap[np.newaxis,np.newaxis,:].repeat(H.shape[0],axis=0).repeat(H.shape[1],axis=1)
+		er2E = simps(simps((H.T/Q).T*ETAR*ETAR, etap,axis=2), etar,axis=1)/x
+		ep2E = simps(simps((H.T/Q).T*ETAP*ETAP, etap,axis=2), etar,axis=1)/x
+		e2E = er2E*er2E+ep2E*ep2E
 		e2E[np.isnan(e2E)] = 0.0
 		c1 = Q*e2E
-		
-	if 0:
-		print "eta pdfs"
-		for i in range(0,50,2):
-			plt.plot(eta, H[:,i]/Q[i])
-		plt.show();exit()
-		
+		c1 = sp.ndimage.filters.gaussian_filter(c1,1,order=0)
 	
 	return [x, Q, e2E, c1, p, pars]
 	
