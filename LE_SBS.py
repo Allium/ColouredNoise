@@ -157,7 +157,10 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	Nerbin = 150
 	erbins = np.linspace(0.0,ermax,Nerbin+1)
 	
-	bins = [rbins,erbins]
+	Nepbin = 50
+	epbins = np.linspace(0.0,2*np.pi,Nepbin+1)
+	
+	bins = [rbins,erbins,epbins]	
 	## ------------
 	
 	## Particles	
@@ -173,7 +176,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+"/"
+			"_CIR_"+fstr+"_dt"+str(dt)+"_phi/"
 	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
@@ -206,7 +209,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	
 	
 	## Initialise histogram in space
-	H = np.zeros((Nrbin,Nerbin))
+	H = np.zeros([b.size-1 for b in bins])
 	## Counter for noise initial conditions
 	i = 0
 
@@ -216,12 +219,14 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 		xyini = [rini*np.cos(pini),rini*np.sin(pini)]
 		for run in xrange(Nrun):
 			if vb: print me+"Run",i,"of",Nparticles
-			## r, er are radial coordinates as a function of time
-			r,er = boundary_sim(xyini, eIC[i], a, force, wb2, rmin, dt, tmax, expmt, (vb and run%50==0))
-			H += np.histogram2d(r,er,bins=bins,normed=False)[0]
+			coords = boundary_sim(xyini, eIC[i], a, force, wb2, rmin, dt, tmax, expmt, (vb and run%50==0))
+			t2 = time.time()
+			H += np.histogramdd(coords,bins=bins,normed=False)[0]
+			if (vb and run%1==0): print me+"Histogram:",round(time.time()-t2,1),"seconds."
 			i += 1
 	## Divide by bin area and number of particles
-	H /= np.outer(np.diff(rbins),np.diff(erbins))
+	binc = [np.diff(b) for b in bins]
+ 	H /= reduce(np.multiply, np.ix_(*binc))	
 	H /= Nparticles
 	
 	check_path(filepath, vb)
@@ -266,21 +271,13 @@ def boundary_sim(xyini, exyini, a, force, wb2, rmin, dt, tmax, expmt, vb=False):
 		elif (wib2 and r2<wib2): 	fxy = +1e10*xy[:,i]/np.sqrt(r2)
 		else:						fxy = force(xy[:,i],np.sqrt(r2))
 		xy[:,i+1] = xy[:,i] + dt*( fxy + exy[:,i] )
-		## Apply BC
-		#if r2 < rmin2:
-		#	xy[:,i] *= 1-(2*rmin)/np.sqrt(r2)
-		#	j += 1
-	#if (vb and j==0 and rmin2>0.0): print me+"rmin never encountered."
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
-	
-	# xx = np.linspace(0,2*np.pi,100)
-	# plt.plot(fpar[0]*np.cos(xx),fpar[0]*np.sin(xx),fpar[1]*np.cos(xx),fpar[1]*np.sin(xx))
-	# plt.plot(*xy);plt.show();exit()
-	
+		
 	rcoord = np.sqrt((xy*xy).sum(axis=0))
 	ercoord = np.sqrt((exy*exy).sum(axis=0))
+	epcoord = np.arctan2(exy[1],exy[0])
 	
-	return rcoord, ercoord
+	return [rcoord, ercoord, epcoord]
 	
 ## ====================================================================
 
