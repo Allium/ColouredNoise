@@ -47,7 +47,7 @@ if argv[1]=="DD":
 						t0=time.time()
 						tmax = 10*max(a/4,0.4)
 						print "script: [a, R, S, l] =",np.around([a,R,S,lam],2)
-						main(a,"dtan",[R,S,lam,nu],1,0.01,tmax,True)
+						main(a,"dlin",[R,S,lam,nu],1,0.01,tmax,True)
 						print "script: [a, R, S, l] =",np.around([a,R,S,lam],2),"execution time",round(time.time()-t0,2),"seconds"
 
 ##=============================================================================
