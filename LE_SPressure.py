@@ -117,7 +117,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	dr = r[1]-r[0]
 	
 	## Load histogram, convert to normalised pdf
-	H = np.load(histfile)
+	H = np.load(histfile).sum(axis=2)
 	## Noise dimension irrelevant here
 	H = np.trapz(H, x=er, axis=1)
 	## rho is probability density. H is probability at r
@@ -165,21 +165,9 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	
 	if plotpress:
 	
-		## Calculate force array
-		if ftype == "const":	force = force_const(r,r,R)
-		elif ftype == "lin":	force = force_lin(r,r,R)
-		elif ftype == "lico":	force = force_lico(r,r,R)
-		elif ftype == "dcon":	force = force_dcon(r,r,R,S)
-		elif ftype == "dlin":	force = force_dlin(r,r,R,S)
-		elif ftype == "tan":	force, force_WN = force_tan(r,r,R,lam), force_tan(r_WN,r_WN,R,lam)
-		elif ftype == "dtan":	force, force_WN = force_dtan(r,r,R,S,lam), force_dtan(r_WN,r_WN,R,S,lam)
-		elif ftype == "nu":		force, force_WN = force_nu(r,r,R,lam,nu), force_nu(r_WN,r_WN,R,lam,nu)
-		elif ftype == "dnu":	force, force_WN = force_dnu(r,r,R,S,lam,nu), force_dnu(r_WN,r_WN,R,S,lam,nu)
-		
-		## Pressure array
-		p		= -np.array([np.trapz(force[:i]*rho[:i], x=r[:i]) for i in xrange(r.shape[0])])
-		p_WN	= -np.array([np.trapz(force_WN[:i]*rho_WN[:i], x=r_WN[:i]) for i in xrange(r_WN.shape[0])])
-					
+		## CALCULATIONS
+		p 	= calc_pressure(r,rho,ftype,[R,S,lam,nu],spatial=True)
+		p_WN = calc_pressure(r_WN,rho_WN,ftype,[R,S,lam,nu],spatial=True)
 		## Eliminate negative values
 		if ftype[0] == "d":
 			p		-= p.min()
@@ -253,6 +241,7 @@ def pressure_dir(dirpath, nosave, verbose):
 		## Get pars from filename
 		pars = filename_pars(histfile)
 		[A[i],R[i],S[i],L[i],N[i]] = [pars[key] for key in ["a","R","S","lam","nu"]]
+		fpars = [R[i],S[i],L[i],N[i]]
 
 		## Space (for axes)
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -267,30 +256,21 @@ def pressure_dir(dirpath, nosave, verbose):
 		
 		## Load histogram, normalise
 		H = np.load(histfile)
+		try: H = H.sum(axis=2)
+		except ValueError: pass
 		H = np.trapz(H, x=er, axis=1)
 		## Noise dimension irrelevant here; convert to *pdf*
 		rho = H/(2*np.pi*r) / np.trapz(H, x=r, axis=0)
 		
-		rho_WN = pdf_WN(r,[R[i],S[i],L[i],N[i]],ftype)
-				
-		## Calculate force array
-		if ftype == "const":	force = force_const(r,r,R[i])
-		elif ftype == "lin":	force = force_lin(r,r,R[i])
-		elif ftype == "lico":	force = force_lico(r,r,R[i],g)
-		elif ftype == "dcon":	force = force_dcon(r,r,R[i],S[i])
-		elif ftype == "dlin":	force = force_dlin(r,r,R[i],S[i])
-		elif ftype == "tan":	force = force_tan(r,r,R[i],L[i])
-		elif ftype == "dtan":	force = force_dtan(r,r,R[i],S[i],L[i])
-		elif ftype == "nu":		force = force_nu(r,r,R[i],L[i],N[i])
-		elif ftype == "dnu":	force = force_nu(r,r,R[i],S[i],L[i],N[i])
+		rho_WN = pdf_WN(r,fpars,ftype)
 		
 		## Pressure array
-		P[i]    = -sp.integrate.simps((force*rho)[bidx:],    r[bidx:])
-		P_WN[i] = -sp.integrate.simps((force*rho_WN)[bidx:], r[bidx:])
+		P[i] 	= calc_pressure(r[bidx:],rho[bidx:],ftype,fpars)
+		P_WN[i] = calc_pressure(r[bidx:],rho_WN[bidx:],ftype,fpars)
 		if ftype[0] is "d":
 			## Inner pressure
-			Q[i]    = +sp.integrate.simps((force*rho)[:bidx],    r[:bidx])
-			Q_WN[i] = +sp.integrate.simps((force*rho_WN)[:bidx], r[:bidx])
+			Q[i] 	= calc_pressure(r[:bidx],rho[:bidx],ftype,fpars)
+			Q_WN[i] = calc_pressure(r[:bidx],rho_WN[:bidx],ftype,fpars)
 				
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
@@ -600,6 +580,34 @@ def pressure_dir(dirpath, nosave, verbose):
 		if verbose: print me+"plot saved to",plotfile
 		
 	return
+
+##=============================================================================
+
+def calc_pressure(r,rho,ftype,fpars,spatial=False):
+	"""
+	Calculate pressure given density a a function of coordinate.
+	"""
+	R, S, lam, nu = fpars
+	
+	## Calculate force array
+	if ftype == "const":	force = force_const(r,r,R)
+	elif ftype == "lin":	force = force_lin(r,r,R)
+	elif ftype == "lico":	force = force_lico(r,r,R)
+	elif ftype == "dcon":	force = force_dcon(r,r,R,S)
+	elif ftype == "dlin":	force = force_dlin(r,r,R,S)
+	elif ftype == "tan":	force = force_tan(r,r,R,lam)
+	elif ftype == "dtan":	force = force_dtan(r,r,R,S,lam)
+	elif ftype == "nu":		force = force_nu(r,r,R,lam,nu)
+	elif ftype == "dnu":	force = force_dnu(r,r,R,S,lam,nu)
+	else: raise ValueError, me+"ftype not recognised."
+	
+	## Pressure
+	if spatial == True:
+		P = -np.array([np.trapz(force[:i]*rho[:i], x=r[:i]) for i in xrange(r.shape[0])])
+	else:
+		P = -np.trapz(force*rho, r)
+
+	return P
 
 ##=============================================================================
 def pdf_WN(r,fpars,ftype,vb=False):
