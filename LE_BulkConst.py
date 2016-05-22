@@ -66,9 +66,10 @@ def plot_file(histfile,nosave):
 	plt.plot(x,e2E/e2E.mean(),label="$\\langle\\eta^2\\rangle("+ord+")$")
 	plt.plot(x,c1/c1.mean(),label="$\\rho\\cdot\\langle\\eta^2\\rangle$")
 	plt.xlim(left=x[0],right=x[-1])
-	ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()])
+	if ftype[0]!="d":	ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()])
+	else:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[1]-x).argmin():np.abs(fpars[0]-x).argmin()])
 	plt.ylim(bottom=0.0,top=ymax)
-	plt.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.",fontsize=fst)
+	# plt.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.",fontsize=fst)
 	plt.xlabel("$"+ord+"$",fontsize=fsa)
 	plt.ylabel("Variable divided by first value",fontsize=fsa)
 	plt.grid()
@@ -156,20 +157,23 @@ def bulk_const(histfile):
 		
 	## Circular sim
 	elif geo == "CIR":
+	
+		## Space
 		rbins = bins["rbins"]
 		erbins = bins["erbins"]
 		epbins = bins["epbins"]
-		## r="x" for convenience
 		r = 0.5*(rbins[1:]+rbins[:-1])
 		etar = 0.5*(erbins[1:]+erbins[:-1])
 		etap = 0.5*(epbins[1:]+epbins[:-1])
-		## Normalise probability
+		
+		## Probability
+		## Normalise
 		H /= simps(simps(simps(H,etap,axis=2),etar,axis=1),r,axis=0)
 		## Marginalise over eta turn into density
-		Q = simps(simps(H,etap,axis=2),etar,axis=1) / r
+		Q = simps(simps(H,etap,axis=2),etar,axis=1) / (2*np.pi*r)
 		## To get probability density rather than probability
-		# rho = (H.T / eta).T / r
 		rho = H / reduce(np.multiply, np.ix_(r,etar,etap))
+		
 		## Force
 		if ftype == "const":	force = force_const(r,r,R)
 		elif ftype == "lin":	force = force_lin(r,r,R)
@@ -186,13 +190,13 @@ def bulk_const(histfile):
 		
 		ETAR = etar[np.newaxis,:,np.newaxis].repeat(H.shape[0],axis=0).repeat(H.shape[2],axis=2)
 		ETAP = etap[np.newaxis,np.newaxis,:].repeat(H.shape[0],axis=0).repeat(H.shape[1],axis=1)
-		er2E = simps(simps((H.T/Q).T*ETAR*ETAR, etap,axis=2), etar,axis=1)/r
-		ep2E = simps(simps((H.T/Q).T*ETAP*ETAP, etap,axis=2), etar,axis=1)/r
-		e2E = er2E*er2E+ep2E*ep2E
+		er2E = simps(simps((H.T/Q).T*ETAR*ETAR, etap,axis=2), etar,axis=1)/(2*np.pi*r)
+		ep2E = simps(simps((H.T/Q).T*ETAP*ETAP, etap,axis=2), etar,axis=1)/(2*np.pi*r)
+		e2E = er2E*er2E*(1+ep2E*ep2E)
 		e2E[np.isnan(e2E)] = 0.0
 		c1 = Q*e2E
-		c1 = sp.ndimage.filters.gaussian_filter(c1,1,order=0)
-	
+		# c1s = sp.ndimage.filters.gaussian_filter(c1,1,order=0)
+		
 	try: 	x = r
 	except UnboundLocalError:	pass
 	

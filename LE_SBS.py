@@ -185,7 +185,6 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	
 	## Save bins
 	np.savez(hisdir+binfile,rbins=rbins,erbins=erbins,epbins=epbins)
-	return
 	
 	## ----------------------------------------------------------------
 	## SIMULATION
