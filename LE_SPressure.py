@@ -202,7 +202,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	
 ##=============================================================================
 def allfiles(dirpath, plotP, verbose):
-	for filepath in glob.glob(dirpath+"/BHIS_CIR_*a2.0*.npy"):
+	for filepath in glob.glob(dirpath+"/BHIS_CIR_*.npy"):
 		pressure_pdf_file(filepath, plotP, verbose)
 		plt.close()
 	return

@@ -39,7 +39,7 @@ if argv[1]=="D":
 
 ## DOUBLE
 if argv[1]=="DD":
-	for a in np.hstack([np.arange(0.0,2.1,0.2),np.arange(2.4,3.7,0.4)]):
+	for a in np.hstack([np.arange(0.2,2.1,0.2),np.arange(2.4,3.7,0.4)]):
 		for R in [2.0,5.0]:
 			for S in [R-1.0]:
 				for lam in [0.5]:
@@ -48,6 +48,7 @@ if argv[1]=="DD":
 						tmax = 10*max(a/4,0.4)
 						print "script: [a, R, S, l] =",np.around([a,R,S,lam],2)
 						main(a,"dlin",[R,S,lam,nu],1,0.01,tmax,True)
+						main(a,"dcon",[R,S,lam,nu],1,0.01,tmax,True)
 						print "script: [a, R, S, l] =",np.around([a,R,S,lam],2),"execution time",round(time.time()-t0,2),"seconds"
 
 ##=============================================================================
