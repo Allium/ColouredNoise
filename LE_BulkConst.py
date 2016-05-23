@@ -2,7 +2,7 @@ import numpy as np
 import scipy as sp
 from scipy.integrate import simps
 from matplotlib import pyplot as plt
-import os, optparse, glob
+import os, optparse, glob, time
 from LE_Utils import filename_pars
 from LE_Utils import force_1D_const, force_1D_lin
 from LE_Pressure import pressure_x
@@ -17,6 +17,7 @@ def main():
 	Plot the constant.
 	"""
 	me = "LE_BulkConst: "
+	t0 = time.time()
 	
 	parser = optparse.OptionParser(conflict_handler="resolve")
 	parser.add_option('-s','--show',
@@ -34,26 +35,31 @@ def main():
 	plotall = opt.plotall
 	searchstr = opt.searchstr
 	nosave = opt.nosave
-	vb = opt.verbose
+	verbose = opt.verbose
 		
 	if os.path.isfile(args[0]):
-		plotfile = plot_file(args[0], nosave)
+		plot_file(args[0], nosave, verbose)
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False
-		plotfile = []
-		for histfile in glob.glob(args[0]+"/BHIS_*"+searchstr+"*.npy"):
-			plotfile += [plot_file(histfile, nosave)]
+		filelist = np.sort(glob.glob(args[0]+"/BHIS_*"+searchstr+"*.npy"))
+		if verbose: print me+"Found",len(filelist),"files."
+		for histfile in filelist:
+			plot_file(histfile, nosave, verbose)
 			plt.close()
-	if os.path.isdir(args[0]):
-		plotfile = plot_dir(args[0], nosave, searchstr)
+	elif os.path.isdir(args[0]):
+		plot_dir(args[0], nosave, searchstr, verbose)
+	else: raise IOError, me+"Check input."
 	
-	if (vb and not nosave):	print me+"Figure saved to",plotfile
+	if verbose: print me+"Total execution time",round(time.time()-t0,1),"seconds."
 	if showfig:	plt.show()
 	
 	return
 
 ##=============================================================================
-def plot_file(histfile, nosave):
+def plot_file(histfile, nosave, vb):
+	"""
+	"""
+	me = "LE_BulkConst.plot_file: "
 
 	## CALCULATIONS
 	x, Q, e2E, c1, p, pars = bulk_const(histfile)
@@ -74,19 +80,21 @@ def plot_file(histfile, nosave):
 	else:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[1]-x).argmin():np.abs(fpars[0]-x).argmin()])
 	ax.set_ylim(bottom=0.0,top=ymax)
 	ax.set_xlabel("$"+ord+"$",fontsize=fsa)
-	ax.set_ylabel("Variable divided by first value",fontsize=fsa)
+	ax.set_ylabel("Rescaled variable",fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="upper left",fontsize=fsl+2)
 	# fig.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.",fontsize=fst)
 	
 	## SAVE
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".png"
-	if not nosave:	fig.savefig(plotfile)
+	if not nosave:
+		fig.savefig(plotfile)
+		if vb: print me+"Figure saved to",plotfile
 	
 	return plotfile
 	
 ##=============================================================================
-def plot_dir(histdir, nosave, searchstr):
+def plot_dir(histdir, nosave, searchstr, vb):
 	"""
 	"""
 	me = "LE_BulkConst.plot_dir: "
@@ -98,6 +106,7 @@ def plot_dir(histdir, nosave, searchstr):
 	
 	filelist = np.sort(glob.glob(histdir+"/BHIS_*"+searchstr+"*.npy"))
 	numfiles = len(filelist)
+	if vb: print me+"Found",numfiles,"files."
 	
 	## Initialise arrays
 	A,X,C,P,P_WN = np.zeros([5,numfiles])	
@@ -140,6 +149,7 @@ def plot_dir(histdir, nosave, searchstr):
 	plotfile = histdir+"/QEe2_P_.png"
 	if not nosave:
 		fig.savefig(plotfile)
+		if vb: print me+"Figure saved to",plotfile
 		
 	return plotfile
 	
@@ -194,7 +204,7 @@ def bulk_const(histfile):
 		## Marginalise over eta turn into density
 		Q = simps(simps(H,etap,axis=2),etar,axis=1) / (2*np.pi*r)
 		## To get probability density rather than probability
-		rho = H / reduce(np.multiply, np.ix_(r,etar,etap))
+		#rho = H / reduce(np.multiply, np.ix_(r,etar,etap))
 				
 		## Calculations
 		p = calc_pressure(r,Q,ftype,[R,S,lam,nu])
@@ -203,9 +213,12 @@ def bulk_const(histfile):
 		ETAR = etar[np.newaxis,:,np.newaxis].repeat(H.shape[0],axis=0).repeat(H.shape[2],axis=2)
 		ETAP = etap[np.newaxis,np.newaxis,:].repeat(H.shape[0],axis=0).repeat(H.shape[1],axis=1)
 		## Calculate averages
-		er2E = simps(simps(H*ETAR*ETAR, etap, axis=2), etar, axis=1) / (2*np.pi*r*Q)
-		ep2E = simps(simps(H*ETAP*ETAP, etap, axis=2), etar, axis=1) / (2*np.pi*r*Q)
+		Qp = Q+(Q==0) ## Avoid /0 warning (numerator is 0 anyway)
+		er2E = simps(simps(H*ETAR*ETAR, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
+		ep2E = simps(simps(H*ETAP*ETAP, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
 		e2E = er2E*er2E*(1.0+ep2E*ep2E)
+		#ep2E = simps(simps(H*ETAP*ETAP*ETAR*ETAR, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
+		#e2E = er2E*er2E+ep2E*ep2E
 		e2E[np.isnan(e2E)] = 0.0
 		## Bulk constant
 		c1 = Q*e2E

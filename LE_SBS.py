@@ -176,7 +176,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+"_phi/"
+			"_CIR_"+fstr+"_dt"+str(dt)+"_phi_long/"
 	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
