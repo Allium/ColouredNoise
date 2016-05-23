@@ -94,7 +94,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	t0 = time()
 
 	## Filename
-	plotfile = os.path.dirname(histfile)+"/PDFP"+os.path.basename(histfile)[4:-4]+".png"
+	plotfile = os.path.dirname(histfile)+"/PDF"+os.path.basename(histfile)[4:-4]+".png"
 	
 	## Get pars from filename
 	pars = filename_pars(histfile)
@@ -117,7 +117,9 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	dr = r[1]-r[0]
 	
 	## Load histogram, convert to normalised pdf
-	H = np.load(histfile).sum(axis=2)
+	H = np.load(histfile)
+	try:	H = H.sum(axis=2)
+	except ValueError:	pass
 	## Noise dimension irrelevant here
 	H = np.trapz(H, x=er, axis=1)
 	## rho is probability density. H is probability at r
@@ -138,7 +140,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 		figtit = "Density and pressure; "
 		fig, axs = plt.subplots(2,1,sharex=True)
 		ax = axs[0]
-		plotfile = plotfile[:-4]+"_P.png"
+		plotfile = os.path.dirname(plotfile)+"/PDFP"+os.path.basename(plotfile)[3:]
 	figtit += ftype+"; $\\alpha="+str(a)+"$, $R = "+str(R)+"$"
 	if ftype[0]   == "d":	figtit += ", $S = "+str(S)+"$"
 	if ftype[-3:] == "tan": figtit += ", $\\lambda="+str(lam)+"$"
@@ -202,7 +204,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	
 ##=============================================================================
 def allfiles(dirpath, plotP, verbose):
-	for filepath in glob.glob(dirpath+"/BHIS_CIR_*a2.0*.npy"):
+	for filepath in glob.glob(dirpath+"/BHIS_CIR_*.npy"):
 		pressure_pdf_file(filepath, plotP, verbose)
 		plt.close()
 	return
@@ -487,7 +489,7 @@ def pressure_dir(dirpath, nosave, verbose):
 		## Dodgy points			
 		ax.axvspan(0.0,0.2,color="r",alpha=0.1)
 		## P[L,R,S,A]
-		plotbool = [0,0,0,1]
+		plotbool = [0,0,1,1]
 		## R,S fixed
 		if plotbool[0]:
 			if verbose:	print me+"Plotting P_R and P_S against alpha for different values of lambda. R and S fixed."
@@ -496,8 +498,8 @@ def pressure_dir(dirpath, nosave, verbose):
 			plotfile = dirpath+"/PAL.png"
 			title = "Pressure normalised by WN, $R = "+str(RR[Ridx])+"$, $S = "+str(SS[Sidx])+"$; ftype = "+ftype
 			for i in range(LL.size):
-				ax.plot(AA,PP[i,Ridx,Sidx,:], "o-", label="$\\lambda = "+str(LL[i])+"$")
-				ax.plot(AA,QQ[i,Ridx,Sidx,:], "o--", color=ax.lines[-1].get_color())
+				ax.plot(AA[1:],PP[i,Ridx,Sidx,1:], "o-", label="$\\lambda = "+str(LL[i])+"$")
+				ax.plot(AA[1:],QQ[i,Ridx,Sidx,1:], "o--", color=ax.lines[-1].get_color())
 		## lam fixed; R-S fixed
 		elif plotbool[1]:
 			if verbose:	print me+"Plotting P_R and P_S against alpha for different values of R. lambda is fixed."
@@ -506,8 +508,8 @@ def pressure_dir(dirpath, nosave, verbose):
 			title = "Pressure normalised by WN, $\\lambda = "+str(LL[0])+"$; ftype = "+ftype
 			for i in range(RR.size):
 				Sidx = np.where(SS==RR[i]-1.0)[0][0]
-				ax.plot(AA,PP[0,i,Sidx,:], "o-", label="$R,S = "+str(RR[i])+", "+str(SS[Sidx])+"$")
-				ax.plot(AA,QQ[0,i,Sidx,:], "o--", color=ax.lines[-1].get_color())
+				ax.plot(AA[1:],PP[0,i,Sidx,1:], "o-", label="$R,S = "+str(RR[i])+", "+str(SS[Sidx])+"$")
+				ax.plot(AA[1:],QQ[0,i,Sidx,1:], "o--", color=ax.lines[-1].get_color())
 		## Difference in pressure; R,S fixed
 		elif plotbool[2]:
 			DPplot = True
@@ -520,11 +522,11 @@ def pressure_dir(dirpath, nosave, verbose):
 			plotfile = dirpath+"/DPALDR.png"
 			title = "Pressure difference, $P_R-P_S$; $R-S = "+str(RR[Ridx[0]]-SS[Sidx[0]])+"$; ftype = "+ftype
 			for i in range(LL.size):
-				ax.plot(AA,DP[i,Ridx[0],Sidx[0],:], "o-",
+				ax.plot(AA[1:],DP[i,Ridx[0],Sidx[0],1:], "o-",
 							label="$\\lambda = "+str(LL[i])+"$. $R,S = "+str(RR[Ridx[0]])+", "+str(SS[Sidx[0]])+"$")
-				ax.plot(AA,DP[i,Ridx[1],Sidx[1],:], "o--", color=ax.lines[-1].get_color(),
+				ax.plot(AA[1:],DP[i,Ridx[1],Sidx[1],1:], "o--", color=ax.lines[-1].get_color(),
 							label="$\\lambda = "+str(LL[i])+"$. $R,S = "+str(RR[Ridx[1]])+", "+str(SS[Sidx[1]])+"$")	
-				ax.plot(AA,DP[i,Ridx[2],Sidx[2],:], "o:", color=ax.lines[-1].get_color(),
+				ax.plot(AA[1:],DP[i,Ridx[2],Sidx[2],1:], "o:", color=ax.lines[-1].get_color(),
 							label="$\\lambda = "+str(LL[i])+"$. $R,S = "+str(RR[Ridx[2]])+", "+str(SS[Sidx[2]])+"$")
 		elif plotbool[3]:
 			print me+"ABORT"; exit()
@@ -666,19 +668,18 @@ def plot_wall(ax, ftype, fpars, r):
 	Plot the wall profile of type ftype on ax
 	"""
 	me = "LE_SPressure.plot_wall: "
-	R, S, lam = fpars[:3]
+	R, S, lam, nu = fpars
 	Ridx, Sidx, Lidx = np.abs(R-r).argmin(), np.abs(S-r).argmin(), np.abs(S-lam-r).argmin()
 	if ftype is "const":
 		ax.plot(r,np.hstack([np.zeros(Ridx),r[Ridx:]-R]),"k--",label="Potential")
-	elif ftype is "lin":
-		ax.plot(r,np.hstack([np.zeros(Ridx),0.5*np.power(r[Ridx:]-R,2.0)]),"k--",label="Potential")
 	elif ftype is "dcon":
-		"""NEEDS UPDATE"""
-		ax.axvline(R,c="k",ls="--",label="Potential")
-		ax.axvline(S,c="k",ls="--")
-	elif ftype is "dlin":
-		"""NEEDS UPDATE"""
 		ax.plot(r,np.hstack([S-r[:Sidx],np.zeros(Ridx-Sidx),r[Ridx:]-R]),"k--",label="Potential")
+	elif ftype is "lin":
+		Ufn = lambda Dr: 0.5*np.power(Dr,2.0)
+		ax.plot(r,np.hstack([np.zeros(Ridx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
+	elif ftype is "dlin":
+		Ufn = lambda Dr: 0.5*np.power(Dr,2.0)
+		ax.plot(r,np.hstack([Ufn(S-r[:Sidx]),np.zeros(Ridx-Sidx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
 	elif ftype is "tan":
 		Ufn = lambda Dr: -1.0*np.log(np.cos(0.5*np.pi*(Dr)/lam))
 		ax.plot(r,np.hstack([np.zeros(Ridx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
@@ -686,9 +687,11 @@ def plot_wall(ax, ftype, fpars, r):
 		Ufn = lambda Dr: -1.0*np.log(np.cos(0.5*np.pi*(Dr)/lam))
 		ax.plot(r[Lidx:],np.hstack([Ufn(S-r[Lidx:Sidx]),np.zeros(Ridx-Sidx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
 	elif ftype is "nu":
-		nu = fpars[3]
 		Ufn = lambda Dr: -1.0*nu*(np.log(1.0-(Dr*Dr)/(lam*lam)))
 		ax.plot(r,np.hstack([np.zeros(Ridx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
+	elif ftype is "dnu":
+		Ufn = lambda Dr: -1.0*nu*(np.log(1.0-(Dr*Dr)/(lam*lam)))
+		ax.plot(r,np.hstack([Ufn(S-r[:Sidx]),np.zeros(Ridx-Sidx),Ufn(r[Ridx:]-R)]),"k--",label="Potential")
 	return
 	
 	

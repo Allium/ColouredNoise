@@ -1,12 +1,12 @@
 import numpy as np
 import scipy as sp
+from scipy.integrate import simps
 from matplotlib import pyplot as plt
-import os, optparse, glob
+import os, optparse, glob, time
 from LE_Utils import filename_pars
 from LE_Utils import force_1D_const, force_1D_lin
-from LE_SBS import force_const, force_lin, force_lico, force_dcon, force_dlin
 from LE_Pressure import pressure_x
-from LE_SPressure import pdf_WN, plot_wall
+from LE_SPressure import calc_pressure, pdf_WN, plot_wall
 
 
 from LE_Utils import plot_fontsizes
@@ -17,104 +17,140 @@ def main():
 	Plot the constant.
 	"""
 	me = "LE_BulkConst: "
+	t0 = time.time()
 	
 	parser = optparse.OptionParser(conflict_handler="resolve")
 	parser.add_option('-s','--show',
 		dest="showfig", default=False, action="store_true")
+	parser.add_option('-a','--plotall',
+		dest="plotall", default=False, action="store_true")
+	parser.add_option('--str',
+		dest="searchstr", default="", type="str")
 	parser.add_option('--nosave',
 		dest="nosave", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
 		dest="verbose", default=False, action="store_true")
-	parser.add_option('-a','--plotall',
-		dest="plotall", default=False, action="store_true")
 	opt, args = parser.parse_args()
 	showfig = opt.showfig
-	nosave = opt.nosave
-	vb = opt.verbose
 	plotall = opt.plotall
+	searchstr = opt.searchstr
+	nosave = opt.nosave
+	verbose = opt.verbose
 		
 	if os.path.isfile(args[0]):
-		plotfile = plot_file(args[0], nosave)
+		plot_file(args[0], nosave, verbose)
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False
-		plotfile = []
-		for histfile in glob.glob(args[0]+"/BHIS*.npy"):
-			plotfile += [plot_file(histfile, nosave)]
+		filelist = np.sort(glob.glob(args[0]+"/BHIS_*"+searchstr+"*.npy"))
+		if verbose: print me+"Found",len(filelist),"files."
+		for histfile in filelist:
+			plot_file(histfile, nosave, verbose)
 			plt.close()
-	if os.path.isdir(args[0]):
-		plotfile = plot_dir(args[0], nosave)
+	elif os.path.isdir(args[0]):
+		plot_dir(args[0], nosave, searchstr, verbose)
+	else: raise IOError, me+"Check input."
 	
-	if (vb and not nosave):	print me+"Figure saved to",plotfile
+	if verbose: print me+"Total execution time",round(time.time()-t0,1),"seconds."
 	if showfig:	plt.show()
 	
 	return
 
 ##=============================================================================
-def plot_file(histfile,nosave):
+def plot_file(histfile, nosave, vb):
+	"""
+	"""
+	me = "LE_BulkConst.plot_file: "
+
 	## CALCULATIONS
 	x, Q, e2E, c1, p, pars = bulk_const(histfile)
 	ftype = pars["ftype"]
-	fpars = [pars["X"]] if pars["geo"] is "1D" else [pars["R"],pars["S"]]
+	fpars = [pars["X"]] if pars["geo"] is "1D" else [pars["R"],pars["S"],pars["lam"],pars["nu"]]
 	ord = "r" if pars["geo"] == "CIR" else "x"
+	
 	## PLOT
-	fig = plt.figure()
-	plot_wall(plt.gca(), ftype, fpars, x)
-	refpoint = Q.shape[0]/2 if (ftype is "dcon" or ftype is "dlin") else 0 ## fix
-	plt.plot(x,Q/Q.mean(),label="$\\rho("+ord+")$")
-	plt.plot(x,e2E/e2E.mean(),label="$\\langle\\eta^2\\rangle("+ord+")$")
-	plt.plot(x,c1/c1.mean(),label="$\\rho\\cdot\\langle\\eta^2\\rangle$")
-	plt.xlim(left=x[0],right=x[-1])
-	plt.ylim(bottom=0.0)
-	plt.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.",fontsize=fst)
-	plt.xlabel("$"+ord+"$",fontsize=fsa)
-	plt.ylabel("Variable divided by first value",fontsize=fsa)
-	plt.grid()
-	plt.legend(loc="upper left",fontsize=fsl+2)
+	fig = plt.figure(); ax = fig.gca()
+	plot_wall(ax, ftype, fpars, x)
+	ax.plot(x,Q/Q.mean(),label="$\\rho("+ord+")$")
+	ax.plot(x,e2E/e2E.mean(),label="$\\langle\\eta^2\\rangle("+ord+")$")
+	ax.plot(x,c1/c1.mean(),label="$\\rho\\cdot\\langle\\eta^2\\rangle$")
+	
+	## ATTRIBUTES
+	ax.set_xlim(left=x[0],right=x[-1])
+	if ftype[0]!="d":	ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()])
+	else:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[1]-x).argmin():np.abs(fpars[0]-x).argmin()])
+	ax.set_ylim(bottom=0.0,top=ymax)
+	ax.set_xlabel("$"+ord+"$",fontsize=fsa)
+	ax.set_ylabel("Rescaled variable",fontsize=fsa)
+	ax.grid()
+	ax.legend(loc="upper left",fontsize=fsl+2)
+	# fig.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.",fontsize=fst)
+	
+	## SAVE
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".png"
-	if not nosave:	plt.savefig(plotfile)
+	if not nosave:
+		fig.savefig(plotfile)
+		if vb: print me+"Figure saved to",plotfile
+	
 	return plotfile
 	
 ##=============================================================================
-def plot_dir(histdir,nosave):
-
+def plot_dir(histdir, nosave, searchstr, vb):
+	"""
+	"""
+	me = "LE_BulkConst.plot_dir: "
+	
 	dirpars = filename_pars(histdir)
 	geo = dirpars["geo"]
 	ftype = dirpars["ftype"]
+	assert ftype[0]!="d", me+"Functionality not available."
 	
-	## CONSTRUCT CALCULATION ARRAYS
-	A = []; X = []; R = []; C = []; P = []; P_WN = []
-	for i,histfile in enumerate(np.sort(glob.glob(histdir+"*_R5.0_*.npy"))):
+	filelist = np.sort(glob.glob(histdir+"/BHIS_*"+searchstr+"*.npy"))
+	numfiles = len(filelist)
+	if vb: print me+"Found",numfiles,"files."
+	
+	## Initialise arrays
+	A,X,C,P,P_WN = np.zeros([5,numfiles])	
+	
+	## Retrieve data
+	for i,histfile in enumerate(filelist):
+	
 		[x, Hx, e2E, c1, p, pars] = bulk_const(histfile)
-		A += [pars["a"]]
+		A[i] = pars["a"]
+		P[i] = p
+		
 		if geo == "1D":
-			X += [pars["X"]]
-			widx = np.argmin(np.abs(x-X[i]))
-			force = 0.5*(np.sign(X[i]-x)-1)* ((x-X[i]) if ftype is "linear" else 1)
-			P_WN += [-(force*pdf_WN(x,R[i],ftype)).sum()*(x[1]-x[0])]
+			X[i] = pars["X"]
+			Xidx = np.argmin(np.abs(x-X[i]))
+			force = 0.5*(np.sign(X[i]-x)-1)* ((x-X[i]) if ftype is "lin" else 1)
+			P_WN[i] = -(force*pdf_WN(x,R[i],ftype)).sum()*(x[1]-x[0])
+			C[i] = c1[:widx].mean()
+			
 		elif geo == "CIR":
-			R += [pars["R"]]
-			widx = np.argmin(np.abs(x-R[i]))
-			force = 0.5*(np.sign(R[i]-x)-1) * ((x-R[i]) if ftype is "linear" else 1)
-			P_WN += [-(force*pdf_WN(x,[R[i]],ftype)).sum()*(x[1]-x[0])]
-		C += [c1[:widx].mean()]
-		P += [p]
-	A = np.array(A); X = np.array(X); R = np.array(R); C = np.array(C)
-	P = np.array(P); P_WN = np.array(P_WN)
+			fpars = [pars["R"],pars["S"],pars["lam"],pars["nu"]]
+			Ridx, Sidx = np.abs(x-fpars[0]).argmin(), np.abs(x-fpars[1]).argmin()
+			r_WN = np.linspace(x[0],x[-1],2*x.size+1)
+			P_WN[i] = calc_pressure(r_WN,pdf_WN(r_WN,fpars,ftype),ftype,fpars)
+			C[i] = c1[Sidx+10:Ridx-10].mean()
 	
 	## NORMALISE
 	P /= P_WN
 	C /= P_WN
 	
 	## PLOTTING
-	plt.plot(A,P, "o-", label="$-\\int\\rho(x)\\phi(x)\\,{\\rm d}x$")
-	plt.plot(A,C*A, "o-", label="$\\alpha Q\\langle\\eta^2\\rangle$")
-	plt.suptitle("Pressure normalised by WN result")
-	plt.xlabel("$\\alpha$")
-	plt.ylabel("$P$")
-	plt.grid()
-	plt.legend()
+	fig = plt.figure(); ax = fig.gca()
+	ax.plot(A,P, "o-", label="$-\\int\\rho(x)\\phi(x)\\,{\\rm d}x$")
+	ax.plot(A,C*A, "o-", label="$\\alpha Q\\langle\\eta^2\\rangle$")
+	ax.set_xlabel("$\\alpha$")
+	ax.set_ylabel("$P$")
+	ax.grid()
+	ax.legend()
+	fig.suptitle("Pressure normalised by WN result")
+	
 	plotfile = histdir+"/QEe2_P_.png"
-	# plt.savefig(plotfile)
+	if not nosave:
+		fig.savefig(plotfile)
+		if vb: print me+"Figure saved to",plotfile
+		
 	return plotfile
 	
 ##=============================================================================
@@ -123,9 +159,16 @@ def plot_dir(histdir,nosave):
 def bulk_const(histfile):
 
 	pars = filename_pars(histfile)
-	[a,X,R,S,D,ftype,geo] = [pars[key] for key in ["a","X","R","S","D","ftype","geo"]]
+	[a,X,R,S,D,lam,nu,ftype,geo] = [pars[key] for key in ["a","X","R","S","D","lam","nu","ftype","geo"]]
 
 	H = np.load(histfile)
+	if len(H.shape)==4:
+		H = H.sum(axis=1)
+		import LE_Utils
+		LE_Utils.save_data(histfile, H)
+		print "summed and resaved\n"
+		exit()
+		
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 	
 	## 1D sim
@@ -146,44 +189,45 @@ def bulk_const(histfile):
 		
 	## Circular sim
 	elif geo == "CIR":
-		H = H.T
+	
+		## Space
 		rbins = bins["rbins"]
 		erbins = bins["erbins"]
-		## r="x" for convenience
-		x = 0.5*(rbins[1:]+rbins[:-1])
-		eta = 0.5*(erbins[1:]+erbins[:-1]) ## Radial
-		## Normalise probability
-		H /= sp.integrate.simps(sp.integrate.simps(H,x,axis=1),eta,axis=0)
+		epbins = bins["epbins"]
+		r = 0.5*(rbins[1:]+rbins[:-1])
+		etar = 0.5*(erbins[1:]+erbins[:-1])
+		etap = 0.5*(epbins[1:]+epbins[:-1])
+		
+		## Probability
+		## Normalise
+		H /= simps(simps(simps(H,etap,axis=2),etar,axis=1),r,axis=0)
 		## Marginalise over eta turn into density
-		Q = sp.integrate.simps(H, x=eta, axis=0) / x
+		Q = simps(simps(H,etap,axis=2),etar,axis=1) / (2*np.pi*r)
 		## To get probability density rather than probability
-		rho = (H.T / eta).T / x
-		## Force
-		if ftype == "const":	force = force_const(x,x,x*x,R,R*R)
-		elif ftype == "lin":	force = force_lin(x,x,x*x,R,R*R)
-		elif ftype == "lico":	force = force_lico(x,x,x*x,R,R*R,g)
-		elif ftype == "dcon":	force = force_dcon(x,x,x*x,R,R*R,S,S*S)
-		elif ftype == "dlin":	force = force_dlin(x,x,x*x,R,R*R,S,S*S)
+		#rho = H / reduce(np.multiply, np.ix_(r,etar,etap))
+				
 		## Calculations
-		p = -sp.integrate.simps(force*Q, x=x)
-		e2E = sp.integrate.simps(((rho/Q).T*(eta*eta*eta)).T, x=eta, axis=0)
-		# e1E = H.mean(axis=0)
-		# e2E2 = H.var(axis=0) + e1E*e1E
-		# plt.plot(x,e1E)
-		# plt.plot(x,e2E2)
-		# # plt.plot(x,Q*e2E)
-		# plt.grid(); plt.xlim(right=R+1); plt.ylim(top=1); plt.show(); exit()
+		p = calc_pressure(r,Q,ftype,[R,S,lam,nu])
+		
+		## 3D arrays of etar and etap
+		ETAR = etar[np.newaxis,:,np.newaxis].repeat(H.shape[0],axis=0).repeat(H.shape[2],axis=2)
+		ETAP = etap[np.newaxis,np.newaxis,:].repeat(H.shape[0],axis=0).repeat(H.shape[1],axis=1)
+		## Calculate averages
+		Qp = Q+(Q==0) ## Avoid /0 warning (numerator is 0 anyway)
+		er2E = simps(simps(H*ETAR*ETAR, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
+		ep2E = simps(simps(H*ETAP*ETAP, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
+		e2E = er2E*er2E*(1.0+ep2E*ep2E)
+		#ep2E = simps(simps(H*ETAP*ETAP*ETAR*ETAR, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
+		#e2E = er2E*er2E+ep2E*ep2E
 		e2E[np.isnan(e2E)] = 0.0
+		## Bulk constant
 		c1 = Q*e2E
+		c1 = sp.ndimage.filters.gaussian_filter(c1,1,order=0)
 		
-	if 0:
-		print "eta pdfs"
-		for i in range(0,50,2):
-			plt.plot(eta, H[:,i]/Q[i])
-		plt.show();exit()
-		
+	try: x = r
+	except UnboundLocalError: pass
 	
-	return [x, Q, e2E, c1, p, pars]
+	return [r, Q, e2E, c1, p, pars]
 	
 ##=============================================================================
 if __name__ == "__main__":
