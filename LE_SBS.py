@@ -159,11 +159,8 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb):
 	ermax = 4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)
 	Nerbin = 150
 	erbins = np.linspace(0.0,ermax,Nerbin+1)
-	
-	Nepbin = 50
-	epbins = np.linspace(0.0,2*np.pi,Nepbin+1)
-	
-	bins = [rbins,erbins,epbins]	
+		
+	bins = [rbins,erbins]	
 	## ------------
 	
 	## Particles	
@@ -196,7 +193,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb):
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+"_phi/"
+			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+"/"
 	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)+intmeth
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
@@ -288,9 +285,8 @@ def boundary_sim(xyini, exyini, a, xy_step, rmin, dt, tmax, expmt, vb):
 			
 	rcoord = np.sqrt((xy*xy).sum(axis=1))
 	ercoord = np.sqrt((exy*exy).sum(axis=1))
-	epcoord = np.arctan2(exy[:,1],exy[:,0])
 	
-	return [rcoord, ercoord, epcoord]
+	return [rcoord, ercoord]
 	
 ## ====================================================================
 
