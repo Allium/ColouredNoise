@@ -172,7 +172,6 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	
 	## Initial noise drawn from Gaussian
 	if a == 0.0:
-		#eIC = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, [Nparticles,2,4])
 		eIC = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, [Nparticles,2])
 	else:
 		eIC = 1./np.sqrt(a)*np.random.normal(0.0, 1.0, [Nparticles,2])
@@ -200,8 +199,6 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	## SIMULATION
 	
 	if vb: print me+"Computing",Nparticles,"trajectories. Arena: CIR. Force: "+str(ftype)+"."
-	
-	## ----------------------------------------------------------------
 	
 	## Precompute exp(-t)
 	if a == 0:
@@ -270,15 +267,8 @@ def boundary_sim(xyini, exyini, a, xy_step, rmin, dt, tmax, expmt, vb):
 	
 	## Simulate eta
 	if vb: t0 = time.time()
-	########## CHANGE (more dimensions and order)
-	if 0:#a==0:
-		exy = np.array([\
-			[sim_eta(exyini[0,0], None, nstp, a, dt), sim_eta(exyini[1,0], None, nstp, a, dt)],
-			[sim_eta(exyini[0,1], None, nstp, a, 0.5*dt), sim_eta(exyini[1,1], None, nstp, a, 0.5*dt)],
-			[sim_eta(exyini[0,2], None, nstp, a, 0.5*dt), sim_eta(exyini[1,2], None, nstp, a, 0.5*dt)],
-			[sim_eta(exyini[0,3], None, nstp, a, dt), sim_eta(exyini[1,3], None, nstp, a, dt)]]).T
-	else:
-		exy = np.vstack([sim_eta(exyini[0], expmt, nstp, a, dt), sim_eta(exyini[1], expmt, nstp, a, dt)]).T
+	########## CHANGE (order of dimensions)
+	exy = np.vstack([sim_eta(exyini[0], expmt, nstp, a, dt), sim_eta(exyini[1], expmt, nstp, a, dt)]).T
 	##########
 	if vb: print me+"Simulation of eta",round(time.time()-t0,2),"seconds for",nstp,"steps"
 		
@@ -296,14 +286,10 @@ def boundary_sim(xyini, exyini, a, xy_step, rmin, dt, tmax, expmt, vb):
 		
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 			
-	########## CHANGE (order of dimensions and a=0.0 ignore extra dimension)
+	########## CHANGE (order of dimensions)
 	rcoord = np.sqrt((xy*xy).sum(axis=1))
-	if 0:#a==0.0:
-		ercoord = np.sqrt((exy[:,:,0]*exy[:,:,0]).sum(axis=1))
-		epcoord = np.arctan2(exy[:,1,0],exy[:,0,0])
-	else:
-		ercoord = np.sqrt((exy*exy).sum(axis=1))
-		epcoord = np.arctan2(exy[:,1],exy[:,0])
+	ercoord = np.sqrt((exy*exy).sum(axis=1))
+	epcoord = np.arctan2(exy[:,1],exy[:,0])
 	##########
 	
 	return [rcoord, ercoord, epcoord]
