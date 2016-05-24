@@ -45,9 +45,11 @@ def input():
 	parser.add_option('-r','--nrun',
 		dest="Nrun",default=1,type="int")
 	parser.add_option('--dt',
-		dest="dt",default=0.01,type="float")		
+		dest="dt",default=0.01,type="float")
 	parser.add_option('-t','--timefac',
-		dest="timefac",default=1.0,type="float")	 
+		dest="timefac",default=1.0,type="float")	
+	parser.add_option("--intmeth",
+		dest="intmeth",default="euler",type="str")	 
 	parser.add_option('-v','--verbose',
 		dest="vb",default=False,action="store_true")
 	parser.add_option('-h','--help',
@@ -63,6 +65,7 @@ def input():
 	Nrun	= opts.Nrun
 	dt		= opts.dt
 	timefac = opts.timefac
+	intmeth = (opts.intmeth).lower()
 	vb		= opts.vb
 	
 	if ftype[0] == "d":		assert S>=0.0, me+"Must specify inner radius S for double circus."
@@ -73,13 +76,13 @@ def input():
 			
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
 	
-	main(a,ftype,fpar,Nrun,dt,timefac,vb)
+	main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb)
 	
 	return
 
 ##=============================================================================
 
-def main(a,ftype,fpar,Nrun,dt,timefac,vb):
+def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb):
 	"""
 	"""
 	me = "LE_SBS.main: "
@@ -166,27 +169,35 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	## Particles	
 	Nparticles = Npbin*Nrun
 
-	
-	########## CHANGE (new definitions)
-	fxy = lambda xy, r2: fxy_infpot(xy,r2,force,wob2,wib2) if infpot else fxy_finpot(xy,r2,force)
-	
+		
 	## Initial noise drawn from Gaussian
 	if a == 0.0:
 		eIC = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, [Nparticles,2])
 	else:
 		eIC = 1./np.sqrt(a)*np.random.normal(0.0, 1.0, [Nparticles,2])
-		
+	
+	## Apply boundary conditions (should be integrated into force?)
+	fxy = lambda xy, r2: fxy_infpot(xy,r2,force,*wb2) if infpot else fxy_finpot(xy,r2,force)
+
+	## Integration algorithm
 	eul_step = lambda xy, r2, exy: eul(xy, r2, fxy, exy, dt)
-	RK4_step = lambda xy, r2, exy: RK4(xy, r2, fxy, exy, dt, eul_step)
-	xy_step = RK4_step if a==0.0 else eul_step
-	##########
-		
+	
+	if intmeth == "rk4":
+		xy_step = lambda xy, r2, exy: RK4(xy, r2, fxy, exy, dt, eul_step)
+		intmeth = "_rk4"
+	elif intmeth == "rk2":
+		xy_step = lambda xy, r2, exy: RK2(xy, r2, fxy, exy, dt, eul_step)
+		intmeth = "_rk2"
+	else:
+		xy_step = eul_step
+		intmeth = ""
+				
 	## ----------------------------------------------------------------
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+"_phi/"
-	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)
+			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+"_phi/"
+	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)+intmeth
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
@@ -211,12 +222,10 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	else:
 		## a is large enough that the exponential is well resolved.
 		expmt = np.exp((np.arange(-10*a,dt,dt))/a)
+	
+	simulate_trajectory = lambda xyini, eIC, vb2: boundary_sim(xyini, eIC, a, xy_step, rmin, dt, tmax, expmt, vb2)
 		
 	## ----------------------------------------------------------------
-	
-	########## CHANGE (lambdify boundary_sim)
-	simulate_trajectory = lambda xyini, eIC, vb2: boundary_sim(xyini, eIC, a, xy_step, rmin, dt, tmax, expmt, vb2)
-	##########
 	
 	## Initialise histogram in space
 	H = np.zeros([b.size-1 for b in bins])
@@ -229,9 +238,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 		xyini = [rini*np.cos(pini),rini*np.sin(pini)]
 		for run in xrange(Nrun):
 			if vb: print me+"Run",i,"of",Nparticles
-			########## CHANGE
 			coords = simulate_trajectory(xyini, eIC[i], (vb and run%50==0))
-			########## 
 			t2 = time.time()
 			H += np.histogramdd(coords,bins=bins,normed=False)[0]
 			if (vb and run%1==0): print me+"Histogram:",round(time.time()-t2,1),"seconds."
@@ -255,10 +262,7 @@ def boundary_sim(xyini, exyini, a, xy_step, rmin, dt, tmax, expmt, vb):
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
 	"""
 	me = "LE_SBS.boundary_sim: "
-	
-	rmin2 = rmin*rmin
-	#wob2, wib2 = wb2
-	
+		
 	## Initialisation
 	x0,y0 = xyini
 	r2 = x0*x0+y0*y0
@@ -267,30 +271,24 @@ def boundary_sim(xyini, exyini, a, xy_step, rmin, dt, tmax, expmt, vb):
 	
 	## Simulate eta
 	if vb: t0 = time.time()
-	########## CHANGE (order of dimensions)
 	exy = np.vstack([sim_eta(exyini[0], expmt, nstp, a, dt), sim_eta(exyini[1], expmt, nstp, a, dt)]).T
-	##########
 	if vb: print me+"Simulation of eta",round(time.time()-t0,2),"seconds for",nstp,"steps"
 		
 	## Spatial variables
 	if vb: t0 = time.time()
 		
-	########## CHANGE (order of dimensions)
 	xy = np.zeros([nstp,2]); xy[0] = [x0,y0]
 	j = 0
 	## Calculate trajectory
 	for i in xrange(0,nstp-1):
 		r2 = (xy[i]*xy[i]).sum()
 		xy[i+1] = xy[i] + xy_step(xy[i],r2,exy[i])
-	##########
 		
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 			
-	########## CHANGE (order of dimensions)
 	rcoord = np.sqrt((xy*xy).sum(axis=1))
 	ercoord = np.sqrt((exy*exy).sum(axis=1))
 	epcoord = np.arctan2(exy[:,1],exy[:,0])
-	##########
 	
 	return [rcoord, ercoord, epcoord]
 	
@@ -321,11 +319,18 @@ def eul(xy, r2, fxy, exy, dt):
 	"""
 	return dt * ( fxy(xy,r2) + exy )
 
+def RK2(xy1, r2, fxy, exy, dt, eul_step):
+	"""
+	RK2 (midpoint method) step. 
+	Basic routine with all dependencies.
+	"""
+	xy2 = xy1+0.5*eul_step(xy1, r2, exy)
+	return eul_step(xy2, (xy2*xy2).sum(), exy)
+	
 def RK4(xy1, r2, fxy, exy, dt, eul_step):
 	"""
 	RK4 step. 
 	Basic routine with all dependencies.
-	Only appropriate for white noise.
 	"""
 	k1 = eul_step(xy1, r2, exy)
 	xy2 = xy1+0.5*k1

@@ -86,7 +86,7 @@ def plot_fontsizes():
 	"""
 	Axes, legend, title
 	"""
-	return 16,12,16
+	return 20,12,16
 	#return 26,16,20
 
 	
@@ -160,7 +160,7 @@ def filename_pars(filename):
 		start = filename.find("_l") + 2
 		lam = float(filename[start:filename.find("_",start)])
 	except ValueError:
-		lam = 1.0
+		lam = -1.0
 	## nu multiplier
 	try:
 		start = filename.find("_n") + 2
@@ -177,6 +177,7 @@ def filename_pars(filename):
 	elif filename.find("_DT_") > 0: ftype = "dtan"
 	elif filename.find("_N_") > 0: ftype = "nu"
 	elif filename.find("_DN_") > 0: ftype = "dnu"
+	else: raise ValueError, me+"Unsupported potential."
 	## Geometry
 	if filename.find("_CIR_") > 0: geo = "CIR"
 	elif filename.find("_1D_") > 0: geo = "1D"
