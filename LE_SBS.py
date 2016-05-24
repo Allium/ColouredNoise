@@ -45,9 +45,11 @@ def input():
 	parser.add_option('-r','--nrun',
 		dest="Nrun",default=1,type="int")
 	parser.add_option('--dt',
-		dest="dt",default=0.01,type="float")		
+		dest="dt",default=0.01,type="float")
 	parser.add_option('-t','--timefac',
-		dest="timefac",default=1.0,type="float")	 
+		dest="timefac",default=1.0,type="float")	
+	parser.add_option("--intmeth",
+		dest="intmeth",default="euler",type="str")	 
 	parser.add_option('-v','--verbose',
 		dest="vb",default=False,action="store_true")
 	parser.add_option('-h','--help',
@@ -63,6 +65,7 @@ def input():
 	Nrun	= opts.Nrun
 	dt		= opts.dt
 	timefac = opts.timefac
+	intmeth = (opts.intmeth).lower()
 	vb		= opts.vb
 	
 	if ftype[0] == "d":		assert S>=0.0, me+"Must specify inner radius S for double circus."
@@ -73,13 +76,13 @@ def input():
 			
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
 	
-	main(a,ftype,fpar,Nrun,dt,timefac,vb)
+	main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb)
 	
 	return
 
 ##=============================================================================
 
-def main(a,ftype,fpar,Nrun,dt,timefac,vb):
+def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb):
 	"""
 	"""
 	me = "LE_SBS.main: "
@@ -127,8 +130,8 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	else:
 		raise IOError, me+"ftype must be one of {const, lin, lico, dcon, dlin, tan, dtan, nu}."
 	
-	doubpot = True if ftype[0] == "d" else False
-	finipot = True if (ftype[-3:] == "tan" or ftype[-2:] == "nu") else False
+	dblpot = True if ftype[0] == "d" else False
+	infpot = True if (ftype[-3:] == "tan" or ftype[-2:] == "nu") else False
 	
 	## ----------------------------------------------------------------
 	## SET UP CALCULATIONS
@@ -137,17 +140,17 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+lam if finipot else R+5.0
+	rmax = R+lam if infpot else R+5.0
 	rmin = 0.0 #max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
-	rini = 0.5*(S+R) if doubpot else 0.5*(rmin+R)
+	rini = 0.5*(S+R) if dblpot else 0.5*(rmin+R)
 	## Limits for finite potential
-	wb2 = [(R+lam)**2,(S>0.0)*(S-lam)**2] if finipot else [False,False]
+	wb2 = [(R+lam)**2,(S>0.0)*(S-lam)**2] if infpot else [False,False]
 	
 	## ------------
 	## Bin edges
 	
-	rbins = calc_rbins(finipot,fpar,rmin,rmax)
+	rbins = calc_rbins(infpot,fpar,rmin,rmax)
 	Nrbin = rbins.size - 1
 	
 	Npbin = 50
@@ -157,38 +160,56 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	Nerbin = 150
 	erbins = np.linspace(0.0,ermax,Nerbin+1)
 	
-	bins = [rbins,erbins]
+	Nepbin = 50
+	epbins = np.linspace(0.0,2*np.pi,Nepbin+1)
+	
+	bins = [rbins,erbins,epbins]	
 	## ------------
 	
 	## Particles	
 	Nparticles = Npbin*Nrun
 
-	## Initial noise drawn from Gaussian
-	if a > 0.0:
-		eIC = np.random.normal(0.0,1.0/np.sqrt(a),[Nparticles,2])
-	else:
-		eIC = 10*(np.random.random([Nparticles,2])-0.5)
 		
+	## Initial noise drawn from Gaussian
+	if a == 0.0:
+		eIC = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, [Nparticles,2])
+	else:
+		eIC = 1./np.sqrt(a)*np.random.normal(0.0, 1.0, [Nparticles,2])
+	
+	## Apply boundary conditions (should be integrated into force?)
+	fxy = lambda xy, r2: fxy_infpot(xy,r2,force,*wb2) if infpot else fxy_finpot(xy,r2,force)
+
+	## Integration algorithm
+	eul_step = lambda xy, r2, exy: eul(xy, r2, fxy, exy, dt)
+	
+	if intmeth == "rk4":
+		xy_step = lambda xy, r2, exy: RK4(xy, r2, fxy, exy, dt, eul_step)
+		intmeth = "_rk4"
+	elif intmeth == "rk2":
+		xy_step = lambda xy, r2, exy: RK2(xy, r2, fxy, exy, dt, eul_step)
+		intmeth = "_rk2"
+	else:
+		xy_step = eul_step
+		intmeth = ""
+				
 	## ----------------------------------------------------------------
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+"/"
-	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)
+			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+"_phi/"
+	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)+intmeth
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
 	create_readme(filepath, vb)
 	
 	## Save bins
-	np.savez(hisdir+binfile,rbins=rbins,erbins=erbins)
+	np.savez(hisdir+binfile,rbins=rbins,erbins=erbins,epbins=epbins)
 	
 	## ----------------------------------------------------------------
 	## SIMULATION
 	
 	if vb: print me+"Computing",Nparticles,"trajectories. Arena: CIR. Force: "+str(ftype)+"."
-	
-	## ----------------------------------------------------------------
 	
 	## Precompute exp(-t)
 	if a == 0:
@@ -201,12 +222,13 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	else:
 		## a is large enough that the exponential is well resolved.
 		expmt = np.exp((np.arange(-10*a,dt,dt))/a)
+	
+	simulate_trajectory = lambda xyini, eIC, vb2: boundary_sim(xyini, eIC, a, xy_step, rmin, dt, tmax, expmt, vb2)
 		
 	## ----------------------------------------------------------------
 	
-	
 	## Initialise histogram in space
-	H = np.zeros((Nrbin,Nerbin))
+	H = np.zeros([b.size-1 for b in bins])
 	## Counter for noise initial conditions
 	i = 0
 
@@ -216,12 +238,14 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 		xyini = [rini*np.cos(pini),rini*np.sin(pini)]
 		for run in xrange(Nrun):
 			if vb: print me+"Run",i,"of",Nparticles
-			## r, er are radial coordinates as a function of time
-			r,er = boundary_sim(xyini, eIC[i], a, force, wb2, rmin, dt, tmax, expmt, (vb and run%50==0))
-			H += np.histogram2d(r,er,bins=bins,normed=False)[0]
+			coords = simulate_trajectory(xyini, eIC[i], (vb and run%50==0))
+			t2 = time.time()
+			H += np.histogramdd(coords,bins=bins,normed=False)[0]
+			if (vb and run%1==0): print me+"Histogram:",round(time.time()-t2,1),"seconds."
 			i += 1
 	## Divide by bin area and number of particles
-	H /= np.outer(np.diff(rbins),np.diff(erbins))
+	binc = [np.diff(b) for b in bins]
+ 	H /= reduce(np.multiply, np.ix_(*binc))	
 	H /= Nparticles
 	
 	check_path(filepath, vb)
@@ -233,15 +257,12 @@ def main(a,ftype,fpar,Nrun,dt,timefac,vb):
 	
 ## ====================================================================
 
-def boundary_sim(xyini, exyini, a, force, wb2, rmin, dt, tmax, expmt, vb=False):
+def boundary_sim(xyini, exyini, a, xy_step, rmin, dt, tmax, expmt, vb):
 	"""
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
 	"""
 	me = "LE_SBS.boundary_sim: "
-	
-	rmin2 = rmin*rmin
-	wob2, wib2 = wb2
-	
+		
 	## Initialisation
 	x0,y0 = xyini
 	r2 = x0*x0+y0*y0
@@ -250,38 +271,76 @@ def boundary_sim(xyini, exyini, a, force, wb2, rmin, dt, tmax, expmt, vb=False):
 	
 	## Simulate eta
 	if vb: t0 = time.time()
-	exy = np.vstack([sim_eta(exyini[0], expmt, nstp, a, dt), sim_eta(exyini[1], expmt, nstp, a, dt)])
+	exy = np.vstack([sim_eta(exyini[0], expmt, nstp, a, dt), sim_eta(exyini[1], expmt, nstp, a, dt)]).T
 	if vb: print me+"Simulation of eta",round(time.time()-t0,2),"seconds for",nstp,"steps"
 		
 	## Spatial variables
 	if vb: t0 = time.time()
 		
-	xy = np.zeros([2,nstp]); xy[:,0] = [x0,y0]
+	xy = np.zeros([nstp,2]); xy[0] = [x0,y0]
 	j = 0
 	## Calculate trajectory
 	for i in xrange(0,nstp-1):
-		r2 = (xy[:,i]*xy[:,i]).sum()
-		## For finite potential -- no-penetrate condition
-		if   (wob2 and r2>wob2):	fxy = -1e10*xy[:,i]/np.sqrt(r2)
-		elif (wib2 and r2<wib2): 	fxy = +1e10*xy[:,i]/np.sqrt(r2)
-		else:						fxy = force(xy[:,i],np.sqrt(r2))
-		xy[:,i+1] = xy[:,i] + dt*( fxy + exy[:,i] )
-		## Apply BC
-		#if r2 < rmin2:
-		#	xy[:,i] *= 1-(2*rmin)/np.sqrt(r2)
-		#	j += 1
-	#if (vb and j==0 and rmin2>0.0): print me+"rmin never encountered."
+		r2 = (xy[i]*xy[i]).sum()
+		xy[i+1] = xy[i] + xy_step(xy[i],r2,exy[i])
+		
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
+			
+	rcoord = np.sqrt((xy*xy).sum(axis=1))
+	ercoord = np.sqrt((exy*exy).sum(axis=1))
+	epcoord = np.arctan2(exy[:,1],exy[:,0])
 	
-	# xx = np.linspace(0,2*np.pi,100)
-	# plt.plot(fpar[0]*np.cos(xx),fpar[0]*np.sin(xx),fpar[1]*np.cos(xx),fpar[1]*np.sin(xx))
-	# plt.plot(*xy);plt.show();exit()
+	return [rcoord, ercoord, epcoord]
 	
-	rcoord = np.sqrt((xy*xy).sum(axis=0))
-	ercoord = np.sqrt((exy*exy).sum(axis=0))
+## ====================================================================
+
+
+def fxy_finpot(xy,r2,force):
+	"""
+	Force for finite potential.
+	"""
+	return force(xy,np.sqrt(r2))
 	
-	return rcoord, ercoord
+def fxy_infpot(xy,r2,force,wob2,wib2):
+	"""
+	Force for infinite potential: must check whether boundary is crossed.
+	"""
+	if   (wob2 and r2>wob2):	fxy = -1e10*xy/np.sqrt(r2)
+	elif (wib2 and r2<wib2): 	fxy = +1e10*xy/np.sqrt(r2)
+	else:						fxy = force(xy,np.sqrt(r2))
+	return fxy
 	
+## ----------------------------------------------------------------------------
+
+def eul(xy, r2, fxy, exy, dt):
+	"""
+	Euler step.
+	Basic routine with all dependencies.
+	"""
+	return dt * ( fxy(xy,r2) + exy )
+
+def RK2(xy1, r2, fxy, exy, dt, eul_step):
+	"""
+	RK2 (midpoint method) step. 
+	Basic routine with all dependencies.
+	"""
+	xy2 = xy1+0.5*eul_step(xy1, r2, exy)
+	return eul_step(xy2, (xy2*xy2).sum(), exy)
+	
+def RK4(xy1, r2, fxy, exy, dt, eul_step):
+	"""
+	RK4 step. 
+	Basic routine with all dependencies.
+	"""
+	k1 = eul_step(xy1, r2, exy)
+	xy2 = xy1+0.5*k1
+	k2 = eul_step(xy2, (xy2*xy2).sum(), exy)
+	xy3 = xy1+0.5*k2
+	k3 = eul_step(xy3, (xy3*xy3).sum(), exy)
+	xy4 = xy1+k3
+	k4 = eul_step(xy4, (xy4*xy4).sum(), exy)
+	return 1.0/6.0 * ( k1 + 2*k2 + 2*k3 + k4 )
+
 ## ====================================================================
 
 def force_const(xy,r,R):
@@ -311,33 +370,6 @@ def force_dtan(xy,r,R,S,lam):
 def force_dnu(xy,r,R,S,lam,nu):
 	return force_nu(xy,r,R,lam,nu) + force_nu(xy,-r,-S,lam,nu)
 	
-"""tan written with less interdependency. Less elegant but cheaper."""
-"""
-def force_tan(xy,r,r2,R,R_2,lam):
-	## Bulk
-	if r < R:
-		force = [0.0,0.0]
-	## Wall
-	elif r < R+lam:
-		force = -0.5*np.pi*np.tan(0.5*np.pi * (r-R)/lam) * xy/r
-	## Beyond wall
-	else:
-		force = -0.5*np.pi*np.tan(0.5*np.pi) * xy/r *1e6
-		## tan evaluates large positive
-	return force
-	
-def force_dtan(xy,r,r2,R,R_2,S,S_2,lam):
-	## Bulk and outer wall
-	if r > S:
-		force = force_tan(xy,r,r2,R,R_2,lam)
-	## Inner wall
-	elif r > S-lam:
-		force = +0.5*np.pi*np.tan(0.5*np.pi * (S-r)/lam) * xy/r
-	## Beyond inner wall
-	else:
-		force = +0.5*np.pi*np.tan(0.5*np.pi) * xy/r	## tan evaluates large positive
-	return force
-"""
 ## ====================================================================
 
 def calc_rbins(finipot, fpar, rmin, rmax):
