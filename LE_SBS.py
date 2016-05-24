@@ -31,7 +31,7 @@ def input():
 	
 	parser = optparse.OptionParser(conflict_handler="resolve")	
 	parser.add_option('-a','--alpha',
-		dest="a",default=0.1,type="float")
+		dest="a",default=0.2,type="float")
 	parser.add_option('-R','--outrad',
 		dest="R",default=10.0,type="float")
 	parser.add_option('-S','--inrad',
@@ -49,7 +49,9 @@ def input():
 	parser.add_option('-t','--timefac',
 		dest="timefac",default=1.0,type="float")	
 	parser.add_option("--intmeth",
-		dest="intmeth",default="euler",type="str")	 
+		dest="intmeth",default="euler",type="str")
+	parser.add_option("--ephi",
+		dest="ephi", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
 		dest="vb",default=False,action="store_true")
 	parser.add_option('-h','--help',
@@ -61,11 +63,12 @@ def input():
 	S		= opts.S
 	lam		= opts.lam
 	nu		= opts.nu
-	ftype	= opts.ftype
+	ftype	= (opts.ftype).lower()
 	Nrun	= opts.Nrun
 	dt		= opts.dt
 	timefac = opts.timefac
 	intmeth = (opts.intmeth).lower()
+	ephi	= opts.ephi
 	vb		= opts.vb
 	
 	if ftype[0] == "d":		assert S>=0.0, me+"Must specify inner radius S for double circus."
@@ -76,13 +79,13 @@ def input():
 			
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
 	
-	main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb)
+	main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb)
 	
 	return
 
 ##=============================================================================
 
-def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb):
+def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	"""
 	"""
 	me = "LE_SBS.main: "
@@ -159,8 +162,16 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb):
 	ermax = 4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)
 	Nerbin = 150
 	erbins = np.linspace(0.0,ermax,Nerbin+1)
-		
-	bins = [rbins,erbins]	
+	
+	if ephi:	
+		Nepbin = 50
+		epbins = np.linspace(0.0,2*np.pi,Nepbin+1)
+		pstr = "_phi"
+		bins = [rbins,erbins,epbins]
+	
+	else:
+		pstr = ""
+		bins = [rbins,erbins]	
 	## ------------
 	
 	## Particles	
@@ -188,12 +199,12 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb):
 	else:
 		xy_step = eul_step
 		intmeth = ""
-				
+					
 	## ----------------------------------------------------------------
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+"/"
+			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+pstr+"_test/"
 	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)+intmeth
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
@@ -201,7 +212,8 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb):
 	create_readme(filepath, vb)
 	
 	## Save bins
-	np.savez(hisdir+binfile,rbins=rbins,erbins=erbins,epbins=epbins)
+	if ephi: np.savez(hisdir+binfile,rbins=rbins,erbins=erbins,epbins=epbins)
+	else:	 np.savez(hisdir+binfile,rbins=rbins,erbins=erbins)
 	
 	## ----------------------------------------------------------------
 	## SIMULATION
@@ -220,12 +232,14 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb):
 		## a is large enough that the exponential is well resolved.
 		expmt = np.exp((np.arange(-10*a,dt,dt))/a)
 	
-	simulate_trajectory = lambda xyini, eIC, vb2: boundary_sim(xyini, eIC, a, xy_step, rmin, dt, tmax, expmt, vb2)
+	simulate_trajectory = lambda xyini, eIC, vb2:\
+							boundary_sim(xyini, eIC, a, xy_step, dt, tmax, expmt, ephi, vb2)
 		
 	## ----------------------------------------------------------------
 	
 	## Initialise histogram in space
 	H = np.zeros([b.size-1 for b in bins])
+	
 	## Counter for noise initial conditions
 	i = 0
 
@@ -254,7 +268,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,vb):
 	
 ## ====================================================================
 
-def boundary_sim(xyini, exyini, a, xy_step, rmin, dt, tmax, expmt, vb):
+def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 	"""
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
 	"""
@@ -286,7 +300,11 @@ def boundary_sim(xyini, exyini, a, xy_step, rmin, dt, tmax, expmt, vb):
 	rcoord = np.sqrt((xy*xy).sum(axis=1))
 	ercoord = np.sqrt((exy*exy).sum(axis=1))
 	
-	return [rcoord, ercoord]
+	if ephi:
+		epcoord = np.arctan2(exy[:,1],exy[:,0])
+		return [rcoord, ercoord, epcoord]
+	else:
+		return [rcoord, ercoord]
 	
 ## ====================================================================
 
