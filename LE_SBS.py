@@ -9,19 +9,24 @@ from LE_LightBoundarySim import check_path, create_readme, sim_eta
 def input():
 	"""
 	PURPOSE
-		Simulate coloured noise trajectories in 2D disc geometry.
+		Simulate coloured noise trajectories in 2D disc / annular geometry.
 		
 	INPUT
-		-a --alpha		0.1		Slope of the potential
-		-R --bulkrad	10.0	Position of wall
-		   --HO			False	Switch from linear to harmonic potential
-		-r --nruns		100		Number of runs for each (x0,y0)
-		   --dt			0.01	Timestep
-		-t --time		1.0		Multiply t_max by factor
+		-a	--alpha		0.1		Slope of the potential
+		-R	--outrad	2.0		Position of outer wall
+		-S	--inrad		-1.0	Position of inner wall
+			--lam		-1.0	Width of walls for infinite potentials
+			--nu		-1.0	Potential multiplier for log-quadratic potential
+			--ftype		const	const, lin, tan, nu, dcon, dlin, dtan, dnu
+		-r 	--nruns		1		Number of runs for each (x0,y0)
+		   	--dt		0.01	Timestep
+		-t 	--timefac	1.0		Multiply t_max by factor
+			--intmeth	euler	Integration method. euler, rk2, rk4
 	
 	FLAGS
-		-v --verbose	False	Print useful information to screen
-		-h --help		False	Print docstring and exit
+			--ephi		False	Histogram in eta-phi also, for bulk-constant plots
+		-v	--verbose	False	Print useful information to screen
+		-h	--help		False	Print docstring and exit
 	"""	
 	me = "LE_SBS.input: "
 	t0 = time.time()
@@ -167,8 +172,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 		Nepbin = 50
 		epbins = np.linspace(0.0,2*np.pi,Nepbin+1)
 		pstr = "_phi"
-		bins = [rbins,erbins,epbins]
-	
+		bins = [rbins,erbins,epbins]	
 	else:
 		pstr = ""
 		bins = [rbins,erbins]	
@@ -204,7 +208,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+pstr+"_test/"
+			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+pstr+"/"
 	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)+intmeth
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
@@ -250,9 +254,9 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 		for run in xrange(Nrun):
 			if vb: print me+"Run",i,"of",Nparticles
 			coords = simulate_trajectory(xyini, eIC[i], (vb and run%50==0))
-			t2 = time.time()
+			#t2 = time.time()
 			H += np.histogramdd(coords,bins=bins,normed=False)[0]
-			if (vb and run%1==0): print me+"Histogram:",round(time.time()-t2,1),"seconds."
+			#if (vb and run%1==0): print me+"Histogram:",round(time.time()-t2,1),"seconds."
 			i += 1
 	## Divide by bin area and number of particles
 	binc = [np.diff(b) for b in bins]
