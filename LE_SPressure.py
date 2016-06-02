@@ -658,8 +658,16 @@ def pdf_WN(r,fpars,ftype,vb=False):
 						+R*lam*np.sqrt(np.pi)*sp.special.gamma(nu*lam+1.0)/sp.special.gamma(nu*lam+1.5))
 		rho_WN = rho0 * np.hstack([np.ones(Rind),np.power(1.0-((r[Rind:]-R)/lam)**2.0,lam*nu)])
 	else:
-		print me+"Functionality not available."
-		rho_WN = np.zeros(r.size)
+		lam, nu = fpars[2:4]
+		Lind = np.abs(r-(S-lam)).argmin()
+		rho0 = 1.0
+		if vb:	print me+"Normalisation calculated numerically."
+		rho_WN = rho0 * np.hstack(\
+					[np.zeros(Lind),\
+					np.power(1.0-((S-r[Lind:Sind])/lam)**2.0,lam*nu),\
+					np.ones(Rind-Sind),\
+					np.power(1.0-((r[Rind:]-R)/lam)**2.0,lam*nu)])
+		rho_WN /= 2*np.pi*np.trapz(rho_WN*r, x=r, axis=0)
 	return rho_WN
 	
 	
