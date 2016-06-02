@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.signal import fftconvolve
+from matplotlib import pyplot as plt
 import optparse, os, time
 from datetime import datetime
 
@@ -153,7 +154,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	## Injection x coordinate
 	rini = 0.5*(S+R) if dblpot else 0.5*(rmin+R)
 	## Limits for finite potential
-	wb2 = [(R+lam)**2,(S>0.0)*(S-lam)**2] if infpot else [False,False]
+	wb = [R+lam, (S>0.0)*(S-lam)] if infpot else [False, False]
 	
 	## ------------
 	## Bin edges
@@ -189,7 +190,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 		eIC = 1./np.sqrt(a)*np.random.normal(0.0, 1.0, [Nparticles,2])
 	
 	## Apply boundary conditions (should be integrated into force?)
-	fxy = lambda xy, r2: fxy_infpot(xy,r2,force,*wb2) if infpot else fxy_finpot(xy,r2,force)
+	fxy = lambda xy, r2: fxy_infpot(xy,r2,force,wb[0],wb[1],dt) if infpot else fxy_finpot(xy,r2,force)
 
 	## Integration algorithm
 	eul_step = lambda xy, r2, exy: eul(xy, r2, fxy, exy, dt)
@@ -208,7 +209,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+pstr+"/"
+			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+pstr+"_test/"
 	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)+intmeth
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
@@ -288,22 +289,36 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 	if vb: t0 = time.time()
 	exy = np.vstack([sim_eta(exyini[0], expmt, nstp, a, dt), sim_eta(exyini[1], expmt, nstp, a, dt)]).T
 	if vb: print me+"Simulation of eta",round(time.time()-t0,2),"seconds for",nstp,"steps"
-		
+				
 	## Spatial variables
 	if vb: t0 = time.time()
 		
 	xy = np.zeros([nstp,2]); xy[0] = [x0,y0]
 	j = 0
 	## Calculate trajectory
+	# step = np.zeros([nstp,2])
 	for i in xrange(0,nstp-1):
 		r2 = (xy[i]*xy[i]).sum()
 		xy[i+1] = xy[i] + xy_step(xy[i],r2,exy[i])
+		# step[i] = xy_step(xy[i],r2,exy[i])
+		# xy[i+1] = xy[i] + step[i]
+	# plt.hist(step,bins=50); plt.show(); exit()
 		
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 			
 	rcoord = np.sqrt((xy*xy).sum(axis=1))
 	ercoord = np.sqrt((exy*exy).sum(axis=1))
 	
+	# plt.hist(np.diff(rcoord),bins=500); plt.show(); plt.clf()
+	
+	# R = 1.0
+	# step = xy.shape[0]/2000
+	# plt.plot(xy[::step,0],xy[::step,1])
+	# ang = np.linspace(0.0,2*np.pi,360)
+	# plt.plot(R*np.cos(ang),R*np.sin(ang),(R+0.5)*np.cos(ang),(R+0.5)*np.sin(ang),lw=3.0)
+	# plt.grid(); plt.show(); exit()
+	
+			
 	if ephi:
 		epcoord = np.arctan2(exy[:,1],exy[:,0])
 		return [rcoord, ercoord, epcoord]
@@ -319,13 +334,14 @@ def fxy_finpot(xy,r2,force):
 	"""
 	return force(xy,np.sqrt(r2))
 	
-def fxy_infpot(xy,r2,force,wob2,wib2):
+def fxy_infpot(xy,r2,force,wob,wib,dt):
 	"""
-	Force for infinite potential: must check whether boundary is crossed.
+	Force for infinite potential: checking whether boundary is crossed.
 	"""
-	if   (wob2 and r2>wob2):	fxy = -1e10*xy/np.sqrt(r2)
-	elif (wib2 and r2<wib2): 	fxy = +1e10*xy/np.sqrt(r2)
-	else:						fxy = force(xy,np.sqrt(r2))
+	r = np.sqrt(r2)
+	if   (wob and r>wob):	fxy = (force(wob,wob) + (wob-r)/dt) * (xy/r) #force(wob,wob) * (xy/r) #
+	elif (wib and r<wib): 	fxy = force(wib,wib) * (xy/r) #(force(wib,wib) + (r-wib)/dt) * (xy/r) #
+	else:					fxy = force(xy,r)
 	return fxy
 	
 ## ----------------------------------------------------------------------------
@@ -336,6 +352,15 @@ def eul(xy, r2, fxy, exy, dt):
 	Basic routine with all dependencies.
 	"""
 	return dt * ( fxy(xy,r2) + exy )
+	
+def RK2_new(xy, r2, fxy, exy, dt, eul_step):
+	"""
+	RK2 (midpoint method) step. 
+	Basic routine with all dependencies.
+	"""
+	K1 = eul_step(xy, np.sqrt(r2), exy)
+	K2 = eul_step(xy+K1, np.sqrt(((xy+K1)*(xy+K1)).sum()), exy)
+	return 0.5*(K1+K2)
 
 def RK2(xy1, r2, fxy, exy, dt, eul_step):
 	"""
@@ -362,7 +387,7 @@ def RK4(xy1, r2, fxy, exy, dt, eul_step):
 ## ====================================================================
 
 def force_const(xy,r,R):
-	return -xy/r * (r>R)
+	return -xy/(r+0.0001*(r==0.0)) * (r>R)
 
 def force_lin(xy,r,R):
 	return -(r-R)*xy/r * (r>R)
@@ -380,7 +405,7 @@ def force_tan(xy,r,R,lam):
 	
 def force_nu(xy,r,R,lam,nu):
 	Dr = (r-R) * (r>R)
-	return -lam*nu*2.0*Dr/(lam*lam-Dr*Dr)*xy/r * (r>R)
+	return -lam*nu*2.0*Dr/(lam*lam-Dr*Dr+0.0001)*xy/r * (r>R)
 	
 def force_dtan(xy,r,R,S,lam):
 	return force_tan(xy,r,R,lam) + force_tan(xy,-r,-S,lam)

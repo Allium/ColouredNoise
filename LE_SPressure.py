@@ -128,7 +128,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	## White noise result
 	r_WN = np.linspace(dr,r[-1]+0.5*(r[1]-r[0]),r.size*5+1)
 	rho_WN = pdf_WN(r_WN,fpars,ftype,verbose)
-	
+		
 	##---------------------------------------------------------------			
 	## PLOT SET-UP
 	
@@ -155,7 +155,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	ax.plot(r,rho,   "b-", label="CN simulation")
 	ax.plot(r_WN,rho_WN,"r-", label="WN theory")
 	## Accoutrements
-	ax.set_xlim(right=rmax)
+	ax.set_xlim(left=0.0,right=rmax)
 	ax.set_ylim(bottom=0.0, top=min(20,round(max(rho.max(),rho_WN.max())+0.05,1)))
 	if not plotpress: ax.set_xlabel("$r$", fontsize=fsa)
 	ax.set_ylabel("$\\rho(r,\\phi)$", fontsize=fsa)
@@ -168,7 +168,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	if plotpress:
 	
 		## CALCULATIONS
-		p 	= calc_pressure(r,rho,ftype,[R,S,lam,nu],spatial=True)
+		p	= calc_pressure(r,rho,ftype,[R,S,lam,nu],spatial=True)
 		p_WN = calc_pressure(r_WN,rho_WN,ftype,[R,S,lam,nu],spatial=True)
 		## Eliminate negative values
 		if ftype[0] == "d":

@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import os, time
 
 """
@@ -136,14 +135,11 @@ def filename_pars(filename):
 	except ValueError:
 		D = 0.0
 	## dt
-	# try:
-		# start = filename.find("_dt") + 3
-		# dt = float(filename[start:filename.find(".npy",start)])
-	# except ValueError:
-		# start = filename.find("_dt",start) + 3
-		# dt = float(filename[start:filename.find(".npy",start)])
-	# except ValueError:
-	dt = 0.01
+	start = filename.find("_dt") + 3
+	finish = start + 1
+	while unicode(filename.replace(".",""))[start:finish].isnumeric():
+		finish += 1
+	dt = float(filename[start:finish])
 	## R
 	try:
 		start = filename.find("_R") + 2
