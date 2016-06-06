@@ -1,6 +1,7 @@
 
 import numpy as np
 import scipy as sp
+from scipy.optimize import curve_fit
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import os, glob, optparse
@@ -189,7 +190,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 		ax.set_xlabel("$r$", fontsize=fsa)
 		ax.set_ylabel("$P(r)$", fontsize=fsa)
 		ax.grid()
-		ax.legend(loc="upper left",fontsize=fsl)
+#		ax.legend(loc="upper left",fontsize=fsl)
 	
 	##---------------------------------------------------------------
 	
@@ -391,7 +392,7 @@ def pressure_dir(dirpath, nosave, verbose):
 						## No value there
 						pass
 						
-	## 3D pressure array for DNU force: [L,R,A]
+	## 3D pressure array for DNU force: [N,L,R,A]
 	## Assume all N equal
 	elif ftype == "dnu":
 		PP = -np.ones([NN.size,LL.size,RR.size,AA.size])
@@ -428,7 +429,7 @@ def pressure_dir(dirpath, nosave, verbose):
 	if  ftype[0] is "d": QQ /= QQ_WN
 	title = "Pressure normalised by WN; ftype = "+ftype
 	plotfile = dirpath+"/PAR.png"
-	ylabel = "Pressure"
+	ylabel = "Pressure (normalised)"
 	if ftype == "lin" or ftype == "lico" or ftype == "dlin":
 		#xlabel = "$\\alpha=k\\tau/\\zeta$"
 		xlabel = "$\\alpha$"
@@ -541,15 +542,26 @@ def pressure_dir(dirpath, nosave, verbose):
 				ax.plot(SS,DP[Lidx,Ridx,Sidx,i], "o-", label="$\\alpha = "+str(AA[i])+"$") 
 			xlabel = "$S\\;(=R-"+str((RR-SS)[0])+")$"; ylabel = "Pressure Difference"; xlim = (SS[0],SS[-1])
 			
-	## Single circus; NU
+	## Disc; NU
 	elif ftype == "nu":
+		## All R equal; plot against a; large and small l
+		"""
 		plotfile = dirpath+"/PALN.png"
 		title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 		for i in range(LL.size):
 			ax.plot(AA,PP[0,i,:],   "o-", label="$\\lambda, \\nu = "+str(LL[i])+", "+str(NN[0]) +"$")
 			ax.plot(AA,PP[-1,i,:], "o--", color=ax.lines[-1].get_color(), label="$\\lambda, \\nu = "+str(LL[i])+", "+str(NN[-1])+"$")
+		"""
+		## All R equal; plot against nu; assume same L; [N,L,A]
+		plotfile = dirpath+"/PNA.png"
+		title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype+"; $\\lambda = "+str(LL[0])+"$"
+		fitfunc = lambda NN, M, b: M*np.power(NN, b)
+		for i in range(AA.size):
+			print curve_fit(fitfunc, NN[1:], np.nan_to_num(PP[1:,0,i]))[0]
+			ax.plot(NN,PP[:,0,i], "o-", label="$\\alpha = "+str(AA[i])+"$")
+		xlabel = "$\\nu$"; xlim = (NN[0],NN[-1])
 	
-	## Double circus; DNU
+	## Annulus; DNU
 	elif (ftype == "dnu"):
 		if np.unique(RR-SS).size == 1:
 			PP *= PP_WN; QQ *= QQ_WN
@@ -564,10 +576,10 @@ def pressure_dir(dirpath, nosave, verbose):
 	## ------------------------------------------------
 	## Accoutrements
 	
-	#ax.set_xscale("log"); ax.set_yscale("log"); plotfile = plotfile[:-4]+"_loglog.png"
+	ax.set_xscale("log"); ax.set_yscale("log"); plotfile = plotfile[:-4]+"_loglog.png"
 
 	ax.set_xlim(xlim)
-	if not DPplot:	ax.set_ylim(bottom=0.0, top=max(ax.get_ylim()[1],1.0))
+	if (ax.get_yscale()!="log"):	ax.set_ylim(bottom=0.0, top=max(ax.get_ylim()[1],1.0))
 	
 	ax.set_xlabel(xlabel,fontsize=fsa)
 	ax.set_ylabel(ylabel,fontsize=fsa)
@@ -607,7 +619,8 @@ def calc_pressure(r,rho,ftype,fpars,spatial=False):
 	if spatial == True:
 		P = -np.array([np.trapz(force[:i]*rho[:i], x=r[:i]) for i in xrange(r.shape[0])])
 	else:
-		P = -np.trapz(force*rho, r)
+#		P = -np.trapz(force*rho, r)
+		P = -sp.integrate.simps(force*rho, r)
 
 	return P
 
