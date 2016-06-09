@@ -5,7 +5,9 @@ from platform import system
 
 ## ============================================================================
 
-outdir = "Pressure/160606_CIR_DN_dt"
+outdir = "Pressure/160609_CIR_DN_dt"
+nosave = False
+annoloc = (0.02,0.85)
 
 ## ============================================================================
 ## ============================================================================
@@ -17,7 +19,6 @@ def plot_step_wall(xy,rcoord,R,S,a,dt,vb):
 	me = "LE_RunPlot.plot_step: "
 	
 	fig, axs = plt.subplots(2,2); axs = axs.reshape([axs.size])
-	annoloc = (0.02,0.83)
 	
 	## distribution of x step
 	ax = axs[0]
@@ -26,13 +27,15 @@ def plot_step_wall(xy,rcoord,R,S,a,dt,vb):
 	hout, binout = ax.hist(xstepout,bins=50,label="R",color="b",alpha=0.5,normed=True)[0:2]
 	hin, binin = ax.hist(xstepin,bins=binout,label="S",color="g",alpha=0.5,normed=True)[0:2]
 	ax.set_xlim(right=-ax.get_xlim()[0])
-	ax.grid(); ax.set_title("x step")
+	ax.grid()
+	ax.set_xlabel("$\\delta x$"); ax.set_ylabel("$p(\\delta x)$")
+	ax.set_title("x step")
 	##
-	fitfunc = lambda x, A, m: A*np.exp(-m*np.abs(x))
+	fitfunc = lambda x, A, b: A*np.exp(-0.5*b*(x)*(x))
 	x = 0.5*(binin[:-1]+binin[1:])
 	fitout = sp.optimize.curve_fit(fitfunc, x, hout)[0]
 	fitin = sp.optimize.curve_fit(fitfunc, x, hin)[0]
-	ax.annotate("scale: $R, S = "+str(round(fitin[1],1))+", "+str(round(fitout[1],1))+"$\n",
+	ax.annotate("scale: $R, S = "+str(round(1/fitin[1],3))+", "+str(round(1/fitout[1],3))+"$",
 				xy=(0,0),xytext=annoloc,textcoords="axes fraction")
 	ax.plot(x,fitfunc(x,*fitin),"g-",lw=2);	ax.plot(x,fitfunc(x,*fitout),"b-",lw=2)
 	ax.legend(loc="upper right")
@@ -44,13 +47,15 @@ def plot_step_wall(xy,rcoord,R,S,a,dt,vb):
 	hout, binout = ax.hist(xstepout,bins=50,label="R",color="b",alpha=0.5,normed=True)[0:2]
 	hin, binin = ax.hist(xstepin,bins=binout,label="S",color="g",alpha=0.5,normed=True)[0:2]
 	ax.set_xlim(right=-ax.get_xlim()[0])
-	ax.grid(); ax.set_title("y step")
+	ax.grid()
+	ax.set_xlabel("$\\delta y$"); ax.set_ylabel("$p(\\delta y)$")
+	ax.set_title("y step")
 	##
-	fitfunc = lambda x, A, m: A*np.exp(-m*np.abs(x))
+	fitfunc = lambda x, A, b: A*np.exp(-0.5*b*(x*x))
 	x = 0.5*(binin[:-1]+binin[1:])
 	fitout = sp.optimize.curve_fit(fitfunc, x, hout)[0]
 	fitin = sp.optimize.curve_fit(fitfunc, x, hin)[0]
-	ax.annotate("scale: $R, S = "+str(round(fitin[1],1))+", "+str(round(fitout[1],1))+"$\n",
+	ax.annotate("scale: $R, S = "+str(round(1/fitin[1],3))+", "+str(round(1/fitout[1],))+"$",
 				xy=(0,0),xytext=annoloc,textcoords="axes fraction")
 	ax.plot(x,fitfunc(x,*fitin),"g-",lw=2);	ax.plot(x,fitfunc(x,*fitout),"b-",lw=2)
 	
@@ -61,15 +66,17 @@ def plot_step_wall(xy,rcoord,R,S,a,dt,vb):
 	hout, binout = ax.hist(rstepout,bins=150,label="R",color="b",alpha=0.5,normed=True)[0:2]
 	hin, binin = ax.hist(rstepin,bins=binout,label="S",color="g",alpha=0.5,normed=True)[0:2]
 	ff=0.3; ax.set_xlim(left=-ff*ax.get_xlim()[1],right=ff*ax.get_xlim()[1])
-	ax.grid(); ax.set_title("r step")
+	ax.grid()
+	ax.set_xlabel("$\\delta r$"); ax.set_ylabel("$p(\\delta r)$")
+	ax.set_title("r step")
 	##
 	x = 0.5*(binin[:-1]+binin[1:])
-	fitfunc = lambda x, A, b, mu: A*np.exp(-b*(x-mu)*(x-mu))
+	fitfunc = lambda x, A, b, mu: A*np.exp(-0.5*b*(x-mu)*(x-mu))
 	fitout = sp.optimize.curve_fit(fitfunc, x, hout, p0=[100.0,100.0,0.0])[0]
 	ax.plot(x,fitfunc(x,*fitout),"b-",lw=2)
 	fitin  = sp.optimize.curve_fit(fitfunc, x, hin, p0=[100.0,100.0,0.0])[0]
 	ax.plot(x,fitfunc(x,*fitin),"g-",lw=2)
-	ax.annotate("scale: $R, S = "+str(round(fitin[1],1))+", "+str(round(fitout[1],1))+"$\n",
+	ax.annotate("scale: $R, S = "+str(round(1/fitin[1],3))+", "+str(round(1/fitout[1],3))+"$\n",
 				xy=(0,0),xytext=annoloc,textcoords="axes fraction")
 	ax.annotate("peak: $R, S = "+str(round(fitin[2],3))+", "+str(round(fitout[2],3))+"$\n",
 				xy=(0,0),xytext=(annoloc[0],annoloc[1]-0.05),textcoords="axes fraction")
@@ -84,7 +91,9 @@ def plot_step_wall(xy,rcoord,R,S,a,dt,vb):
 	ax.hist(phistepout,bins=ang,label="R",color="g",alpha=0.5,normed=True)
 	ax.plot(ang,1/(2*np.pi)*np.ones(ang.size),"k--",lw=2.0)
 	ax.set_xlim(left=-np.pi,right=np.pi)
-	ax.grid(); ax.set_title("phi step")
+	ax.grid()
+	ax.set_xlabel("$\\phi$"); ax.set_ylabel("$p(\\phi)$")
+	ax.set_title("phi step")
 	
 	## Save
 	fig.tight_layout()
@@ -92,8 +101,9 @@ def plot_step_wall(xy,rcoord,R,S,a,dt,vb):
 	plt.subplots_adjust(top=0.9)
 	plotfile = outdir+str(dt)+\
 				"/STEP_CIR_DN_a"+str(a)+"_R"+str(R)+"_S"+str(S)+"_dt"+str(dt)+".png"
-	fig.savefig(plotfile)
-	if vb:	print me+"STEP figure saved to",plotfile
+	if not nosave:
+		fig.savefig(plotfile)
+		if vb:	print me+"STEP figure saved to",plotfile
 	if vb:	plt.show()
 	plt.close()
 	
@@ -108,7 +118,6 @@ def plot_eta_wall(xy,rcoord,exy,ercoord,R,S,a,dt,vb):
 	me = "LE_RunPlot.plot_eta_stats: "
 	
 	fig, axs = plt.subplots(2,2); axs = axs.reshape([axs.size])
-	annoloc = (0.02,0.83)
 	
 	## distribution of etax
 	ax = axs[0]
@@ -124,13 +133,13 @@ def plot_eta_wall(xy,rcoord,exy,ercoord,R,S,a,dt,vb):
 
 	## Fit
 	x = 0.5*(binin[:-1]+binin[1:])
-	fitfunc = lambda x, A, b, mu: A*np.exp(-b*(x-mu)*(x-mu))
+	fitfunc = lambda x, A, b, mu: A*np.exp(-0.5*b*(x-mu)*(x-mu))
 	fitout = sp.optimize.curve_fit(fitfunc, x, hout)[0]
 	fitin = sp.optimize.curve_fit(fitfunc, x, hin)[0]
 	ax.plot(x,fitfunc(x,*fitin),"g-",lw=2);	ax.plot(x,fitfunc(x,*fitout),"b-",lw=2)
-	ax.annotate("scale: $R, S = "+str(round(fitin[1],2))+", "+str(round(fitout[1],2))+"$\n",
+	ax.annotate("scale: $R, S = "+str(round(1/fitin[1],3))+", "+str(round(1/fitout[1],3))+"$",
 				xy=(0,0),xytext=annoloc,textcoords="axes fraction")
-	ax.annotate("peak: $R, S = "+str(round(fitin[2],2))+", "+str(round(fitout[2],2))+"$\n",
+	ax.annotate("peak: $R, S = "+str(round(fitin[2],2))+", "+str(round(fitout[2],2))+"$",
 				xy=(0,0),xytext=(annoloc[0],annoloc[1]-0.05),textcoords="axes fraction")
 				
 	## distribution of etay
@@ -146,11 +155,11 @@ def plot_eta_wall(xy,rcoord,exy,ercoord,R,S,a,dt,vb):
 
 	## Fit
 	x = 0.5*(binin[:-1]+binin[1:])
-	fitfunc = lambda x, A, b, mu: A*np.exp(-b*(x-mu)*(x-mu))
+	fitfunc = lambda x, A, b, mu: A*np.exp(-0.5*b*(x-mu)*(x-mu))
 	fitout = sp.optimize.curve_fit(fitfunc, x, hout)[0]
 	fitin = sp.optimize.curve_fit(fitfunc, x, hin)[0]
 	ax.plot(x,fitfunc(x,*fitin),"g-",lw=2);	ax.plot(x,fitfunc(x,*fitout),"b-",lw=2)
-	ax.annotate("scale: $R, S = "+str(round(fitin[1],2))+", "+str(round(fitout[1],2))+"$\n",
+	ax.annotate("scale: $R, S = "+str(round(1/fitin[1],2))+", "+str(round(1/fitout[1],2))+"$\n",
 				xy=(0,0),xytext=annoloc,textcoords="axes fraction")
 	ax.annotate("peak: $R, S = "+str(round(fitin[2],2))+", "+str(round(fitout[2],2))+"$\n",
 				xy=(0,0),xytext=(annoloc[0],annoloc[1]-0.05),textcoords="axes fraction")
@@ -167,12 +176,12 @@ def plot_eta_wall(xy,rcoord,exy,ercoord,R,S,a,dt,vb):
 	
 	## Fit
 	x = 0.5*(binin[:-1]+binin[1:])
-	fitfunc = lambda x, A, b: A*x*np.exp(-b*(x*x))
-	fitout = sp.optimize.curve_fit(fitfunc, x, hout, p0=[100.0,100.0])[0]
+	fitfunc = lambda x, A, b: A*x*np.exp(-0.5*b*(x*x))
+	fitout = sp.optimize.curve_fit(fitfunc, x, hout, p0=[100.0,1.0])[0]
 	ax.plot(x,fitfunc(x,*fitout),"b-",lw=2)
-	fitin  = sp.optimize.curve_fit(fitfunc, x, hin, p0=[100.0,100.0])[0]
+	fitin  = sp.optimize.curve_fit(fitfunc, x, hin, p0=[100.0,1.0])[0]
 	ax.plot(x,fitfunc(x,*fitin),"g-",lw=2)
-	ax.annotate("scale: $R, S = "+str(round(fitin[1],1))+", "+str(round(fitout[1],1))+"$\n",
+	ax.annotate("scale: $R, S = "+str(round(1/fitin[1],2))+", "+str(round(1/fitout[1],2))+"$\n",
 				xy=(0,0),xytext=annoloc,textcoords="axes fraction")
 				
 	## distribution of ephi
@@ -196,8 +205,9 @@ def plot_eta_wall(xy,rcoord,exy,ercoord,R,S,a,dt,vb):
 	plt.subplots_adjust(top=0.9)
 	plotfile = outdir+str(dt)+\
 				"/ETAS_CIR_DN_a"+str(a)+"_R"+str(R)+"_S"+str(S)+"_dt"+str(dt)+".png"
-	fig.savefig(plotfile)
-	if vb:	print me+"ETAS figure saved to",plotfile
+	if not nosave:
+		fig.savefig(plotfile)
+		if vb:	print me+"ETAS figure saved to",plotfile
 	if vb:	plt.show()
 	plt.close()
 	
@@ -213,7 +223,6 @@ def plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb):
 	me = "LE_RunPlot.plot_step_bulk: "
 	
 	fig, axs = plt.subplots(2,2); axs = axs.reshape([axs.size])
-	annoloc = (0.02,0.83)
 	
 	## distribution of r step
 	ax = axs[0]
@@ -225,10 +234,10 @@ def plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb):
 	ax.set_xlabel("$\\delta r$"); ax.set_ylabel("$p(\\delta r)$")
 	##
 	x = 0.5*(binb[:-1]+binb[1:])
-	fitfunc = lambda x, A, b, mu: A*np.exp(-b*(x-mu)*(x-mu))
-	fitb = sp.optimize.curve_fit(fitfunc, x, hb, p0=[100.0,100.0,0.0])[0]
+	fitfunc = lambda x, A, b, mu: A*np.exp(-0.5*b*(x-mu)*(x-mu))
+	fitb = sp.optimize.curve_fit(fitfunc, x, hb, p0=[100.0,1.0,0.0])[0]
 	ax.plot(x,fitfunc(x,*fitb),"g-",lw=2)
-	ax.annotate("scale: $B = "+str(round(fitb[1],1))+"$",
+	ax.annotate("scale: $B = "+str(round(1/fitb[1],3))+"$",
 				xy=(0,0),xytext=annoloc,textcoords="axes fraction")
 	ax.annotate("peak: $B = "+str(round(fitb[2],3))+"$",
 				xy=(0,0),xytext=(annoloc[0],annoloc[1]-0.05),textcoords="axes fraction")
@@ -242,10 +251,10 @@ def plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb):
 	ax.set_xlabel("$\\delta\\eta_r$"); ax.set_ylabel("$p(\\delta\\eta_r)$")
 	##
 	x = 0.5*(binb[:-1]+binb[1:])
-	fitfunc = lambda x, A, b, mu: A*np.exp(-b*(x-mu)*(x-mu))
-	fitb = sp.optimize.curve_fit(fitfunc, x, hb, p0=[100.0,100.0,0.0])[0]
+	fitfunc = lambda x, A, b, mu: A*np.exp(-0.5*b*(x-mu)*(x-mu))
+	fitb = sp.optimize.curve_fit(fitfunc, x, hb, p0=[100.0,1.0,0.0])[0]
 	ax.plot(x,fitfunc(x,*fitb),"g-",lw=2)
-	ax.annotate("scale: $B = "+str(round(fitb[1],1))+"$",
+	ax.annotate("scale: $B = "+str(round(1/fitb[1],3))+"$",
 				xy=(0,0),xytext=annoloc,textcoords="axes fraction")
 	ax.annotate("peak: $B = "+str(round(fitb[2],3))+"$",
 				xy=(0,0),xytext=(annoloc[0],annoloc[1]-0.05),textcoords="axes fraction")
@@ -281,8 +290,9 @@ def plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb):
 	plt.subplots_adjust(top=0.9)
 	plotfile = outdir+str(dt)+\
 				"/BULK_CIR_DN_a"+str(a)+"_R"+str(R)+"_S"+str(S)+"_dt"+str(dt)+".png"
-	fig.savefig(plotfile)
-	if vb:	print me+"BULK figure saved to",plotfile
+	if not nosave:
+		fig.savefig(plotfile)
+		if vb:	print me+"BULK figure saved to",plotfile
 	if vb:	plt.show()
 	plt.close()
 	
@@ -333,8 +343,9 @@ def plot_traj(xy,rcoord,R,S,lam,nu,force_dnu,a,dt,vb):
 	plotfile = outdir+str(dt)+\
 				"/TRAJ_CIR_DN_a"+str(a)+"_R"+str(R)+"_S"+str(S)+\
 				"_l"+str(lam)+"_n"+str(nu)+"_t"+str(round(rcoord.size*dt/5e2,1))+"_dt"+str(dt)+".png"
-	fig.savefig(plotfile)
-	if vb:	print me+"TRAJ figure saved to",plotfile
+	if not nosave:
+		fig.savefig(plotfile)
+		if vb:	print me+"TRAJ figure saved to",plotfile
 	if vb:	plt.show()
 	plt.close()
 	

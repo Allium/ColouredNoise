@@ -316,9 +316,9 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 		from LE_RunPlot import plot_step_wall, plot_eta_wall
 		plot_step_wall(xy,rcoord,R,S,a,dt,vb)
 		plot_eta_wall(xy,rcoord,exy,ercoord,R,S,a,dt,vb)
-		exit()
+#		exit()
 	## Distribution of spatial steps and eta in bulk region
-	if 0:
+	if 1:
 		from LE_RunPlot import plot_step_bulk, plot_eta_bulk
 		plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb)
 		exit()
