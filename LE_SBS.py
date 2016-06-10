@@ -311,15 +311,13 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 	
 	## -----------------===================-----------------
 	R = 2.0; S = 1.0; lam = 0.5; nu = 10.0
-	## Distribution of spatial steps and eta in wall regions
+	## Distribution of spatial steps and eta
 	if 1:
-		from LE_RunPlot import plot_step_wall, plot_eta_wall
-		plot_step_wall(xy,rcoord,R,S,a,dt,vb)
-		plot_eta_wall(xy,rcoord,exy,ercoord,R,S,a,dt,vb)
-#		exit()
-	## Distribution of spatial steps and eta in bulk region
-	if 1:
-		from LE_RunPlot import plot_step_bulk, plot_eta_bulk
+		from LE_RunPlot import plot_step_wall, plot_eta_wall, plot_step_bulk
+		## In wall regions
+		# plot_step_wall(xy,rcoord,R,S,a,dt,vb)
+		# plot_eta_wall(xy,rcoord,exy,ercoord,R,S,a,dt,vb)
+		## In bulk region
 		plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb)
 		exit()
 	## Trajectory plot with force arrows
