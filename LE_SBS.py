@@ -312,16 +312,16 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 	## -----------------===================-----------------
 	R = 2.0; S = 1.0; lam = 0.5; nu = 10.0
 	## Distribution of spatial steps and eta
-	if 1:
+	if 0:
 		from LE_RunPlot import plot_step_wall, plot_eta_wall, plot_step_bulk
 		## In wall regions
-		# plot_step_wall(xy,rcoord,R,S,a,dt,vb)
-		# plot_eta_wall(xy,rcoord,exy,ercoord,R,S,a,dt,vb)
+		plot_step_wall(xy,rcoord,R,S,a,dt,vb)
+		plot_eta_wall(xy,rcoord,exy,ercoord,R,S,a,dt,vb)
 		## In bulk region
 		plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb)
 		exit()
 	## Trajectory plot with force arrows
-	if 1:
+	if 0:
 		from LE_RunPlot import plot_traj	
 		plot_traj(xy,rcoord,R,S,lam,nu,force_dnu,a,dt,vb)
 		exit()
@@ -334,25 +334,6 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 		return [rcoord, ercoord]
 	
 ## ====================================================================
-
-
-def fxy_finpot(xy,r2,force):
-	"""
-	Force for finite potential.
-	"""
-	return force(xy,np.sqrt(r2))
-	
-def fxy_infpot(xy,r2,force,wob,wib,dt):
-	"""
-	Force for infinite potential: checking whether boundary is crossed.
-	"""
-	r = np.sqrt(r2)
-	if   (wob and r>wob):	fxy = force(wob,wob) * (xy/r)#(force(wob,wob) + (wob-r)/dt) * (xy/r)
-	elif (wib and r<wib): 	fxy = force(wib,wib) * (xy/r)#(force(wib,wib) + (r-wib)/dt) * (xy/r)
-	else:					fxy = force(xy,r)
-	return fxy
-	
-## ----------------------------------------------------------------------------
 
 def eul(xy, r2, fxy, exy, dt):
 	"""
@@ -394,6 +375,25 @@ def RK4(xy1, r2, fxy, exy, dt, eul_step):
 	return 1.0/6.0 * ( k1 + 2*k2 + 2*k3 + k4 )
 
 ## ====================================================================
+## FORCES
+
+def fxy_finpot(xy,r2,force):
+	"""
+	Force for finite potential.
+	"""
+	return force(xy,np.sqrt(r2))
+	
+def fxy_infpot(xy,r2,force,wob,wib,dt):
+	"""
+	Force for infinite potential: checking whether boundary is crossed.
+	"""
+	r = np.sqrt(r2)
+	if   (wob and r>wob):	fxy = -xy/r/dt*(r-wob+(wob-wib)*np.random.rand())
+	elif (wib and r<wib): 	fxy = +xy/r/dt*(wib-r+(wob-wib)*np.random.rand())
+	else:					fxy = force(xy,r)
+	return fxy
+	
+## ----------------------------------------------------------------------------
 
 def force_const(xy,r,R):
 	return -xy/(r+0.0001*(r==0.0)) * (r>R)

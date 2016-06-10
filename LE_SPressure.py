@@ -615,11 +615,15 @@ def calc_pressure(r,rho,ftype,fpars,spatial=False):
 	elif ftype == "dnu":	force = force_dnu(r,r,R,S,lam,nu)
 	else: raise ValueError, me+"ftype not recognised."
 	
+	## Indices of wall (i.e. "valid" parts of distribution)
+	if (ftype[-2:]=="nu" or ftype[:3]=="tan"):
+		wibidx, wobidx = np.abs(r-S+lam).argmin(), np.abs(R+lam-r).argmin()
+		force[:wibidx+1] = 0.0; force[wobidx:] = 0.0
+	
 	## Pressure
 	if spatial == True:
-		P = -np.array([np.trapz(force[:i]*rho[:i], x=r[:i]) for i in xrange(r.shape[0])])
+		P = -np.array([np.trapz(force[:i]*rho[:i], r[:i]) for i in xrange(r.size)])
 	else:
-#		P = -np.trapz(force*rho, r)
 		P = -sp.integrate.simps(force*rho, r)
 
 	return P

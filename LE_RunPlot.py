@@ -8,7 +8,7 @@ from LE_Utils import plot_fontsizes
 ## ============================================================================
 
 outdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_CIR_DN_dt"
-nosave = 1
+nosave = 0
 annoloc = (0.02,0.87)
 plt.rcParams.update({"axes.labelsize": plot_fontsizes()[0]})
 
@@ -261,11 +261,13 @@ def plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb):
 	## Fit
 	x = 0.5*(binb[:-1]+binb[1:])
 	fitfunc = lambda x, A, b, mu: A*np.exp(-0.5*b*(x-mu)*(x-mu))
+	fita = sp.optimize.curve_fit(fitfunc, x, ha, p0=[np.sqrt(a/(2*np.pi*dt*dt)),a/(dt*dt),0.0])[0]
 	fitb = sp.optimize.curve_fit(fitfunc, x, hb, p0=[np.sqrt(a/(2*np.pi*dt*dt)),a/(dt*dt),0.0])[0]
+	ax.plot(x,fitfunc(x,*fita),"b-",lw=2)
 	ax.plot(x,fitfunc(x,*fitb),"g-",lw=2)
-	ax.annotate("scale: $B = "+str("%.2g")%(1/fitb[1])+"$",
+	ax.annotate("scale: $A, B = "+str("%.2g")%(1/fita[1])+" ,"+str("%.2g")%(1/fitb[1])+"$",
 				xy=(0,0),xytext=annoloc,textcoords="axes fraction")
-	ax.annotate("peak: $B = "+str("%.2g")%(fitb[2])+"$",
+	ax.annotate("peak: $A, B = "+str("%.2g")%(fita[2])+" ,"+str("%.2g")%(fitb[2])+"$",
 				xy=(0,0),xytext=(annoloc[0],annoloc[1]-0.05),textcoords="axes fraction")
 				
 	## Prediction
@@ -274,10 +276,12 @@ def plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb):
 	##-------------------------------------------------------------------------
 	## distribution of er step
 	ax = axs[1]
-	erstep = np.hstack([np.diff(ercoord),0])
-	erstepb = erstep[(rcoord>S)*(rcoord<R)]
+	erstepa = np.hstack([np.diff(ercoord),0])
+	erstepb = erstepa[(rcoord>S)*(rcoord<R)]
 	hb, binb = ax.hist(erstepb,bins=100,label="B",color="g",alpha=0.5,normed=True)[0:2]
-	ha, bina = ax.hist(erstep,bins=binb,label="A",color="b",alpha=0.5,normed=True)[0:2]
+	ha, bina = ax.hist(erstepa,bins=binb,label="A",color="b",alpha=0.5,normed=True)[0:2]
+	
+	## 
 	ax.grid()
 	xl = min(np.abs(ax.get_xlim())); ax.set_xlim([-xl,xl])
 	ax.set_title("eta r step")
@@ -286,11 +290,13 @@ def plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb):
 	## Fit
 	x = 0.5*(binb[:-1]+binb[1:])
 	fitfunc = lambda x, A, b, mu: A*np.exp(-0.5*b*(x-mu)*(x-mu))
-	fitb = sp.optimize.curve_fit(fitfunc, x, hb, p0=[100.0,1.0,0.0])[0]
+	fita = sp.optimize.curve_fit(fitfunc, x, ha, p0=[1.0,1.0,0.0])[0]
+	fitb = sp.optimize.curve_fit(fitfunc, x, hb, p0=[1.0,1.0,0.0])[0]
+	ax.plot(x,fitfunc(x,*fita),"b-",lw=2)
 	ax.plot(x,fitfunc(x,*fitb),"g-",lw=2)
-	ax.annotate("scale: $B = "+str("%.2g")%(1/fitb[1])+"$",
+	ax.annotate("scale: $A, B = "+str("%.2g")%(1/fita[1])+" ,"+str("%.2g")%(1/fitb[1])+"$",
 				xy=(0,0),xytext=annoloc,textcoords="axes fraction")
-	ax.annotate("peak: $B = "+str("%.2g")%(fitb[2])+"$",
+	ax.annotate("peak: $A, B = "+str("%.2g")%(fita[2])+" ,"+str("%.2g")%(fitb[2])+"$",
 				xy=(0,0),xytext=(annoloc[0],annoloc[1]-0.05),textcoords="axes fraction")
 				
 	## Prediction
@@ -367,7 +373,9 @@ def plot_traj(xy,rcoord,R,S,lam,nu,force_dnu,a,dt,vb):
 		ax.plot(xy[i*CH:(i+1)*CH+1,0],xy[i*CH:(i+1)*CH+1,1],zorder=1)
 		
 	## Plot force arrows
-	if 1:
+	fstr = ""
+	if 0:
+		fstr = "F"
 		numarrow = 100	## not number of arrows plotted
 		for j in range(0, xy.shape[0], xy.shape[0]/numarrow):
 			uforce = force_dnu(xy[j],rcoord[j],R,S,lam,nu)
@@ -386,7 +394,7 @@ def plot_traj(xy,rcoord,R,S,lam,nu,force_dnu,a,dt,vb):
 	
 	## Save
 	plotfile = outdir+str(dt)+\
-				"/TRAJ_CIR_DN_a"+str(a)+"_R"+str(R)+"_S"+str(S)+\
+				"/TRAJ"+fstr+"_CIR_DN_a"+str(a)+"_R"+str(R)+"_S"+str(S)+\
 				"_l"+str(lam)+"_n"+str(nu)+"_t"+str(round(rcoord.size*dt/5e2,1))+"_dt"+str(dt)+".png"
 	if not nosave:
 		fig.savefig(plotfile)
