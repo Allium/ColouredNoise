@@ -153,10 +153,11 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+lam if infpot else R+5.0
+	rmax = R+lam if infpot else R+4.0
 	rmin = 0.0 #max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
 	rini = 0.5*(S+R) if dblpot else 0.5*(rmin+R)
+	if R==0.0: rini += 0.001
 	## Limits for finite potential
 	wb = [R+lam, (S>0.0)*(S-lam)] if infpot else [False, False]
 	
@@ -194,16 +195,16 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 		eIC = 1./np.sqrt(a)*np.random.normal(0.0, 1.0, [Nparticles,2])
 	
 	## Apply boundary conditions (should be integrated into force?)
-	fxy = lambda xy, r2: fxy_infpot(xy,r2,force,wb[0],wb[1],dt) if infpot else fxy_finpot(xy,r2,force)
+	fxy = lambda xy, r: fxy_infpot(xy,r,force,wb[0],wb[1],dt) if infpot else fxy_finpot(xy,r,force)
 
 	## Integration algorithm
-	eul_step = lambda xy, r2, exy: eul(xy, r2, fxy, exy, dt)
+	eul_step = lambda xy, r, exy: eul(xy, r, fxy, exy, dt)
 	
 	if intmeth == "rk4":
-		xy_step = lambda xy, r2, exy: RK4(xy, r2, fxy, exy, dt, eul_step)
+		xy_step = lambda xy, r, exy: RK4(xy, r, fxy, exy, dt, eul_step)
 		intmeth = "_rk4"
 	elif intmeth == "rk2":
-		xy_step = lambda xy, r2, exy: RK2(xy, r2, fxy, exy, dt, eul_step)
+		xy_step = lambda xy, r, exy: RK2(xy, r, fxy, exy, dt, eul_step)
 		intmeth = "_rk2"
 	else:
 		xy_step = eul_step
@@ -214,7 +215,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
 			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+pstr+"/"
-	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)+intmeth
+	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_n1.0"+"_dt"+str(dt)+intmeth
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
@@ -285,9 +286,7 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 		
 	## Initialisation
 	x0,y0 = xyini
-	r2 = x0*x0+y0*y0
 	nstp = int(tmax/dt)
-	exstp = nstp/10
 	
 	## Simulate eta
 	if vb: t0 = time.time()
@@ -296,13 +295,12 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 				
 	## Spatial variables
 	if vb: t0 = time.time()
-		
 	xy = np.zeros([nstp,2]); xy[0] = [x0,y0]
-	j = 0
+	
 	## Calculate trajectory
 	for i in xrange(0,nstp-1):
-		r2 = (xy[i]*xy[i]).sum()
-		xy[i+1] = xy[i] + xy_step(xy[i],r2,exy[i])
+		r = np.sqrt((xy[i]*xy[i]).sum())
+		xy[i+1] = xy[i] + xy_step(xy[i],r,exy[i])
 		
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 			
@@ -321,7 +319,7 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 		plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb)
 		exit()
 	## Trajectory plot with force arrows
-	if 0:
+	if 1:
 		from LE_RunPlot import plot_traj	
 		plot_traj(xy,rcoord,R,S,lam,nu,force_dnu,a,dt,vb)
 		exit()
@@ -335,37 +333,37 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 	
 ## ====================================================================
 
-def eul(xy, r2, fxy, exy, dt):
+def eul(xy, r, fxy, exy, dt):
 	"""
 	Euler step.
 	Basic routine with all dependencies.
 	"""
-	return dt * ( fxy(xy,r2) + exy )
+	return dt * ( fxy(xy,r) + exy )
 	
-def RK2_new(xy, r2, fxy, exy, dt, eul_step):
+def RK2_new(xy, r, fxy, exy, dt, eul_step):
 	"""
 	RK2 (midpoint method) step. 
 	Basic routine with all dependencies.
 	Following Wikipedia.
 	"""
-	K1 = eul_step(xy, np.sqrt(r2), exy)
+	K1 = eul_step(xy, np.sqrt(r), exy)
 	K2 = eul_step(xy+K1, np.sqrt(((xy+K1)*(xy+K1)).sum()), exy)
 	return 0.5*(K1+K2)
 
-def RK2(xy1, r2, fxy, exy, dt, eul_step):
+def RK2(xy1, r, fxy, exy, dt, eul_step):
 	"""
 	RK2 (midpoint method) step. 
 	Basic routine with all dependencies.
 	"""
-	xy2 = xy1+0.5*eul_step(xy1, r2, exy)
+	xy2 = xy1+0.5*eul_step(xy1, r, exy)
 	return eul_step(xy2, (xy2*xy2).sum(), exy)
 	
-def RK4(xy1, r2, fxy, exy, dt, eul_step):
+def RK4(xy1, r, fxy, exy, dt, eul_step):
 	"""
 	RK4 step. 
 	Basic routine with all dependencies.
 	"""
-	k1 = eul_step(xy1, r2, exy)
+	k1 = eul_step(xy1, r, exy)
 	xy2 = xy1+0.5*k1
 	k2 = eul_step(xy2, (xy2*xy2).sum(), exy)
 	xy3 = xy1+0.5*k2
@@ -377,17 +375,16 @@ def RK4(xy1, r2, fxy, exy, dt, eul_step):
 ## ====================================================================
 ## FORCES
 
-def fxy_finpot(xy,r2,force):
+def fxy_finpot(xy,r,force):
 	"""
 	Force for finite potential.
 	"""
-	return force(xy,np.sqrt(r2))
+	return force(xy,np.sqrt(r))
 	
-def fxy_infpot(xy,r2,force,wob,wib,dt):
+def fxy_infpot(xy,r,force,wob,wib,dt):
 	"""
 	Force for infinite potential: checking whether boundary is crossed.
 	"""
-	r = np.sqrt(r2)
 	if   (wob and r>wob):	fxy = -xy/r/dt*(r-wob+(wob-wib)*np.random.rand())
 	elif (wib and r<wib): 	fxy = +xy/r/dt*(wib-r+(wob-wib)*np.random.rand())
 	else:					fxy = force(xy,r)
