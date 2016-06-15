@@ -153,7 +153,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+lam if infpot else R+4.0
+	rmax = R+2.0*lam if infpot else R+4.0
 	rmin = 0.0 #max([0.0, 0.9*R-5*np.sqrt(a)])
 	## Injection x coordinate
 	rini = 0.5*(S+R) if dblpot else 0.5*(rmin+R)
@@ -195,7 +195,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 		eIC = 1./np.sqrt(a)*np.random.normal(0.0, 1.0, [Nparticles,2])
 	
 	## Apply boundary conditions (should be integrated into force?)
-	fxy = lambda xy, r: fxy_infpot(xy,r,force,wb[0],wb[1],dt) if infpot else fxy_finpot(xy,r,force)
+	fxy = lambda xy, r: fxy_infpot(xy,r,force,wb[0],wb[1],dt) if infpot else force(xy,r)
 
 	## Integration algorithm
 	eul_step = lambda xy, r, exy: eul(xy, r, fxy, exy, dt)
@@ -215,7 +215,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
 			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+pstr+"/"
-	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_n1.0"+"_dt"+str(dt)+intmeth
+	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)+intmeth
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
@@ -308,7 +308,7 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 	ercoord = np.sqrt((exy*exy).sum(axis=1))
 	
 	## -----------------===================-----------------
-	R = 2.0; S = 1.0; lam = 0.5; nu = 10.0
+	R = 2.0; S = 1.0; lam = 0.5; nu = 1.0
 	## Distribution of spatial steps and eta
 	if 0:
 		from LE_RunPlot import plot_step_wall, plot_eta_wall, plot_step_bulk
@@ -319,7 +319,7 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 		plot_step_bulk(xy,rcoord,ercoord,R,S,a,dt,vb)
 		exit()
 	## Trajectory plot with force arrows
-	if 1:
+	if 0:
 		from LE_RunPlot import plot_traj	
 		plot_traj(xy,rcoord,R,S,lam,nu,force_dnu,a,dt,vb)
 		exit()
@@ -374,12 +374,6 @@ def RK4(xy1, r, fxy, exy, dt, eul_step):
 
 ## ====================================================================
 ## FORCES
-
-def fxy_finpot(xy,r,force):
-	"""
-	Force for finite potential.
-	"""
-	return force(xy,np.sqrt(r))
 	
 def fxy_infpot(xy,r,force,wob,wib,dt):
 	"""
@@ -434,9 +428,12 @@ def calc_rbins(finipot, fpar, rmin, rmax):
 		NrSbin = int(max(50,150*(S-rmin)))*(S>0.0)
 		## Bulk bins
 		NrBbin = int(150 * (R-S))
-		rbins = np.hstack([np.linspace(rmin,S,NrSbin+1),\
+		rbins = np.hstack([\
+				np.linspace(rmin,S-lam,1),\
+				np.linspace(S-lam,S,NrSbin+1),\
 				np.linspace(S,R,NrBbin+1),\
-				np.linspace(R,rmax,NrRbin+1)])
+				np.linspace(R,R+lam,NrRbin+1),\
+				np.linspace(R+lam,rmax,1)])
 		rbins = np.unique(rbins)
 	## Keep things simple when potential is low-order
 	else:
