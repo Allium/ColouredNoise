@@ -78,7 +78,7 @@ def plot_file(histfile, nosave, vb):
 	ax.set_xlim(left=x[0],right=x[-1])
 	if ftype[0]!="d":	ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()])
 	else:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[1]-x).argmin():np.abs(fpars[0]-x).argmin()])
-	ax.set_ylim(bottom=0.0,top=ymax)
+	# ax.set_ylim(bottom=0.0,top=ymax)
 	ax.set_xlabel("$"+ord+"$",fontsize=fsa)
 	ax.set_ylabel("Rescaled variable",fontsize=fsa)
 	ax.grid()

@@ -8,7 +8,7 @@ from LE_Utils import plot_fontsizes
 ## ============================================================================
 
 outdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_CIR_DN_dt"
-nosave = 0
+nosave = 1
 annoloc = (0.02,0.87)
 plt.rcParams.update({"axes.labelsize": plot_fontsizes()[0]})
 
@@ -28,9 +28,13 @@ def plot_step_wall(xy,rcoord,R,S,a,dt,vb):
 	ax = axs[0]
 	xstep = np.hstack([np.diff(xy[:,0]),0])
 	xstepin = xstep[rcoord<S]; xstepout = xstep[rcoord>R]
-	hout, binout = ax.hist(xstepout,bins=50, label="R",color="b",alpha=0.5,normed=True)[0:2]
+#	m, s = xstep.mean(), xstep.std();		xstep = xstep[(xstep>m-10.0*s)*(xstep<m+10.0*s)]
+#	m, s = xstepin.mean(), xstepin.std();	xstepin = xstepin[(xstepin>m-10.0*s)*(xstepin<m+10.0*s)]
+	hout, binout = ax.hist(xstepout,bins=100, label="R",color="b",alpha=0.5,normed=True)[0:2]
 	hin, binin = ax.hist(xstepin,bins=binout,label="S",color="g",alpha=0.5,normed=True)[0:2]
-	ax.set_xlim(right=-ax.get_xlim()[0])
+	
+#	xl = min(np.append(np.abs(ax.get_xlim()),10.0*xstep.std())); ax.set_xlim([-xl,xl])
+	xl = min(np.abs(ax.get_xlim())); ax.set_xlim([-xl,xl])
 	ax.grid();	ax.legend(loc="upper right")
 	ax.set_xlabel("$\\delta x$"); ax.set_ylabel("$p(\\delta x)$")
 	ax.set_title("x step")
@@ -51,8 +55,11 @@ def plot_step_wall(xy,rcoord,R,S,a,dt,vb):
 	ax = axs[1]
 	ystep = np.hstack([np.diff(xy[:,1]),0])
 	ystepin = ystep[rcoord<S]; ystepout = ystep[rcoord>R]
-	hout, binout = ax.hist(xstepout,bins=50,label="R",color="b",alpha=0.5,normed=True)[0:2]
+#	m, s = ystep.mean(), ystep.std();		ystep = ystep[(ystep>m-5*s)*(ystep<m+5*s)]
+#	m, s = ystepin.mean(), ystepin.std();	ystepin = ystepin[(ystepin>m-5*s)*(ystepin<m+5*s)]
+	hout, binout = ax.hist(xstepout,bins=100,label="R",color="b",alpha=0.5,normed=True)[0:2]
 	hin, binin = ax.hist(xstepin,bins=binout,label="S",color="g",alpha=0.5,normed=True)[0:2]
+	
 	xl = min(np.abs(ax.get_xlim())); ax.set_xlim([-xl,xl])
 	ax.grid()
 	ax.set_xlabel("$\\delta y$"); ax.set_ylabel("$p(\\delta y)$")
@@ -138,7 +145,8 @@ def plot_eta_wall(xy,rcoord,exy,ercoord,R,S,a,dt,vb):
 	hout, binout = ax.hist(xetaout,bins=50,label="R",color="b",alpha=0.5,normed=True)[0:2]
 	hin, binin = ax.hist(xetain,bins=binout,label="S",color="g",alpha=0.5,normed=True)[0:2]
 	
-	xl = min(np.abs(ax.get_xlim())); ax.set_xlim([-xl,xl])
+	xl = min(np.abs(ax.get_xlim()))
+	ax.set_xlim([-xl,xl])
 	ax.grid();	ax.legend(loc="upper right")
 	ax.set_xlabel("$\\eta_x$"); ax.set_ylabel("$p(\\eta_x)$")
 	ax.set_title("eta x")
@@ -357,7 +365,7 @@ def plot_eta_bulk(xy,rcoord,exy,ercoord,R,S,a,dt,vb):
 ## ============================================================================
 ## ============================================================================
 
-def plot_traj(xy,rcoord,R,S,lam,nu,force_dnu,a,dt,vb):
+def plot_traj(xy,rcoord,R,S,lam,nu,force_dx,a,dt,vb):
 	"""
 	"""
 	me = "LE_RunPlot.plot_traj: "
@@ -371,14 +379,19 @@ def plot_traj(xy,rcoord,R,S,lam,nu,force_dnu,a,dt,vb):
 	
 	for i in range(NPOINTS-1):
 		ax.plot(xy[i*CH:(i+1)*CH+1,0],xy[i*CH:(i+1)*CH+1,1],zorder=1)
-		
+	# s = xy.shape[0]/2
+	# ax.plot(xy[:s,0],xy[:s,1],"b",zorder=1)	
+	# ax.plot(xy[s:,0],xy[s:,1],"g",zorder=1)	
+	# ax.plot(xy[0,0],xy[0,1],"co",xy[s-1,0],xy[s-1,1],"ko",zorder=1.1)
+	# ax.plot(xy[s,0],xy[s,1],"yo",xy[-1,0],xy[-1,1],"ro",zorder=1.1)
+	
 	## Plot force arrows
 	fstr = ""
 	if 0:
 		fstr = "F"
 		numarrow = 100	## not number of arrows plotted
 		for j in range(0, xy.shape[0], xy.shape[0]/numarrow):
-			uforce = force_dnu(xy[j],rcoord[j],R,S,lam,nu)
+			uforce = force_dx(xy[j],rcoord[j],R,S)
 			if uforce.any()>0.0:
 				plt.quiver(xy[j,0],xy[j,1], uforce[0],uforce[1],
 						width=0.008, scale=20.0, color="purple", headwidth=2, headlength=2, zorder=2)
@@ -389,14 +402,14 @@ def plot_traj(xy,rcoord,R,S,lam,nu,force_dnu,a,dt,vb):
 	ax.plot(R*np.cos(ang),R*np.sin(ang),"y--",(R+lam)*np.cos(ang),(R+lam)*np.sin(ang),"y-",lw=2.0, zorder=3)
 	ax.plot(S*np.cos(ang),S*np.sin(ang),"r--",(S-lam)*np.cos(ang),(S-lam)*np.sin(ang),"r-",lw=2.0, zorder=3)
 	
-	ax.set_xlim((-R-lam-0.1,R+lam+0.1));	ax.set_ylim((-R-lam-0.1,R+lam+0.1))
+	# ax.set_xlim((-R-lam-0.1,R+lam+0.1));	ax.set_ylim((-R-lam-0.1,R+lam+0.1))
 	ax.grid()
 	
 	## Save
-	plotfile = outdir+str(dt)+\
-				"/TRAJ"+fstr+"_CIR_DN_a"+str(a)+"_R"+str(R)+"_S"+str(S)+\
-				"_l"+str(lam)+"_n"+str(nu)+"_t"+str(round(rcoord.size*dt/5e2,1))+"_dt"+str(dt)+".png"
 	if not nosave:
+		plotfile = outdir+str(dt)+\
+					"/TRAJ"+fstr+"_CIR_DN_a"+str(a)+"_R"+str(R)+"_S"+str(S)+\
+					"_l"+str(lam)+"_n"+str(nu)+"_t"+str(round(rcoord.size*dt/5e2,1))+"_dt"+str(dt)+".png"
 		fig.savefig(plotfile)
 		if vb:	print me+"TRAJ figure saved to",plotfile
 	if vb:	plt.show()

@@ -154,7 +154,8 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	
 	## Simulation limits
 	rmax = R+2.0*lam if infpot else R+4.0
-	rmin = 0.0 #max([0.0, 0.9*R-5*np.sqrt(a)])
+	# rmin = 0.0 #max([0.0, 0.9*R-5*np.sqrt(a)])
+	rmin = max(0.0, S-2.0*lam if infpot else S-4.0)
 	## Injection x coordinate
 	rini = 0.5*(S+R) if dblpot else 0.5*(rmin+R)
 	if R==0.0: rini += 0.001
@@ -234,10 +235,10 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	if a == 0:
 		## Not used in calculations
 		expmt = None
-	elif a <= 0.1:
-		## a is small, and exponential is dominated by first term
-		if vb: print me+"rescaling time"
-		expmt = np.exp(np.arange(-10,0.1,0.1))
+	# elif a <= 0.1:
+		# ## a is small, and exponential is dominated by first term
+		# if vb: print me+"rescaling time"
+		# expmt = np.exp(np.arange(-10,0.1,0.1))
 	else:
 		## a is large enough that the exponential is well resolved.
 		expmt = np.exp((np.arange(-10*a,dt,dt))/a)
@@ -424,16 +425,16 @@ def calc_rbins(finipot, fpar, rmin, rmax):
 	if finipot:
 		R, S, lam = fpar[:3]
 		## Wall bins
-		NrRbin = int(max(50,150*(rmax-R)))
-		NrSbin = int(max(50,150*(S-rmin)))*(S>0.0)
+		NrRbin = int(max(50,150*(lam)))
+		NrSbin = int(max(50,150*(lam)))*(S>0.0)
 		## Bulk bins
 		NrBbin = int(150 * (R-S))
 		rbins = np.hstack([\
-				np.linspace(rmin,S-lam,1),\
+				np.linspace(rmin,max(0.0,S-lam),10),\
 				np.linspace(S-lam,S,NrSbin+1),\
 				np.linspace(S,R,NrBbin+1),\
 				np.linspace(R,R+lam,NrRbin+1),\
-				np.linspace(R+lam,rmax,1)])
+				np.linspace(R+lam,rmax,10)])
 		rbins = np.unique(rbins)
 	## Keep things simple when potential is low-order
 	else:

@@ -234,15 +234,15 @@ def sim_eta(eta0, expmt, npoints, a, dt):
 		xi = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, npoints)
 		xi[0] = eta0
 		eta = xi
-	elif a <= 0.1:
-		## Using larger-size reference eta and then rescaling
-		# NPOINTS = int(npoints/(a))
-		NPOINTS = int(npoints/(a)*(dt/0.1))
-		XI  = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, NPOINTS)
-		ETA = dt*fftconvolve(XI,expmt,"full")[-NPOINTS:][::-1] ## Lose full padding and reverse time
-		ETA[:expmt.shape[0]] += eta0*expmt
-		## Rescale
-		eta = 1/(a)*np.array([np.trapz(chunk,dx=dt) for chunk in np.array_split(ETA,npoints)])
+	# elif a <= 0.1:
+		# ## Using larger-size reference eta and then rescaling
+		# # NPOINTS = int(npoints/(a))
+		# NPOINTS = int(npoints/(a)*(dt/0.1))
+		# XI  = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, NPOINTS)
+		# ETA = dt*fftconvolve(XI,expmt,"full")[-NPOINTS:][::-1] ## Lose full padding and reverse time
+		# ETA[:expmt.shape[0]] += eta0*expmt
+		# ## Rescale
+		# eta = 1/(a)*np.array([np.trapz(chunk,dx=dt) for chunk in np.array_split(ETA,npoints)])
 	else:
 		## Straight-up convolution
 		xi = np.sqrt(2/dt)*np.random.normal(0.0, 1.0, npoints)
