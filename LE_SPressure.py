@@ -131,9 +131,6 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	## White noise result
 	r_WN = np.linspace(r[0],r[-1]*(1+0.5/r.size),r.size*5+1)
 	rho_WN = pdf_WN(r_WN,fpars,ftype,verbose)
-	
-	## TEMP kill r<0
-	# rho[r<0.0]=0.0;	rho_WN[r_WN<0.0]=0.0; r[r<0.0]=0.0
 		
 	##---------------------------------------------------------------			
 	## PLOT SET-UP
@@ -243,7 +240,7 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 	histfiles = np.sort(glob.glob(dirpath+"/BHIS_CIR_*.npy"))
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
-		
+
 	## Initialise
 	A = np.zeros(numfiles) 
 	R = np.zeros(numfiles)	## Outer radii
@@ -272,7 +269,6 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 		er = 0.5*(erbins[1:]+erbins[-1])
 		## Start point for computing pressures
 		bidx = np.argmin(np.abs(r-0.5*(max(rbins[0],S[i])+R[i])))
-		dr = r[1]-r[0]
 		
 		## Load histogram, normalise
 		H = np.load(histfile)
@@ -283,15 +279,21 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 		rho = H/(2*np.pi*r) / np.trapz(H, x=r, axis=0)
 		
 		rho_WN = pdf_WN(r,fpars,ftype)
-				
+		
+		# if A[i]==0.1:
 		## Pressure array
 		P[i] 	= calc_pressure(r[bidx:],rho[bidx:],ftype,fpars)
 		P_WN[i] = calc_pressure(r[bidx:],rho_WN[bidx:],ftype,fpars)
 		if ftype[0] is "d":
 			## Inner pressure
-			Q[i] 	= calc_pressure(r[:bidx],rho[:bidx],ftype,fpars)
-			Q_WN[i] = calc_pressure(r[:bidx],rho_WN[:bidx],ftype,fpars)
+			Q[i] 	= -calc_pressure(r[:bidx],rho[:bidx],ftype,fpars)
+			Q_WN[i] = -calc_pressure(r[:bidx],rho_WN[:bidx],ftype,fpars)
 	
+	# P_WN = P_WN[P_WN>0.0]
+	# Q_WN = np.append([0],Q_WN[Q_WN>0.0])
+	# print np.unique(R)
+	# plt.plot(np.unique(R), P_WN-Q_WN)
+	# plt.show(); exit()
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
 
@@ -339,7 +341,7 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 					except ValueError:
 						## No value there
 						pass
-			
+						
 	## 3D pressure array for TAN force: [L,R,A]
 	elif ftype == "tan":
 		PP = -np.ones([LL.size,RR.size,AA.size])
@@ -361,7 +363,6 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 					except ValueError:
 						## No value there
 						pass
-	
 	
 	## 4D pressure array for TAN force: [L,R,S,A]
 	elif ftype == "dtan":
@@ -435,19 +436,20 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 							pass
 					
 		## Mask zeros
-		PP_WN = np.ma.array(PP_WN, mask = PP==-1)
-		QQ_WN = np.ma.array(QQ_WN, mask = QQ==-1)
-		PP = np.ma.array(PP, mask = PP==-1)
-		QQ = np.ma.array(QQ, mask = QQ==-1)
-		
+		mask = (PP==0.0)+(PP==-1.0)
+		PP_WN = np.ma.array(PP_WN, mask=mask)
+		QQ_WN = np.ma.array(QQ_WN, mask=mask)
+		PP = np.ma.array(PP, mask=mask)
+		QQ = np.ma.array(QQ, mask=mask)
+
 	## ------------------------------------------------
 	## PLOTS
 	
 	fig, ax = plt.subplots(1,1)
 	
 	## Default labels etc.
-	PP /= PP_WN
-	if  ftype[0] is "d": QQ /= QQ_WN
+	PP /= PP_WN + 1*(PP_WN==0.0)
+	if  ftype[0] is "d": QQ /= QQ_WN + 1*(QQ_WN==0.0)
 	title = "Pressure normalised by WN; ftype = "+ftype
 	plotfile = dirpath+"/PAR.jpg"
 	ylabel = "Pressure (normalised)"
@@ -492,24 +494,37 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 				for i in range(0,AA.size,1):	## To plot against R
 					ax.plot(RR,np.diagonal(PP).T[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$") 
 					ax.plot(RR[1:],np.diagonal(QQ).T[1:,i], "o--", color=ax.lines[-1].get_color())
+					## Prediction for individual pressure. See notes 22/06/2016
+					# fun = lambda aa, rr: np.exp(-0.5*(aa+1)*rr*rr)+np.sqrt(np.pi*0.5*(aa+1))*rr*(sp.special.erf(rr/np.sqrt(2)+1))
+					# ax.plot(RR,fun(0,RR)/fun(AA[i],RR),":",color=ax.lines[-1].get_color())
+					# ax.plot(RR,(1-np.exp(-0.5*RR*RR))*fun(0,RR)/fun(AA[i],RR),":",color=ax.lines[-1].get_color())
 			else:
 				## Plot difference
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
 				title = "Pressure difference, $P_R-P_S$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
+				ylabel = "Pressure Difference"
 				##
-				"""plotfile = dirpath+"/DPAS.jpg"
-				for i in range(SS.size):		## To plot against alpha
-					ax.plot(AA,np.diagonal(PP-QQ).T[i,:], "o-", label="$S = "+str(SS[i])+"$")
-					ax.plot(AA,np.diagonal(PP_WN-QQ_WN).T[i,:], "--", color=ax.lines[-1].get_color())
 				"""
+				plotfile = dirpath+"/DPAS.jpg"
+				for i in range(SS.size):		## To plot against alpha
+					ax.plot(AA,np.diagonal((PP-QQ)).T[i,:], "o-", label="$S = "+str(SS[i])+"$")
+					ax.plot(AA,np.diagonal(PP_WN-QQ_WN).T[i,:], "--", color=ax.lines[-1].get_color())
+				"""##
 				plotfile = dirpath+"/DPRA.jpg"
-				xlabel = "$R\\;(=S+"+str((RR-SS)[0])+")$"; ylabel = "Pressure Difference"; xlim = (SS[0],SS[-1])
+				xlabel = "$R\\;(=S+"+str((RR-SS)[0])+")$"; xlim = (RR[0],RR[-1])
 				for i in range(0,AA.size,1):	## To plot against R
-					# print AA[i],sp.optimize.curve_fit(lambda rr, a: a/rr, RR[1:], np.diagonal(PP-QQ).T[1:,i])[0][0]
-					ax.plot(RR,np.diagonal(PP-QQ).T[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$") 
-					ax.plot(RR,np.diagonal(PP_WN-QQ_WN).T[:,i], "--", color=ax.lines[-1].get_color())
-				ax.plot(RR,0.04/(RR),"k:",lw=3,label="$\\sim R^{-1}$")
+					ax.plot(RR,np.diagonal((PP-QQ)).T[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$")
+					# ax.plot(RR,(2*np.pi)**(-1.5)/np.sqrt(1+AA[i])*np.exp(-0.5*(1+AA[i])*RR*RR)/RR,"k:",lw=3)
+					
+					# func = lambda x, A, b: A*(2*np.pi)**(-1.5)/np.sqrt(1+AA[i])*np.exp(-0.5*b*(1+AA[i])*x*x)/x
+					# fit = sp.optimize.curve_fit(func, RR[:4], np.diagonal((PP-QQ)).T[:4,i], p0=[1.0,0.1])[0]
+					# print AA[i], fit
+					# RRth = np.linspace(RR[0],RR[-1],200)
+					# ax.plot(RRth,func(RRth, *fit),"--",color=ax.lines[-1].get_color(),lw=1)
+				if logplot:
+					ax.plot(RR,0.1/(RR),"k:",lw=3,label="$R^{-1}, R^{-2}$")
+					ax.plot(RR,0.1/(RR*RR),"k:",lw=3)
 	
 	## Single circus; TAN
 	elif ftype == "tan":
@@ -606,28 +621,37 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 				xlabel = "$R\\;(=S+"+str((RR-SS)[0])+")$"; xlim = (RR[0],RR[-1])
 				for i in range(0,AA.size,1):	## To plot against R
 					ax.plot(RR[:],PP[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$") 
-					ax.plot(RR[:],QQ[:,i], "o--", color=ax.lines[-1].get_color())
+					ax.plot(RR[1:],QQ[1:,i], "v--", color=ax.lines[-1].get_color())
+				# if logplot:
+					# ax.plot(RR,0.01/(RR),"k:",lw=3)
 			else:
 				## Plot difference
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
 				plotfile = dirpath+"/DPRA.jpg"
 				title = "Pressure difference, $P_R-P_S$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
-				xlabel = "$R\\;(=S+"+str((RR-SS)[0])+")$"; ylabel = "Pressure Difference"; xlim = (RR[0],RR[-1])
+				xlabel = "$R\\;(=S+"+str((RR-SS)[0])+")$"; ylabel = "Pressure Difference"
+				xlim = (RR[0],RR[-1])
 				for i in range(0,AA.size,1):
-					ax.plot(RR,(PP-QQ)[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$") 
-					ax.plot(RR,(PP_WN-QQ_WN)[:,i], "--", color=ax.lines[-1].get_color())
-				ax.plot(RR,0.04/(RR),"k:",lw=3,label="$\\sim R^{-1}$")
+					ax.plot(RR,np.abs(PP-QQ)[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$") 
+					# ax.plot(RR,np.abs(PP_WN-QQ_WN)[:,i], "--", color=ax.lines[-1].get_color())
+				if logplot:
+					ax.plot(RR,0.1/(RR),"k:",lw=3)
+					ax.plot(RR,0.1/(RR*RR),"k:",lw=3,label="$R^{-1}, R^{-2}$")
 		else:
 			raise IOError, me+"Check functionality for this plot exists."
 		
 	## ------------------------------------------------
 	## Accoutrements
 	
-	if logplot:	ax.set_xscale("log"); ax.set_yscale("log"); plotfile = plotfile[:-4]+"_loglog.jpg"
-
-	ax.set_xlim(xlim)
-	if (ax.get_yscale()!="log" and not DPplot):	ax.set_ylim(bottom=0.0, top=max(ax.get_ylim()[1],1.0))
+	if logplot:
+		ax.set_xscale("log"); ax.set_yscale("log")
+		ax.set_xlim(right=xlim[1])
+		ax.set_ylim(top=1e0)
+		plotfile = plotfile[:-4]+"_loglog.jpg"
+	if not (logplot or DPplot):
+		ax.set_xlim(xlim)
+		ax.set_ylim(bottom=0.0, top=max(ax.get_ylim()[1],1.0))
 	
 	ax.set_xlabel(xlabel,fontsize=fsa)
 	ax.set_ylabel(ylabel,fontsize=fsa)

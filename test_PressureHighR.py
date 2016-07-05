@@ -16,8 +16,12 @@ def main():
 	For data see files 19/06/2016.
 	"""
 	
-	R = float(argv[1])
-	assert R in [50.0,100.0]
+	try:
+		R = float(argv[1])
+		assert R in [50.0,100.0]
+	except:
+		R = 100.0
+	DR = [0.0,1.0,10.0]
 	lam = 1.0
 	a=np.array([0.05,0.1,0.2,1.0,2.0,3.0,5.0,8.0,10.0])
 	
@@ -39,7 +43,7 @@ def main():
 		PL_lq1b = np.array([0.001375,0.001235,0.001138,0.000764,0.000602,0.000513,0.000413,0.000334,0.000305])
 		PR_lq10b= np.array([0.000327,0.000314,0.000290,0.000287,0.000251,0.000254,0.000224,0.000208,0.000198])
 		PL_lq10b= np.array([0.000339,0.000325,0.000292,0.000261,0.000239,0.000218,0.000195,0.000176,0.000165])
-	if R==100.0: 
+	elif R==100.0: 
 		tit = "R=100"
 		## Quadratic
 		PR_q0b = np.array([0.000653,0.000623,0.000591,0.000453,0.000375,0.000324,0.000266,0.000218,0.000199])
@@ -72,18 +76,22 @@ def main():
 
 	## FItting
 	fitfunc = lambda x, A, m:	A*np.power(x,m)
-	print "PR_q0b exponent fit",scipy.optimize.curve_fit(fitfunc, a[2:]+1, PR_q0b[2:], p0=[1.0,-0.5])[0][1]
-	print "PR_q1b exponent fit",scipy.optimize.curve_fit(fitfunc, a[2:]+1, PR_q1b[2:], p0=[1.0,-0.5])[0][1]
-	print "PR_q10b exponent fit",scipy.optimize.curve_fit(fitfunc, a[2:]+1, PR_q10b[2:], p0=[1.0,-0.5])[0][1]
+	# print "PR_q0b exponent fit",scipy.optimize.curve_fit(fitfunc, a[2:]+1, PR_q0b[2:], p0=[1.0,-0.5])[0][1]
+	# print "PR_q1b exponent fit",scipy.optimize.curve_fit(fitfunc, a[2:]+1, PR_q1b[2:], p0=[1.0,-0.5])[0][1]
+	# print "PR_q10b exponent fit",scipy.optimize.curve_fit(fitfunc, a[2:]+1, PR_q10b[2:], p0=[1.0,-0.5])[0][1]
+	# print "PR_lq0b exponent fit",scipy.optimize.curve_fit(fitfunc, a[4:]+1, PR_lq0b[4:], p0=[1.0,-0.5])[0][1]
+	# print "PR_lq1b exponent fit",scipy.optimize.curve_fit(fitfunc, a[4:]+1, PR_lq1b[4:], p0=[1.0,-0.5])[0][1]
+	# print "PR_lq10b exponent fit",scipy.optimize.curve_fit(fitfunc, a[4:]+1, PR_lq10b[4:], p0=[1.0,-0.5])[0][1]
 	
 	## Plotting
 	fig = plt.figure(); ax = fig.gca()
 	
 	aa = np.linspace(0.0,a[-1],100)
 	ax.plot(aa+1,(aa+1)**-0.5,"b:",lw=2,label="$(\\alpha+1)^{-1/2}$")
+	# ax.plot(aa+1,(aa+1)**-0.25,"k:",lw=2,label="$(\\alpha+1)^{-1/4}$")
 	
 	if 0:
-		## Plot Pout
+		## Plot  for both potentials
 		tit = "$P_{\\rm out}$ for both potentials; "+tit
 		ax.plot(a+1,PR_q0b,"o-", label="Quadratic, $R-S=0$")
 		# ax.errorbar(a+1, PR_q0b, yerr=0.04*PR_q0b, ecolor='g', capthick=1)
@@ -93,7 +101,7 @@ def main():
 		ax.plot(a+1,PR_lq0b,"v--", label="Log-quadratic, $R-S=0$")
 		ax.plot(a+1,PR_lq1b,"v--", label="Log-quadratic, $R-S=1$")
 		ax.plot(a+1,PR_lq10b,"v--", label="Log-quadratic, $R-S=10$")
-	elif 1:
+	elif 0:
 		## Plot Pout, Pin for quadratic
 		tit = "$P_{\\rm out}$ and $P_{\\rm in}$ for quadratic potential; "+tit
 		ax.plot(a+1,PR_q0b,"o-", label="$P_{\\rm out}$, $R-S=0$")
@@ -102,19 +110,27 @@ def main():
 		ax.plot(a+1,PL_q1b,"v--", c=ax.lines[-1].get_color(), label="$P_{\\rm in}$, $R-S=1$")
 		ax.plot(a+1,PR_q10b,"o-", label="$P_{\\rm out}$, $R-S=10$")
 		ax.plot(a+1,PL_q10b,"v--", c=ax.lines[-1].get_color(), label="$P_{\\rm in}$, $R-S=10$")
+	elif 1:
+		## Plot Pout, Pin for quadratic but against R
+		tit = "$P_{\\rm out}$ and $P_{\\rm in}$ for quadratic potential; "+tit
+		datR = np.array([PR_q0b,PR_q1b,PR_q10b]).T
+		datL = np.array([PL_q0b,PL_q1b,PL_q10b]).T
+		for i in range(0,a.size,2):
+			ax.plot(DR,datR[i],"o-", label="$P_{\\rm out}$, $R-S=0$")
+			ax.plot(DR,datL[i],"v--", c=ax.lines[-1].get_color(), label="$P_{\\rm out}$, $R-S=0$")
 	
 
-	ax.set_yscale("log")
-	ax.set_xscale("log")
-	ax.set_xlim([1.0,12.0])
+	# ax.set_yscale("log")
+	# ax.set_xscale("log")
+	# ax.set_xlim([1.0,12.0])
 	
 	ax.set_xlabel("$\\alpha+1$",fontsize=fsa)
 	ax.set_ylabel("Pressure (normalised)",fontsize=fsa)
-	ax.legend(fontsize=13)
+	# ax.legend(fontsize=12)
 	ax.grid(which="minor")
 	fig.suptitle(tit)
 	
-	# fig.savefig("./Pressure/Pa_R_"+str(R)+"_loglog.jpg")
+	# fig.savefig("./Pressure/PQa_R"+str(R)+"_loglog.jpg")
 	plt.show()
 	
 	return
