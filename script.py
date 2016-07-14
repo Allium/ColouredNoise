@@ -48,8 +48,8 @@ if argv[1]=="D":
 
 ## ANNULUS
 if argv[1]=="DD":
-	for R in [1.0,2.0,5.0,10.0,20.0]:
-		for S in [R-1.0]:
+	for R in [20.0]:
+		for S in [R-10.0]:
 			for lam in [1.0]:
 				for ftype in ["dlin"]:
 					for a in [1.0]:
