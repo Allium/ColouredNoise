@@ -127,6 +127,10 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	H = np.trapz(H, x=er, axis=1)
 	## rho is probability density. H is probability at r
 	rho = H/(2*np.pi*r) / np.trapz(H, x=r, axis=0)
+	
+	## Correct median -- doesn't change anything
+	# rho *= r / np.sqrt(np.power(rbins[:-1],2)+rbins[:-1]*np.diff(rbins)+0.5*np.power(np.diff(rbins),2))
+	# rho *= r / rbins[1:]#(r + 0.125*np.power(np.diff(rbins),2)/rbins[:-1])
 
 	## White noise result
 	r_WN = np.linspace(r[0],r[-1]*(1+0.5/r.size),r.size*5+1)
@@ -694,7 +698,7 @@ def calc_pressure(r,rho,ftype,fpars,spatial=False):
 	
 	## Pressure
 	if spatial == True:
-		P = -np.array([np.trapz(force[:i]*rho[:i], r[:i]) for i in xrange(r.size)])
+		P = -np.array([np.trapz(force[:i]*rho[:i], r[:i]) for i in range(1,r.size+1)])
 	else:
 		P = -np.trapz(force*rho, r)
 	

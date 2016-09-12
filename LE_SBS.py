@@ -156,8 +156,9 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	rmax = R+2.0*lam if infpot else R+4.0
 	# rmin = 0.0 #max([0.0, 0.9*R-5*np.sqrt(a)])
 	rmin = max(0.0, S-2.0*lam if infpot else S-4.0)
-	## Injection x coordinate
-	rini = 0.5*(S+R) if dblpot else 0.5*(rmin+R)
+	## Injection x coordinate -- half-way into bulk
+	# rini = 0.5*(S+R) if dblpot else 0.5*(rmin+R)
+	rini = np.sqrt(0.5*(S*S+R*R)) if dblpot else np.sqrt(0.5*(rmin*rmin+R*R))
 	if R==0.0: rini += 0.001
 	## Limits for finite potential
 	wb = [R+lam, (S>0.0)*(S-lam)] if infpot else [False, False]
@@ -261,9 +262,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 		for run in xrange(Nrun):
 			if vb: print me+"Run",i,"of",Nparticles
 			coords = simulate_trajectory(xyini, eIC[i], (vb and run%50==0))
-			#t2 = time.time()
 			H += np.histogramdd(coords,bins=bins,normed=False)[0]
-			#if (vb and run%1==0): print me+"Histogram:",round(time.time()-t2,1),"seconds."
 			i += 1
 	## Divide by bin area and number of particles
 	binc = [np.diff(b) for b in bins]
@@ -416,13 +415,13 @@ def force_dnu(xy,r,R,S,lam,nu):
 	
 ## ====================================================================
 
-def calc_rbins(finipot, fpar, rmin, rmax):
+def calc_rbins(infpot, fpar, rmin, rmax):
 	"""
 	Want to ensure a sensible number of bins per unit length.
 	Returns positins of bin edges.
 	"""
 	## When potential changes rapidly, need many bins
-	if finipot:
+	if infpot:
 		R, S, lam = fpar[:3]
 		## Wall bins
 		NrRbin = int(max(50,150*(lam)))

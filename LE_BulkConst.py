@@ -74,11 +74,13 @@ def plot_file(histfile, nosave, vb):
 	ax.plot(x,e2E/e2E.mean(),label="$\\langle\\eta^2\\rangle("+ord+")$")
 	ax.plot(x,c1/c1.mean(),label="$\\rho\\cdot\\langle\\eta^2\\rangle$")
 	
+	ax.axvspan(pars["S"],pars["R"],color="yellow",alpha=0.2)
+	
 	## ATTRIBUTES
 	ax.set_xlim(left=x[0],right=x[-1])
 	if ftype[0]!="d":	ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()])
 	else:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[1]-x).argmin():np.abs(fpars[0]-x).argmin()])
-	# ax.set_ylim(bottom=0.0,top=ymax)
+	ax.set_ylim(bottom=0.0,top=ymax)
 	ax.set_xlabel("$"+ord+"$",fontsize=fsa)
 	ax.set_ylabel("Rescaled variable",fontsize=fsa)
 	ax.grid()
@@ -86,7 +88,7 @@ def plot_file(histfile, nosave, vb):
 	# fig.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.",fontsize=fst)
 	
 	## SAVE
-	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".png"
+	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".jpg"
 	if not nosave:
 		fig.savefig(plotfile)
 		if vb: print me+"Figure saved to",plotfile
@@ -198,13 +200,17 @@ def bulk_const(histfile):
 		etar = 0.5*(erbins[1:]+erbins[:-1])
 		etap = 0.5*(epbins[1:]+epbins[:-1])
 		
+		print H.shape; print rbins.shape, erbins.shape, epbins.shape
+		
 		## Probability
 		## Normalise
-		H /= simps(simps(simps(H,etap,axis=2),etar,axis=1),r,axis=0)
+		# H /= simps(simps(simps(H,etap,axis=2),etar,axis=1),r,axis=0)
+		H /= np.trapz(np.trapz(np.trapz(H,etap,axis=2),etar,axis=1),r,axis=0)
 		## Marginalise over eta turn into density
-		Q = simps(simps(H,etap,axis=2),etar,axis=1) / (2*np.pi*r)
+		# Q = simps(simps(H,etap,axis=2),etar,axis=1) / (2*np.pi*r)
+		Q = np.trapz(np.trapz(H,etap,axis=2),etar,axis=1) / (2*np.pi*r)
 		## To get probability density rather than probability
-		#rho = H / reduce(np.multiply, np.ix_(r,etar,etap))
+		rho = H / reduce(np.multiply, np.ix_(r,etar,etap))
 				
 		## Calculations
 		p = calc_pressure(r,Q,ftype,[R,S,lam,nu])
@@ -214,11 +220,10 @@ def bulk_const(histfile):
 		ETAP = etap[np.newaxis,np.newaxis,:].repeat(H.shape[0],axis=0).repeat(H.shape[1],axis=1)
 		## Calculate averages
 		Qp = Q+(Q==0) ## Avoid /0 warning (numerator is 0 anyway)
-		er2E = simps(simps(H*ETAR*ETAR, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
-		ep2E = simps(simps(H*ETAP*ETAP, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
-		e2E = er2E*er2E*(1.0+ep2E*ep2E)
-		#ep2E = simps(simps(H*ETAP*ETAP*ETAR*ETAR, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
-		#e2E = er2E*er2E+ep2E*ep2E
+		er2E = np.trapz(np.trapz(H*ETAR*ETAR, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
+		# er2E = np.trapz(np.trapz(rho*ETAR*ETAR, etap, axis=2), etar, axis=1) / (Qp)
+		ep2E = np.trapz(np.trapz(H*ETAP*ETAP, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)	### ???
+		e2E = er2E*er2E#*(1.0+ep2E*ep2E)
 		e2E[np.isnan(e2E)] = 0.0
 		## Bulk constant
 		c1 = Q*e2E

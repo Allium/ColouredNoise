@@ -89,9 +89,9 @@ def main():
 	aa = np.linspace(0.0,a[-1],100)
 	ax.plot(aa+1,(aa+1)**-0.5,"b:",lw=2,label="$(\\alpha+1)^{-1/2}$")
 	# ax.plot(aa+1,(aa+1)**-0.25,"k:",lw=2,label="$(\\alpha+1)^{-1/4}$")
-	
+		
 	if 0:
-		## Plot  for both potentials
+		## Plot for both potentials
 		tit = "$P_{\\rm out}$ for both potentials; "+tit
 		ax.plot(a+1,PR_q0b,"o-", label="Quadratic, $R-S=0$")
 		# ax.errorbar(a+1, PR_q0b, yerr=0.04*PR_q0b, ecolor='g', capthick=1)
@@ -101,7 +101,7 @@ def main():
 		ax.plot(a+1,PR_lq0b,"v--", label="Log-quadratic, $R-S=0$")
 		ax.plot(a+1,PR_lq1b,"v--", label="Log-quadratic, $R-S=1$")
 		ax.plot(a+1,PR_lq10b,"v--", label="Log-quadratic, $R-S=10$")
-	elif 0:
+	elif 1:
 		## Plot Pout, Pin for quadratic
 		tit = "$P_{\\rm out}$ and $P_{\\rm in}$ for quadratic potential; "+tit
 		ax.plot(a+1,PR_q0b,"o-", label="$P_{\\rm out}$, $R-S=0$")
@@ -126,7 +126,7 @@ def main():
 	
 	ax.set_xlabel("$\\alpha+1$",fontsize=fsa)
 	ax.set_ylabel("Pressure (normalised)",fontsize=fsa)
-	# ax.legend(fontsize=12)
+	ax.legend(fontsize=12)
 	ax.grid(which="minor")
 	fig.suptitle(tit)
 	
