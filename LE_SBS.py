@@ -199,6 +199,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	## Apply boundary conditions (should be integrated into force?)
 	fxy = lambda xy, r: fxy_infpot(xy,r,force,wb[0],wb[1],dt) if infpot else force(xy,r)
 
+	## ----------------------------------------------------------------
 	## Integration algorithm
 	eul_step = lambda xy, r, exy: eul(xy, r, fxy, exy, dt)
 	
@@ -303,7 +304,8 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 		xy[i+1] = xy[i] + xy_step(xy[i],r,exy[i])
 		
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
-			
+	
+	
 	rcoord = np.sqrt((xy*xy).sum(axis=1))
 	ercoord = np.sqrt((exy*exy).sum(axis=1))
 	
@@ -322,6 +324,14 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 	if 0:
 		from LE_RunPlot import plot_traj	
 		plot_traj(xy,rcoord,R,S,lam,nu,force_dnu,a,dt,vb)
+		exit()
+	## 2D Density plot
+	if 0:
+		R=5.0
+		plt.hist2d(xy[:,0],xy[:,1],1000,cmap="Blues")
+		ang = np.linspace(0,2*np.pi,60)
+		plt.plot(R*np.cos(ang),R*np.sin(ang),"g--",lw=2)
+		plt.show()
 		exit()
 	## -----------------===================-----------------
 			

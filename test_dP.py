@@ -55,9 +55,9 @@ def plot_file(histfile, nosave):
 	y = Q
 	ax.plot(r,y/np.abs(y).mean(),label="$Q$")
 	y = y[::-1]
-	# ax.plot(r,y/np.abs(y).mean(),label="$Q$ flip")
+	ax.plot(r,y/np.abs(y).mean(),label="$Q$ flip")
 	y = fr	
-	ax.plot(r,y/np.abs(y).mean(),label="$f_r$")
+	# ax.plot(r,y/np.abs(y).mean(),label="$f_r$")
 	y = fr * Q
 	ax.plot(r,y/np.abs(y).mean(),label="$f_rQ$")
 	y = -y[::-1]
@@ -68,6 +68,8 @@ def plot_file(histfile, nosave):
 	ax.plot(r,y/np.abs(y).mean(),label="$\\langle\\eta^2\\rangle-f_r^2$")
 	y = -(fr*fr-e2E)*Q
 	ax.plot(r,y/np.abs(y).mean(),label="$(\\langle\\eta^2\\rangle-f_r^2)Q$")
+	y = y[::-1]
+	ax.plot(r,y/np.abs(y).mean(),label="$(\\langle\\eta^2\\rangle-f_r^2)Q$ flip")
 	# # y = np.diff((fr*fr-e2E)*Q)/np.diff(r)
 	# # y = sp.ndimage.filters.gaussian_filter(y,5,order=0)
 	# y = sp.ndimage.gaussian_filter1d(-(fr*fr-e2E)*Q,10,order=1)

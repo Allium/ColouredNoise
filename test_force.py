@@ -2,15 +2,15 @@ import numpy as np
 from matplotlib import pyplot as plt
 from time import time
 
-from LE_SBS import force_nu, force_dnu,\
+from LE_SBS import force_dlin, force_nu, force_dnu,\
 					fxy_infpot
 from LE_Utils import plot_fontsizes
 
 
 plt.rcParams.update({"axes.labelsize": plot_fontsizes()[0]})
 
-R = 2.0
-S = 1.0
+R = 5.0
+S = 5.0
 lam = 0.5
 wob = R+lam
 wib = S-lam
@@ -19,7 +19,29 @@ dt = 0.01
 
 force = lambda xy, r: force_dnu(xy,r,R,S,lam,nu)
 
-## FORCE MAGNITUDE
+
+## FORCE MAGNITUDE -- 2D
+
+fxy = lambda xy, r: force_dlin(xy,r,R,S)
+N = 100
+x = np.linspace(-2*R,2*R,N)
+y = np.linspace(-2*R,2*R,N)
+farr = np.array([fxy(np.array([xi,yi]),np.sqrt(xi*xi+yi*yi)) for xi in x for yi in y])
+farrabs = np.sqrt(farr[:,0]*farr[:,0]+farr[:,1]*farr[:,1]).reshape([N,N])
+# plt.imshow(farrabs, extent=[-2*R,2*R,-2*R,2*R], cmap="Blues")
+# plt.colorbar()
+X, Y = np.meshgrid(x,y)
+plt.contourf(X,Y,farrabs, 20)
+ang = np.linspace(0,2*np.pi,60)
+plt.plot(R*np.cos(ang),R*np.sin(ang),"g--",lw=3)
+plt.plot(S*np.cos(ang),S*np.sin(ang),"y--",lw=3)
+plt.show()
+exit()
+
+
+
+
+## FORCE MAGNITUDE -- radial
 
 #r = np.arange(0.01,wob+1.0,0.01)
 #f = np.array([fxy_infpot(ri,ri*ri, force, wob,wib,dt) for ri in r])
