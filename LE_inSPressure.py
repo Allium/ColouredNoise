@@ -178,6 +178,8 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 		if ftype[0] == "d":
 			p		-= p.min()
 			p_WN	-= p_WN.min()
+		print [a,S],"\t",np.around([p[:20].mean()],6); return
+
 		
 		##-----------------------------------------------------------
 		## PRESSURE PLOT
@@ -207,7 +209,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	
 ##=============================================================================
 def allfiles(dirpath, plotP, verbose):
-	for filepath in np.sort(glob.glob(dirpath+"/BHIS_**.npy")):
+	for filepath in np.sort(glob.glob(dirpath+"/BHIS_INCIR**.npy")):
 		pressure_pdf_file(filepath, plotP, verbose)
 		plt.close()
 	return
@@ -218,6 +220,7 @@ def calc_pressure(r,rho,ftype,fpars,spatial=False):
 	"""
 	Calculate pressure given density a a function of coordinate.
 	"""
+	me = "LE_inSPressure.calc_pressure: "
 	R, S, lam, nu = fpars
 	
 	## Calculate force array
@@ -228,7 +231,7 @@ def calc_pressure(r,rho,ftype,fpars,spatial=False):
 	if spatial == True:
 		P = +np.array([np.trapz(force[i:]*rho[i:], r[i:]) for i in range(1,r.size+1)])
 	else:
-		raise
+		P = +np.trapz(force*rho, r)
 	
 	return P
 

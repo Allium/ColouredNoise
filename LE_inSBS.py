@@ -215,13 +215,13 @@ def boundary_sim(xyini, exyini, a, xy_step, rmax, dt, tmax, expmt, ephi, vb):
 	xy = np.zeros([nstp,2]); xy[0] = [x0,y0]
 	
 	## Calculate trajectory
-	j = 0
+	j = 0; sign = +1.0
 	for i in xrange(0,nstp-1):
 		r = np.sqrt((xy[i]*xy[i]).sum())
 		if r>rmax:
-			exy*=-1.0	## BC
+			sign*=-1.0	## BC: eta sign change bounces particle back -- okay because of symmetry
 			j += 1
-		xy[i+1] = xy[i] + xy_step(xy[i],r,exy[i])
+		xy[i+1] = xy[i] + xy_step(xy[i],r,sign*exy[i])
 		
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 	if (vb and j>0): print me+"Particle reflected",j,"times"
