@@ -88,7 +88,7 @@ def main(a,ftype,S,dt,timefac,intmeth,ephi,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = S+4.0*round(np.sqrt(a),0)
+	rmax = S+max(1,4.0*round(np.sqrt(a),0))
 	rmin = 0.0
 	## Injection coordinate
 	rini = S + 1.0

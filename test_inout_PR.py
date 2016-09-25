@@ -43,19 +43,33 @@ if 0:
 	
 ## Plot pressure calculated from bulk constant against alpha
 else:
-	a = np.array([0.2,0.4,0.5,0.7,1.0,1.5,2.0,2.5,3.0])
+	a = np.array([0.2,0.4,0.5,0.7,1.0,1.5,2.0,2.5,3.0,5.0,10.0])
+	aa = np.linspace(a[0],a[-1],100)
 
-	Outa = np.array([])
-	Ina  = np.array([])
+	## BC is pressure calculated from BC. P is pressure calculated from integral.
+	## Note that the white noise pressure is P_WN=1.0, provided PDF->0.
+	OutBC = np.array([17.89,10.53,8.27,5.79,4.02,2.64,2.05,1.58,1.34,0.728,0.3265])
+	InBC  = np.array([22.10,10.40,8.20,5.80,4.06,2.65,1.99,1.50,1.29,0.796,0.432])
+	OutP = np.array([1.11,1.08,1.12,1.12,1.16,1.23,1.26,1.27,1.34,1.38,1.56])
+	InP  = np.array([0.941,0.935,0.881,0.856,0.810,0.740,0.712,0.650,0.650,0.567,0.452])
+	## Data 160914_(IN)CIR_L_dt0.01_phi
+	
+	"""plt.plot(a,OutBC,"o-",label="Disc bulk",linewidth=2.)
+	plt.plot(a,InBC, "o-",label="Disc wall",linewidth=2.)
+	plt.plot(aa,1.0/aa,"k--",label="$\\alpha^{-1}$")
+	plt.yscale("log");	plt.xscale("log")
+	plt.ylabel("Pressure $\\alpha\\langle\\eta^2\\rangle Q|_{\\rm bulk}$",fontsize=16)
+	plt.xlabel("$\\alpha$",fontsize=16)"""
+	
+	plt.plot(1+a,OutP,"bo:",label="Disc bulk",linewidth=2.)
+	plt.plot(1+a,InP, "go:",label="Disc wall",linewidth=2.)
+	plt.plot(1+aa,1.0/(1+aa)**0.5,"k--",label="$(1+\\alpha)^{-1/2}$")
+	plt.plot(1+aa,(1+aa)**0.5,"k--",label="$(1+\\alpha)^{+1/2}$")
+	plt.yscale("log");	plt.xscale("log")
+	plt.xlim(right=1+a[-1])
+	plt.ylabel("Pressure $-\int fQ \,{\\rm d}r$",fontsize=16)
+	plt.xlabel("$1+\\alpha$",fontsize=16)
 
-	plt.plot(a,Outa,label="Disc bulk",linewidth=2.)
-	plt.plot(a,Ina,label="Disc wall",linewidth=2.)
-
-	aa = np.linspace(0,a[-1],100)
-	plt.plot(aa,1.0/np.sqrt(1+aa),"k-")
-
-	plt.ylabel("Pressure on wall (normalised)",fontsize=16)
-	plt.xlabel("$\\alpha$",fontsize=16)
 
 	plt.grid()
 	plt.legend(fontsize=12)

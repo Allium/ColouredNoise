@@ -6,7 +6,9 @@ from datetime import datetime
 from LE_Utils import plot_fontsizes
 
 ## ============================================================================
-
+"""
+Statistics of simulation.
+"""
 outdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+"_CIR_DN_dt"
 nosave = 1
 annoloc = (0.02,0.87)
