@@ -3,7 +3,7 @@ import scipy as sp
 from scipy.integrate import simps
 from matplotlib import pyplot as plt
 import os, optparse, glob, time
-from LE_Utils import filename_pars
+from LE_Utils import filename_pars, filename_par
 from LE_Utils import force_1D_const, force_1D_lin
 from LE_Pressure import pressure_x
 innerwall = False
@@ -84,8 +84,8 @@ def plot_file(histfile, nosave, vb):
 	ax.set_xlim(left=x[0],right=x[-1])
 	if ftype[0]!="d":
 		if innerwall:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[0]-x).argmin():])
-		else:			ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()])
-	else:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[1]-x).argmin():np.abs(fpars[0]-x).argmin()])
+		else:			ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()+1])
+	else:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[1]-x).argmin():np.abs(fpars[0]-x).argmin()+1])
 	ax.set_ylim(bottom=0.0,top=ymax)
 	ax.set_xlabel("$"+ord+"$",fontsize=fsa)
 	ax.set_ylabel("Rescaled variable",fontsize=fsa)
@@ -170,7 +170,6 @@ def bulk_const(histfile):
 		pars = filename_pars(histfile)
 		[a,X,R,S,D,lam,nu,ftype,geo] = [pars[key] for key in ["a","X","R","S","D","lam","nu","ftype","geo"]]
 	except:
-		from LE_inSPressure import filename_par
 		a = filename_par(histfile, "_a")
 		S = filename_par(histfile, "_S")
 		geo = "INCIR"; ftype = "linin"
@@ -210,13 +209,14 @@ def bulk_const(histfile):
 		## Probability
 		## Normalise
 		H /= np.trapz(np.trapz(np.trapz(H,etap,axis=2),etar,axis=1),r,axis=0)
-		## Marginalise over eta turn into density
+		## Marginalise over eta turn into radial density
 		Q = np.trapz(np.trapz(H,etap,axis=2),etar,axis=1) / (2*np.pi*r)
 		## To get probability density rather than probability
 		rho = H / reduce(np.multiply, np.ix_(r,etar,etap))
-		if innerwall:	fac = Q[-r.size/6:].mean()
-		else:			fac = Q[:r.size/6].mean()
-		rho/=fac; H/=fac; Q/=fac
+		## Normalise so Q=1 in the bulk
+		# if innerwall:	fac = Q[-r.size/6:].mean()
+		# else:			fac = Q[:r.size/6].mean()
+		# rho/=fac; H/=fac; Q/=fac
 				
 		## Calculations
 		p = calc_pressure(r,Q,ftype,[R,S,lam,nu])
@@ -234,8 +234,9 @@ def bulk_const(histfile):
 		## Bulk constant
 		c1 = Q*e2E
 		c1 = sp.ndimage.filters.gaussian_filter(c1,1,order=0)
-		
-	els = r.size; print p,a*c1[:els/4].mean(),a*c1[-els/4:].mean()
+	
+	Rind, Sind = np.abs(r-R).argmin(), np.abs(r-S).argmin()
+	# print [a,S,R],"\t",round(c1[Sind:Rind+1].mean(),5)
 	
 	try: x = r
 	except UnboundLocalError: pass

@@ -185,3 +185,12 @@ def filename_pars(filename):
 	return dict(zip(names,pars))
 
 
+def filename_par(filename, searchstr):
+	"""
+	Scrape filename for parameter
+	"""
+	start = filename.find(searchstr) + len(searchstr)
+	finish = start + 1
+	while unicode(filename[start:].replace(".",""))[:finish-start].isnumeric():
+		finish += 1
+	return float(filename[start:finish])
