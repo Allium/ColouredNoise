@@ -8,7 +8,7 @@ import os, glob, optparse
 import warnings
 from time import time
 
-from LE_Utils import save_data, filename_pars
+from LE_Utils import save_data, filename_par
 from LE_inSBS import force_linin
 
 warnings.filterwarnings("ignore",
@@ -117,7 +117,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	rmax = rbins[-1]
 	r = 0.5*(rbins[1:]+rbins[:-1])
 	erbins = bins["erbins"]
-	er = 0.5*(erbins[1:]+erbins[-1])
+	er = 0.5*(erbins[1:]+erbins[:-1])
 	rini = rmax	## Start point for computing pressures
 	rinid = -1#np.argmin(np.abs(r-rini))
 	
@@ -178,7 +178,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 		if ftype[0] == "d":
 			p		-= p.min()
 			p_WN	-= p_WN.min()
-		print [a,S],"\t",np.around([p[:20].mean()],6); return
+		print [a,S],"\t",np.around([p[:20].mean()],6)
 
 		
 		##-----------------------------------------------------------
@@ -261,17 +261,6 @@ def plot_wall(ax, ftype, fpars, r):
 		Ufn = lambda Dr: 0.5*np.power(Dr,2.0)
 		ax.plot(r,np.hstack([Ufn(S-r[:Sidx]),np.zeros(r.size-Sidx)]),"k--",label="Potential")
 	return
-	
-	
-def filename_par(filename, searchstr):
-	"""
-	Scrape filename for parameters and return a dict.
-	"""
-	start = filename.find(searchstr) + len(searchstr)
-	finish = start + 1
-	while unicode(filename[start:].replace(".",""))[:finish-start].isnumeric():
-		finish += 1
-	return float(filename[start:finish])
 	
 	
 ##=============================================================================

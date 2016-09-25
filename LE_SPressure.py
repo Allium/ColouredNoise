@@ -40,10 +40,10 @@ def main():
 		dirpath 	path to directory containing histfiles
 		
 	FLAGS
-		-v	--verbose
-		-s	--show
+		-v	--verbose	False
+		-s	--show		False
 			--nosave	False
-		-a	--plotall
+		-a	--plotall	False
 	"""
 	me = "LE_SPressure.main: "
 	t0 = time()
@@ -115,7 +115,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	rmax = rbins[-1]
 	r = 0.5*(rbins[1:]+rbins[:-1])
 	erbins = bins["erbins"]
-	er = 0.5*(erbins[1:]+erbins[-1])
+	er = 0.5*(erbins[1:]+erbins[:-1])
 	rini = 0.5*(max(rbins[0],S)+R)	## Start point for computing pressures
 	rinid = np.argmin(np.abs(r-rini))
 	
@@ -126,18 +126,15 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	## Noise dimension irrelevant here
 	H = np.trapz(H, x=er, axis=1)
 	## rho is probability density. H is probability at r
-	rho = H/(2*np.pi*r) / np.trapz(H, x=r, axis=0)
-	## Correct median -- doesn't change anything
-	# rho *= r / np.sqrt(np.power(rbins[:-1],2)+rbins[:-1]*np.diff(rbins)+0.5*np.power(np.diff(rbins),2))
-	# rho *= r / rbins[1:]#(r + 0.125*np.power(np.diff(rbins),2)/rbins[:-1])
+	rho = H/(2*np.pi*r) / np.trapz(H, r, axis=0)
 
 	## White noise result
 	r_WN = np.linspace(r[0],r[-1]*(1+0.5/r.size),r.size*5+1)
 	rho_WN = pdf_WN(r_WN,fpars,ftype,verbose)
 	
 	## If we want density = 1.0 in bulk HACKY
-	rho /= rho[:np.argmin(np.abs(r-R))/2].mean()
-	rho_WN /= rho_WN[:np.argmin(np.abs(r-R))/2].mean()
+	#rho /= rho[:np.argmin(np.abs(r-R))/2].mean()
+	#rho_WN /= rho_WN[:np.argmin(np.abs(r-R))/2].mean()
 	
 	##---------------------------------------------------------------			
 	## PLOT SET-UP
@@ -165,24 +162,22 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	## PDF and WN PDF
 	ax.plot(r,rho,   "b-", label="CN simulation")
 	ax.plot(r_WN,rho_WN,"r-", label="WN theory")
+	
+	# ## Fit TEMPORARY
+	# fitfunc = lambda x, A, s2:\
+				# A/(2*np.pi*s2)*np.exp(-0.5*x*x/s2)
+	# fit = sp.optimize.curve_fit(fitfunc, r, rho, p0=[1.0,1.0])[0]
+	# print [a],"\t[A, s2] = ",fit
+	# ax.plot(r_WN, fitfunc(r_WN, *fit), "g--", lw=2)
+	# ax.plot(r_WN, fitfunc(r_WN, 1.0, 0.5-0.25*np.log(a)), "g-", lw=2)
+	
 	## Accoutrements
 	ax.set_xlim(xlim)
-	# ax.set_ylim(bottom=0.0, top=min(20,round(max(rho.max(),rho_WN.max())+0.05,1)))
 	ax.set_ylim(bottom=0.0, top=min(20,1.2*max(rho.max(),rho_WN.max())))
 	if not plotpress: ax.set_xlabel("$r$", fontsize=fsa)
 	ax.set_ylabel("$\\rho(r,\\phi)$", fontsize=fsa)
 	ax.grid()
-	# ax.legend(loc="upper right",fontsize=fsl)
 	
-	## Fit TEMPORARY
-	# fitfunc = lambda r, A, B, mu:\
-				# A*np.sqrt(a+1)/(2*np.pi)**(3./2)/R*np.exp(-0.5*B*(a+1)*np.power(r-R-mu,2.0))
-	# fit = sp.optimize.curve_fit(fitfunc, r, rho, p0=[1.0,1.0,0.0])[0]
-	# print [a,R],"\t",np.around(fit,3)
-	# ax.plot(r, fitfunc(r, *fit), "g--", lw=2); plt.show()
-	# return
-	## Mean TEMPORARY
-	# print [a,R],"\t",((r*H*np.diff(rbins)).sum()/(H*np.diff(rbins)).sum()-R)/R
 	
 	##---------------------------------------------------------------
 	## PRESSURE
@@ -196,7 +191,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 		if ftype[0] == "d":
 			p		-= p.min()
 			p_WN	-= p_WN.min()
-		print [a,R],"\t",np.around([p[-20:].mean()],6); return
+		# print [a,R],"\t",np.around([p[:20].mean(),p[-20:].mean()],6)
 		
 		##-----------------------------------------------------------
 		## PRESSURE PLOT
@@ -226,7 +221,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	
 ##=============================================================================
 def allfiles(dirpath, plotP, verbose):
-	for filepath in np.sort(glob.glob(dirpath+"/BHIS_CIR_*a1.0*.npy")):
+	for filepath in np.sort(glob.glob(dirpath+"/BHIS_CIR_*a*.npy")):
 		pressure_pdf_file(filepath, plotP, verbose)
 		plt.close()
 	return
@@ -273,7 +268,7 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 		rmax = rbins[-1]
 		r = 0.5*(rbins[1:]+rbins[:-1])
 		erbins = bins["erbins"]
-		er = 0.5*(erbins[1:]+erbins[-1])
+		er = 0.5*(erbins[1:]+erbins[:-1])
 		## Start point for computing pressures
 		bidx = np.argmin(np.abs(r-0.5*(max(rbins[0],S[i])+R[i])))
 		
@@ -287,7 +282,6 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 		
 		rho_WN = pdf_WN(r,fpars,ftype)
 		
-		# if A[i]==0.1:
 		## Pressure array
 		P[i] 	= calc_pressure(r[bidx:],rho[bidx:],ftype,fpars)
 		P_WN[i] = calc_pressure(r[bidx:],rho_WN[bidx:],ftype,fpars)
@@ -295,12 +289,7 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 			## Inner pressure
 			Q[i] 	= -calc_pressure(r[:bidx],rho[:bidx],ftype,fpars)
 			Q_WN[i] = -calc_pressure(r[:bidx],rho_WN[:bidx],ftype,fpars)
-	
-	# P_WN = P_WN[P_WN>0.0]
-	# Q_WN = np.append([0],Q_WN[Q_WN>0.0])
-	# print np.unique(R)
-	# plt.plot(np.unique(R), P_WN-Q_WN)
-	# plt.show(); exit()
+		
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
 
@@ -488,8 +477,9 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 		if RR.size == 1:
 			title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 			for i in range(SS.size):
-				ax.plot(AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
-				ax.plot(AA,QQ[i,0,:], "o--", color=ax.lines[-1].get_color())
+				ax.plot(1+AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
+				ax.plot(1+AA,QQ[i,0,:], "o--", color=ax.lines[-1].get_color())
+			Aarr = np.linspace(AA[0],AA[-1],100); ax.plot(1+Aarr,1/(1+Aarr)**0.5, "k:",label="$(1+\\alpha)^{-1/2}$")
 		## Constant interval
 		elif np.unique(RR-SS).size == 1:
 			QQ, QQ_WN = np.nan_to_num(QQ), np.nan_to_num(QQ_WN)
@@ -680,6 +670,7 @@ def calc_pressure(r,rho,ftype,fpars,spatial=False):
 	"""
 	Calculate pressure given density a a function of coordinate.
 	"""
+	me = "LE_SPressure.calc_pressure: "
 	R, S, lam, nu = fpars
 	
 	## Calculate force array
@@ -702,8 +693,10 @@ def calc_pressure(r,rho,ftype,fpars,spatial=False):
 	## Pressure
 	if spatial == True:
 		P = -np.array([np.trapz(force[:i]*rho[:i], r[:i]) for i in range(1,r.size+1)])
+		# P = -np.array([sp.integrate.simps(force[:i]*rho[:i], r[:i]) for i in range(1,r.size+1)])
 	else:
 		P = -np.trapz(force*rho, r)
+		# P = -sp.integrate.simps(force*rho, r)
 	
 	return P
 
