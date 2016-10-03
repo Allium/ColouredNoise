@@ -2,11 +2,15 @@
 import numpy as np
 import scipy as sp
 from scipy.optimize import curve_fit
-from matplotlib import pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import os, glob, optparse
 import warnings
 from time import time
+
+if "DISPLAY" not in os.environ:
+	import matplotlib as mpl
+	mpl.use('Agg')
+from matplotlib import pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from LE_Utils import save_data, filename_pars
 from LE_SBS import force_const, force_lin, force_dcon, force_dlin,\

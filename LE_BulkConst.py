@@ -1,10 +1,16 @@
 import numpy as np
 import scipy as sp
-from scipy.integrate import simps
-from matplotlib import pyplot as plt
 import os, optparse, glob, time
+
+if "DISPLAY" not in os.environ:
+	import matplotlib as mpl
+	mpl.use('Agg')
+from matplotlib import pyplot as plt
+
 from LE_Utils import filename_pars, filename_par
 from LE_Utils import force_1D_const, force_1D_lin
+from LE_Utils import plot_fontsizes
+fsa,fsl,fst = plot_fontsizes()
 from LE_Pressure import pressure_x
 innerwall = False
 if innerwall:
@@ -13,8 +19,6 @@ else:
 	from LE_SPressure import calc_pressure, pdf_WN, plot_wall
 
 
-from LE_Utils import plot_fontsizes
-fsa,fsl,fst = plot_fontsizes()
 
 def main():
 	"""
@@ -110,7 +114,6 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	dirpars = filename_pars(histdir)
 	geo = dirpars["geo"]
 	ftype = dirpars["ftype"]
-	assert ftype[0]!="d", me+"Functionality not available."
 	
 	filelist = np.sort(glob.glob(histdir+"/BHIS_*"+searchstr+"*.npy"))
 	numfiles = len(filelist)
@@ -136,9 +139,14 @@ def plot_dir(histdir, nosave, searchstr, vb):
 		elif geo == "CIR":
 			fpars = [pars["R"],pars["S"],pars["lam"],pars["nu"]]
 			Ridx, Sidx = np.abs(x-fpars[0]).argmin(), np.abs(x-fpars[1]).argmin()
+			# C[i] = c1[Sidx+10:Ridx-10].mean()	## ISSUE for S=R=0
+			C[i] = c1[:Sidx+10].mean()
 			r_WN = np.linspace(x[0],x[-1],2*x.size+1)
 			P_WN[i] = calc_pressure(r_WN,pdf_WN(r_WN,fpars,ftype),ftype,fpars)
-			C[i] = c1[Sidx+10:Ridx-10].mean()
+	
+	## SORT BY ALPHA
+	srtidx = A.argsort()
+	A = A[srtidx]; P = P[srtidx]; P_WN = P_WN[srtidx]; C = C[srtidx]
 	
 	## NORMALISE
 	P /= P_WN
@@ -146,15 +154,19 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	
 	## PLOTTING
 	fig = plt.figure(); ax = fig.gca()
-	ax.plot(A,P, "o-", label="$-\\int\\rho(x)\\phi(x)\\,{\\rm d}x$")
-	ax.plot(A,C*A, "o-", label="$\\alpha Q\\langle\\eta^2\\rangle$")
+	ax.plot(A,P, "o-", label=r"$-\int fQ\,{\rm d}r$")
+	ax.plot(A,C*A, "o-", label="$\\alpha Q\\langle\\eta^2\\rangle|_{\\rm bulk}$")
+	
+	ax.set_xscale("log")
+	ax.set_yscale("log")
+	
 	ax.set_xlabel("$\\alpha$")
 	ax.set_ylabel("$P$")
 	ax.grid()
 	ax.legend()
 	fig.suptitle("Pressure normalised by WN result")
 	
-	plotfile = histdir+"/QEe2_P_.png"
+	plotfile = histdir+"/QEe2_Pa.jpg"
 	if not nosave:
 		fig.savefig(plotfile)
 		if vb: print me+"Figure saved to",plotfile
@@ -229,14 +241,11 @@ def bulk_const(histfile):
 		er2E = np.trapz(np.trapz(H*ETAR*ETAR, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
 		# er2E = np.trapz(np.trapz(rho*ETAR*ETAR, etap, axis=2), etar, axis=1) / (Qp)
 		ep2E = np.trapz(np.trapz(H*ETAP*ETAP, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)	### ???
-		e2E = er2E*er2E#*(1.0+ep2E*ep2E)
+		e2E = er2E*er2E #*(1.0+ep2E*ep2E)
 		e2E[np.isnan(e2E)] = 0.0
 		## Bulk constant
 		c1 = Q*e2E
 		c1 = sp.ndimage.filters.gaussian_filter(c1,1,order=0)
-	
-	Rind, Sind = np.abs(r-R).argmin(), np.abs(r-S).argmin()
-	# print [a,S,R],"\t",round(c1[Sind:Rind+1].mean(),5)
 	
 	try: x = r
 	except UnboundLocalError: pass
