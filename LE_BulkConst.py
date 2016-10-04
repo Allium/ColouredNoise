@@ -1,10 +1,14 @@
+me0 = "LE_BulkConst"
+
 import numpy as np
 import scipy as sp
+from scipy.optimize import curve_fit
 import os, optparse, glob, time
 
-if "DISPLAY" not in os.environ:
+if "SSH_TTY" in os.environ:
+	print me0+": Using Agg backend."
 	import matplotlib as mpl
-	mpl.use('Agg')
+	mpl.use("Agg")
 from matplotlib import pyplot as plt
 
 from LE_Utils import filename_pars, filename_par
@@ -12,6 +16,7 @@ from LE_Utils import force_1D_const, force_1D_lin
 from LE_Utils import plot_fontsizes
 fsa,fsl,fst = plot_fontsizes()
 from LE_Pressure import pressure_x
+
 innerwall = False
 if innerwall:
 	from LE_inSPressure import calc_pressure, pdf_WN, plot_wall
@@ -24,7 +29,7 @@ def main():
 	"""
 	Plot the bulk constant <eta^2>Q as a function of r for a single file, or...
 	"""
-	me = "LE_BulkConst: "
+	me = me0+".main: "
 	t0 = time.time()
 	
 	parser = optparse.OptionParser(conflict_handler="resolve")
@@ -67,7 +72,7 @@ def main():
 def plot_file(histfile, nosave, vb):
 	"""
 	"""
-	me = "LE_BulkConst.plot_file: "
+	me = me0+".plot_file: "
 
 	## CALCULATIONS
 	x, Q, e2E, c1, p, pars = bulk_const(histfile)
@@ -109,7 +114,7 @@ def plot_file(histfile, nosave, vb):
 def plot_dir(histdir, nosave, searchstr, vb):
 	"""
 	"""
-	me = "LE_BulkConst.plot_dir: "
+	me = me0+".plot_dir: "
 	
 	dirpars = filename_pars(histdir)
 	geo = dirpars["geo"]
@@ -129,34 +134,47 @@ def plot_dir(histdir, nosave, searchstr, vb):
 		A[i] = pars["a"]
 		P[i] = p
 		
-		if geo == "1D":
+		"""if geo == "1D":
 			X[i] = pars["X"]
 			Xidx = np.argmin(np.abs(x-X[i]))
 			force = 0.5*(np.sign(X[i]-x)-1)* ((x-X[i]) if ftype is "lin" else 1)
 			P_WN[i] = -(force*pdf_WN(x,R[i],ftype)).sum()*(x[1]-x[0])
-			C[i] = c1[:widx].mean()
+			C[i] = c1[:widx].mean()"""
 			
-		elif geo == "CIR":
+		if geo == "CIR":
 			fpars = [pars["R"],pars["S"],pars["lam"],pars["nu"]]
 			Ridx, Sidx = np.abs(x-fpars[0]).argmin(), np.abs(x-fpars[1]).argmin()
-			# C[i] = c1[Sidx+10:Ridx-10].mean()	## ISSUE for S=R=0
-			C[i] = c1[:Sidx+10].mean()
-			r_WN = np.linspace(x[0],x[-1],2*x.size+1)
-			P_WN[i] = calc_pressure(r_WN,pdf_WN(r_WN,fpars,ftype),ftype,fpars)
-	
+			C[i] = c1[Sidx+10:Ridx-10].mean() if Sidx!=Ridx else c1[:Sidx+10].mean()  ##MESS
+			
 	## SORT BY ALPHA
 	srtidx = A.argsort()
 	A = A[srtidx]; P = P[srtidx]; P_WN = P_WN[srtidx]; C = C[srtidx]
+	
+	## Calculate white noise pressure and pdf
+	## Assume all files have same R, S. P_WN independent of alpha.
+	r_WN = np.linspace(x[0],x[-1],2*x.size+1)
+	Ridx_WN, Sidx_WN = np.abs(r_WN-fpars[0]).argmin(), np.abs(r_WN-fpars[1]).argmin()			
+	p = calc_pressure(r_WN,pdf_WN(r_WN,fpars,ftype),ftype,fpars,True)
+	P_WN = p[-1] - p.min()
 	
 	## NORMALISE
 	P /= P_WN
 	C /= P_WN
 	
-	## PLOTTING
-	fig = plt.figure(); ax = fig.gca()
-	ax.plot(A,P, "o-", label=r"$-\int fQ\,{\rm d}r$")
-	ax.plot(A,C*A, "o-", label="$\\alpha Q\\langle\\eta^2\\rangle|_{\\rm bulk}$")
+	## FIT -- to A*C -- fit in log
+	fitfunc = lambda x, B, nu: B + nu*x
+	fit = sp.optimize.curve_fit(fitfunc, np.log(A), np.log(A*C), p0=[-1.0,-1.0])[0]
+	if vb:	print me+": [B, nu] = ",fit
 	
+	## PLOT DATA
+	fig = plt.figure(); ax = fig.gca()
+	
+	ax.plot(A, P, "o-", label=r"$-\int_{\rm bulk}^{\infty} fQ\,{\rm d}r$")
+	ax.plot(A, A*C, "o-", label=r"$\alpha Q\langle\eta^2\rangle|_{\rm bulk}$")
+
+	ax.plot(A, np.exp(fitfunc(np.log(A), *fit)), "g--", lw=2, label=r"$%.1g\alpha^{%.2g}$"%(np.exp(fit[0]),fit[1]))
+	
+	## ACCOUTREMENTS
 	ax.set_xscale("log")
 	ax.set_yscale("log")
 	
@@ -164,9 +182,10 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	ax.set_ylabel("$P$")
 	ax.grid()
 	ax.legend()
-	fig.suptitle("Pressure normalised by WN result")
+	fig.suptitle("Pressure normalised by WN result. $R=%.2g, S=%.2g.$"%(fpars[0],fpars[1]))
 	
-	plotfile = histdir+"/QEe2_Pa.jpg"
+	## SAVING
+	plotfile = histdir+"/QEe2_Pa_R"+str(fpars[0])+"_S"+str(fpars[1])+".jpg"
 	if not nosave:
 		fig.savefig(plotfile)
 		if vb: print me+"Figure saved to",plotfile
@@ -177,11 +196,14 @@ def plot_dir(histdir, nosave, searchstr, vb):
 ##=============================================================================
 
 def bulk_const(histfile):
+	"""
+	"""
+	me = me0+",bulk_const: "
 
 	try:
 		pars = filename_pars(histfile)
 		[a,X,R,S,D,lam,nu,ftype,geo] = [pars[key] for key in ["a","X","R","S","D","lam","nu","ftype","geo"]]
-	except:
+	except:	## Disc wall surrounded by bulk
 		a = filename_par(histfile, "_a")
 		S = filename_par(histfile, "_S")
 		geo = "INCIR"; ftype = "linin"
@@ -224,14 +246,17 @@ def bulk_const(histfile):
 		## Marginalise over eta turn into radial density
 		Q = np.trapz(np.trapz(H,etap,axis=2),etar,axis=1) / (2*np.pi*r)
 		## To get probability density rather than probability
-		rho = H / reduce(np.multiply, np.ix_(r,etar,etap))
+		# rho = H / reduce(np.multiply, np.ix_(r,etar,etap))
+		rho = H / ( (2*np.pi)**2.0 * reduce(np.multiply, np.ix_(r,etar,np.ones(etap.size))) )
+		
 		## Normalise so Q=1 in the bulk
-		# if innerwall:	fac = Q[-r.size/6:].mean()
-		# else:			fac = Q[:r.size/6].mean()
+		# if innerwall:	fac = Q[-r.size/6:].mean() if innerwall else Q[:r.size/6].mean()
 		# rho/=fac; H/=fac; Q/=fac
 				
-		## Calculations
-		p = calc_pressure(r,Q,ftype,[R,S,lam,nu])
+		## Conventional pressure calculation
+		## For disc, integrate from zero; for annulus, integrate from bulk to infinity (outer wall)
+		Ridx = np.abs(r-R).argmin()
+		p = calc_pressure(r[Ridx:],Q[Ridx:],ftype,[R,S,lam,nu])
 		
 		## 3D arrays of etar and etap
 		ETAR = etar[np.newaxis,:,np.newaxis].repeat(H.shape[0],axis=0).repeat(H.shape[2],axis=2)

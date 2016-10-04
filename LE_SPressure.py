@@ -1,3 +1,4 @@
+me0 = "LE_SPressure"
 
 import numpy as np
 import scipy as sp
@@ -6,9 +7,10 @@ import os, glob, optparse
 import warnings
 from time import time
 
-if "DISPLAY" not in os.environ:
+if "SSH_TTY" in os.environ:
+	print me0+": Using Agg backend."
 	import matplotlib as mpl
-	mpl.use('Agg')
+	mpl.use("Agg")
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -49,7 +51,7 @@ def main():
 			--nosave	False
 		-a	--plotall	False
 	"""
-	me = "LE_SPressure.main: "
+	me = me0+".main: "
 	t0 = time()
 	
 	## Options
@@ -98,7 +100,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	"""
 	Make plot for a single file
 	"""
-	me = "LE_SPressure.pressure_pdf_file: "
+	me = me0+".pressure_pdf_file: "
 	t0 = time()
 
 	## Filename
@@ -235,7 +237,7 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 	"""
 	Plot pressure at "infinity" against alpha for all files in directory.
 	"""
-	me = "LE_SPressure.pressure_dir: "
+	me = me0+".pressure_dir: "
 	t0 = time()
 	
 	## Directory parameters
@@ -674,7 +676,7 @@ def calc_pressure(r,rho,ftype,fpars,spatial=False):
 	"""
 	Calculate pressure given density a a function of coordinate.
 	"""
-	me = "LE_SPressure.calc_pressure: "
+	me = me0+".calc_pressure: "
 	R, S, lam, nu = fpars
 	
 	## Calculate force array
@@ -696,10 +698,12 @@ def calc_pressure(r,rho,ftype,fpars,spatial=False):
 	
 	## Pressure
 	if spatial == True:
-		P = -np.array([np.trapz(force[:i]*rho[:i], r[:i]) for i in range(1,r.size+1)])
+#		P = -np.array([np.trapz(force[:i]*rho[:i], r[:i]) for i in range(1,r.size+1)])
+		P = np.concatenate(([0],-sp.integrate.cumtrapz(force*rho, r)))
 		# P = -np.array([sp.integrate.simps(force[:i]*rho[:i], r[:i]) for i in range(1,r.size+1)])
 	else:
-		P = -np.trapz(force*rho, r)
+#		P = -np.trapz(force*rho, r)
+		P = -sp.integrate.trapz(force*rho, r)
 		# P = -sp.integrate.simps(force*rho, r)
 	
 	return P
@@ -709,7 +713,7 @@ def pdf_WN(r,fpars,ftype,vb=False):
 	"""
 	Theoretical radial pdf of a white noise gas.
 	"""
-	me = "LE_SPressure.pdf_WN: "
+	me = me0+".pdf_WN: "
 	R, S = fpars[:2]
 	Rind, Sind = np.argmin(np.abs(r-R)), np.argmin(np.abs(r-S))
 	if ftype is "const":
@@ -773,7 +777,7 @@ def plot_wall(ax, ftype, fpars, r):
 	"""
 	Plot the wall profile of type ftype on ax
 	"""
-	me = "LE_SPressure.plot_wall: "
+	me = me0+".plot_wall: "
 	R, S, lam, nu = fpars
 	Ridx, Sidx, Lidx = np.abs(R-r).argmin(), np.abs(S-r).argmin(), np.abs(S-lam-r).argmin()
 	## Plot potentials
