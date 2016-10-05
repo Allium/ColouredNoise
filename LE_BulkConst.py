@@ -100,7 +100,7 @@ def plot_file(histfile, nosave, vb):
 	ax.set_ylabel("Rescaled variable",fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="upper left",fontsize=fsl+2)
-	# fig.suptitle("Bulk Constant. $\\alpha = "+str(pars["a"])+"$.",fontsize=fst)
+	fig.suptitle(r"Bulk Constant. $\alpha = "+str(pars["a"])+"$.",fontsize=fst)
 	
 	## SAVE
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".jpg"
@@ -144,14 +144,14 @@ def plot_dir(histdir, nosave, searchstr, vb):
 		if geo == "CIR":
 			fpars = [pars["R"],pars["S"],pars["lam"],pars["nu"]]
 			Ridx, Sidx = np.abs(x-fpars[0]).argmin(), np.abs(x-fpars[1]).argmin()
-			C[i] = c1[Sidx+10:Ridx-10].mean() if Sidx!=Ridx else c1[:Sidx+10].mean()  ##MESS
+			C[i] = c1[Sidx+10:Ridx-10].mean() if Ridx!=Sidx else c1[max(0,Sidx-10):Ridx+10].mean()  ##MESS
 			
 	## SORT BY ALPHA
 	srtidx = A.argsort()
 	A = A[srtidx]; P = P[srtidx]; P_WN = P_WN[srtidx]; C = C[srtidx]
 	
 	## Calculate white noise pressure and pdf
-	## Assume all files have same R, S. P_WN independent of alpha.
+	## Assume all files have same R & S. P_WN independent of alpha.
 	r_WN = np.linspace(x[0],x[-1],2*x.size+1)
 	Ridx_WN, Sidx_WN = np.abs(r_WN-fpars[0]).argmin(), np.abs(r_WN-fpars[1]).argmin()			
 	p = calc_pressure(r_WN,pdf_WN(r_WN,fpars,ftype),ftype,fpars,True)
@@ -161,28 +161,34 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	P /= P_WN
 	C /= P_WN
 	
-	## FIT -- to A*C -- fit in log
+	## FIT -- A*C -- fit in log coordinates
 	fitfunc = lambda x, B, nu: B + nu*x
-	fit = sp.optimize.curve_fit(fitfunc, np.log(A), np.log(A*C), p0=[-1.0,-1.0])[0]
-	if vb:	print me+": [B, nu] = ",fit
+	fitBC = sp.optimize.curve_fit(fitfunc, np.log(A), np.log(A*C), p0=[+1.0,-1.0])[0]
+	if vb:	print me+": BC:  [B, nu] = ",fitBC.round(3)
+	## FIT -- P_int
+	fitP = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(P), p0=[+1.0,-1.0])[0]
+	if vb:	print me+": Int: [B, nu] = ",fitP.round(3)
 	
-	## PLOT DATA
+	## PLOT DATA AND FIT
 	fig = plt.figure(); ax = fig.gca()
 	
 	ax.plot(A, P, "o-", label=r"$-\int_{\rm bulk}^{\infty} fQ\,{\rm d}r$")
 	ax.plot(A, A*C, "o-", label=r"$\alpha Q\langle\eta^2\rangle|_{\rm bulk}$")
 
-	ax.plot(A, np.exp(fitfunc(np.log(A), *fit)), "g--", lw=2, label=r"$%.1g\alpha^{%.2g}$"%(np.exp(fit[0]),fit[1]))
+	ax.plot(A, np.exp(fitfunc(np.log(1+A), *fitP)), "b--", lw=1,
+			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitP[0]),fitP[1]))
+	ax.plot(A, np.exp(fitfunc(np.log(A), *fitBC)), "g--", lw=1,
+			label=r"$%.1g\alpha^{%.3g}$"%(np.exp(fitBC[0]),fitBC[1]))
 	
 	## ACCOUTREMENTS
 	ax.set_xscale("log")
 	ax.set_yscale("log")
 	
-	ax.set_xlabel("$\\alpha$")
-	ax.set_ylabel("$P$")
+	ax.set_xlabel(r"$\alpha$",fontsize=fsa)
+	ax.set_ylabel(r"$P$",fontsize=fsa)
 	ax.grid()
 	ax.legend()
-	fig.suptitle("Pressure normalised by WN result. $R=%.2g, S=%.2g.$"%(fpars[0],fpars[1]))
+	fig.suptitle("Pressure normalised by WN result. $R=%.2g, S=%.2g.$"%(fpars[0],fpars[1]),fontsize=fst)
 	
 	## SAVING
 	plotfile = histdir+"/QEe2_Pa_R"+str(fpars[0])+"_S"+str(fpars[1])+".jpg"
