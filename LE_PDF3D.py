@@ -95,7 +95,8 @@ def plot_pdf3D_file(histfile, nosave, vb):
 	rho = H / ( (2*np.pi)**2.0 * reduce(np.multiply, np.ix_(r,etar)) )
 
 	## Create grids
-	x, y = np.linspace(r[0],r[-1],100), np.linspace(etar[0],etar[-1],100)
+	NGridPoints = 100
+	x, y = np.linspace(r[0],r[-1],NGridPoints), np.linspace(etar[0],etar[-1],NGridPoints)
 	X, Y = np.meshgrid(x, y)
 	Z = scipy.interpolate.RectBivariateSpline(r,etar,rho)(x,y,grid=True)
 
