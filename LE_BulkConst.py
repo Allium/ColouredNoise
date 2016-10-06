@@ -55,6 +55,7 @@ def main():
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False
 		filelist = np.sort(glob.glob(args[0]+"/BHIS_*"+searchstr+"*.npy"))
+		assert len(filelist)>1, me+"Check directory."
 		if verbose: print me+"Found",len(filelist),"files."
 		for histfile in filelist:
 			plot_file(histfile, nosave, verbose)
@@ -154,8 +155,9 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	## Assume all files have same R & S. P_WN independent of alpha.
 	r_WN = np.linspace(x[0],x[-1],2*x.size+1)
 	Ridx_WN, Sidx_WN = np.abs(r_WN-fpars[0]).argmin(), np.abs(r_WN-fpars[1]).argmin()			
-	p = calc_pressure(r_WN,pdf_WN(r_WN,fpars,ftype),ftype,fpars,True)
-	P_WN = p[-1] - p.min()
+	p_WN = calc_pressure(r_WN,pdf_WN(r_WN,fpars,ftype),ftype,fpars,True)
+	P_WN = p_WN[-1] - p_WN.min()	## For outer wall
+#	P_WN = p_WN[0]  - p_WN.min()	## For inner wall
 	
 	## NORMALISE
 	P /= P_WN
@@ -163,7 +165,7 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	
 	## FIT -- A*C -- fit in log coordinates
 	fitfunc = lambda x, B, nu: B + nu*x
-	fitBC = sp.optimize.curve_fit(fitfunc, np.log(A), np.log(A*C), p0=[+1.0,-1.0])[0]
+	fitBC = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(A*C), p0=[+1.0,-1.0])[0]
 	if vb:	print me+": BC:  [B, nu] = ",fitBC.round(3)
 	## FIT -- P_int
 	fitP = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(P), p0=[+1.0,-1.0])[0]
@@ -172,19 +174,20 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	## PLOT DATA AND FIT
 	fig = plt.figure(); ax = fig.gca()
 	
-	ax.plot(A, P, "o-", label=r"$-\int_{\rm bulk}^{\infty} fQ\,{\rm d}r$")
-	ax.plot(A, A*C, "o-", label=r"$\alpha Q\langle\eta^2\rangle|_{\rm bulk}$")
+	ax.plot(1+A, P, "o-", label=r"$-\int_{\rm bulk}^{\infty} fQ\,{\rm d}r$")
+	ax.plot(1+A, A*C, "o-", label=r"$\alpha Q\langle\eta^2\rangle|_{\rm bulk}$")
 
-	ax.plot(A, np.exp(fitfunc(np.log(1+A), *fitP)), "b--", lw=1,
+	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitP)), "b--", lw=1,
 			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitP[0]),fitP[1]))
-	ax.plot(A, np.exp(fitfunc(np.log(A), *fitBC)), "g--", lw=1,
-			label=r"$%.1g\alpha^{%.3g}$"%(np.exp(fitBC[0]),fitBC[1]))
+	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitBC)), "g--", lw=1,
+			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitBC[0]),fitBC[1]))
 	
 	## ACCOUTREMENTS
 	ax.set_xscale("log")
 	ax.set_yscale("log")
+	ax.set_xlim(right=1+A[-1])
 	
-	ax.set_xlabel(r"$\alpha$",fontsize=fsa)
+	ax.set_xlabel(r"$\alpha+1$",fontsize=fsa)
 	ax.set_ylabel(r"$P$",fontsize=fsa)
 	ax.grid()
 	ax.legend()
@@ -261,21 +264,33 @@ def bulk_const(histfile):
 				
 		## Conventional pressure calculation
 		## For disc, integrate from zero; for annulus, integrate from bulk to infinity (outer wall)
-		Ridx = np.abs(r-R).argmin()
-		p = calc_pressure(r[Ridx:],Q[Ridx:],ftype,[R,S,lam,nu])
+		Ridx, Sidx = np.abs(r-R).argmin(), np.abs(r-S).argmin()
+		p = +calc_pressure(r[Ridx:],Q[Ridx:],ftype,[R,S,lam,nu])	## For outer wall
+#		p = -calc_pressure(r[:Sidx],Q[:Sidx],ftype,[R,S,lam,nu])	## For inner wall
 		
 		## 3D arrays of etar and etap
 		ETAR = etar[np.newaxis,:,np.newaxis].repeat(H.shape[0],axis=0).repeat(H.shape[2],axis=2)
 		ETAP = etap[np.newaxis,np.newaxis,:].repeat(H.shape[0],axis=0).repeat(H.shape[1],axis=1)
 		## Calculate averages
 		Qp = Q+(Q==0) ## Avoid /0 warning (numerator is 0 anyway)
-		er2E = np.trapz(np.trapz(H*ETAR*ETAR, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)
-		# er2E = np.trapz(np.trapz(rho*ETAR*ETAR, etap, axis=2), etar, axis=1) / (Qp)
-		ep2E = np.trapz(np.trapz(H*ETAP*ETAP, etap, axis=2), etar, axis=1) / (2*np.pi*r*Qp)	### ???
-		e2E = er2E*er2E #*(1.0+ep2E*ep2E)
+		
+		## ---- ETA-r
+#		er2E = np.trapz(np.trapz(rho, etap, axis=2) * 2*np.pi*etar * (etar*etar), etar, axis=1) / (Qp)## 1 file
+		er2E = np.trapz(np.trapz(rho, etap, axis=2) * (etar*etar), etar, axis=1) / (Qp)					## 2 Better for P(a)
+		
+		## ----	ETA-phi	
+#		ep2E = np.trapz(np.trapz(rho*ETAP*ETAP, etap, axis=2) * 2*np.pi*etar, etar, axis=1) / (Qp)	## 1 file
+		ep2E = np.trapz(np.trapz(rho*ETAP*ETAP, etap, axis=2), etar, axis=1) / (Qp)
+
+#		ep2E = np.trapz(np.trapz(rho*ETAP*ETAP, etap, axis=2) * 2*np.pi*etar * (etar*etar), etar, axis=1) / (Qp)
+#		ep2E = np.trapz(np.trapz(rho*ETAP*ETAP, etap, axis=2) * (etar*etar), etar, axis=1) / (Qp)
+		## ----		
+		e2E = er2E*er2E *(1.0+ep2E*ep2E)	## 1 file
+#		e2E = er2E*er2E *+ep2E*ep2E
+
 		e2E[np.isnan(e2E)] = 0.0
 		## Bulk constant
-		c1 = Q*e2E
+		c1 = Q*e2E*2.0
 		c1 = sp.ndimage.filters.gaussian_filter(c1,1,order=0)
 	
 	try: x = r
