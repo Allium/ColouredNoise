@@ -16,12 +16,7 @@ from LE_Utils import force_1D_const, force_1D_lin
 from LE_Utils import plot_fontsizes
 fsa,fsl,fst = plot_fontsizes()
 from LE_Pressure import pressure_x
-
-innerwall = False
-if innerwall:
-	from LE_inSPressure import calc_pressure, pdf_WN, plot_wall
-else:
-	from LE_SPressure import calc_pressure, pdf_WN, plot_wall
+from LE_SPressure import calc_pressure, pdf_WN, plot_wall
 
 
 
@@ -241,26 +236,26 @@ def bulk_const(histfile):
 	## Circular sim
 	if "CIR" in geo:
 		
-		## Space
+		## Space and load histogram
 		rbins = bins["rbins"]
 		erbins = bins["erbins"]
-		epbins = bins["epbins"]
 		r = 0.5*(rbins[1:]+rbins[:-1])
 		etar = 0.5*(erbins[1:]+erbins[:-1])
-		etap = 0.5*(epbins[1:]+epbins[:-1])
+		## For old _phi files
+		try:
+			epbins = bins["epbins"]
+			etap = 0.5*(epbins[1:]+epbins[:-1])	## Unneccessary
+			H = H.sum(axis=2) * (etap[1]-etap[0])
+		except KeyError:
+			pass
 		
 		## Probability
 		## Normalise
-		H /= np.trapz(np.trapz(np.trapz(H,etap,axis=2),etar,axis=1),r,axis=0)
+		H /= np.trapz(np.trapz(H,etar,axis=1),r,axis=0)
 		## Marginalise over eta turn into radial density
-		Q = np.trapz(np.trapz(H,etap,axis=2),etar,axis=1) / (2*np.pi*r)
+		Q = np.trapz(H,etar,axis=1) / (2*np.pi*r)
 		## To get probability density rather than probability
-		# rho = H / reduce(np.multiply, np.ix_(r,etar,etap))
-		rho = H / ( (2*np.pi)**2.0 * reduce(np.multiply, np.ix_(r,etar,np.ones(etap.size))) )
-		
-		## Normalise so Q=1 in the bulk
-		# if innerwall:	fac = Q[-r.size/6:].mean() if innerwall else Q[:r.size/6].mean()
-		# rho/=fac; H/=fac; Q/=fac
+		rho = H / ( (2*np.pi)**2.0 * reduce(np.multiply, np.ix_(r,etar)) )
 				
 		## Conventional pressure calculation
 		## For disc, integrate from zero; for annulus, integrate from bulk to infinity (outer wall)
@@ -268,30 +263,17 @@ def bulk_const(histfile):
 		p = +calc_pressure(r[Ridx:],Q[Ridx:],ftype,[R,S,lam,nu])	## For outer wall
 #		p = -calc_pressure(r[:Sidx],Q[:Sidx],ftype,[R,S,lam,nu])	## For inner wall
 		
-		## 3D arrays of etar and etap
-		ETAR = etar[np.newaxis,:,np.newaxis].repeat(H.shape[0],axis=0).repeat(H.shape[2],axis=2)
-		ETAP = etap[np.newaxis,np.newaxis,:].repeat(H.shape[0],axis=0).repeat(H.shape[1],axis=1)
+		## 2D array of etar
+		ETAR = etar[np.newaxis,:].repeat(H.shape[0],axis=0)
 		## Calculate averages
 		Qp = Q+(Q==0) ## Avoid /0 warning (numerator is 0 anyway)
-		
-		## ---- ETA-r
-#		er2E = np.trapz(np.trapz(rho, etap, axis=2) * 2*np.pi*etar * (etar*etar), etar, axis=1) / (Qp)## 1 file
-		er2E = np.trapz(np.trapz(rho, etap, axis=2) * (etar*etar), etar, axis=1) / (Qp)					## 2 Better for P(a)
-		
-		## ----	ETA-phi	
-#		ep2E = np.trapz(np.trapz(rho*ETAP*ETAP, etap, axis=2) * 2*np.pi*etar, etar, axis=1) / (Qp)	## 1 file
-		ep2E = np.trapz(np.trapz(rho*ETAP*ETAP, etap, axis=2), etar, axis=1) / (Qp)
-
-#		ep2E = np.trapz(np.trapz(rho*ETAP*ETAP, etap, axis=2) * 2*np.pi*etar * (etar*etar), etar, axis=1) / (Qp)
-#		ep2E = np.trapz(np.trapz(rho*ETAP*ETAP, etap, axis=2) * (etar*etar), etar, axis=1) / (Qp)
-		## ----		
-		e2E = er2E*er2E *(1.0+ep2E*ep2E)	## 1 file
-#		e2E = er2E*er2E *+ep2E*ep2E
-
+		er2E = np.trapz(rho * etar * (etar*etar), etar, axis=1) / (Qp)	## 1 file
+#		er2E = np.trapz(rho * (etar*etar), etar, axis=1) / (Qp)			## 2 P(a)
+		e2E = er2E*er2E
 		e2E[np.isnan(e2E)] = 0.0
 		## Bulk constant
-		c1 = Q*e2E*2.0
-		c1 = sp.ndimage.filters.gaussian_filter(c1,1,order=0)
+		c1 = Q*e2E * (2.0*np.pi)**2.0
+#		c1 = sp.ndimage.filters.gaussian_filter(c1,1,order=0)
 	
 	try: x = r
 	except UnboundLocalError: pass
