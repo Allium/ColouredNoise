@@ -1,8 +1,7 @@
 me0 = "LE_PDF3D"
 
 import numpy as np
-import scipy.interpolate
-import scipy.ndimage
+import scipy.interpolate, scipy.ndimage, scipy.optimize
 from sys import argv
 import os, optparse, glob, time
 
@@ -99,6 +98,9 @@ def plot_pdf3D(histfile, nosave, vb):
 	X, Y = np.meshgrid(x, y)
 #	Z = scipy.interpolate.RectBivariateSpline(r,etar,rho, s=0)(x,y,grid=True).T	## Slower
 	Z = scipy.ndimage.interpolation.zoom(rho,[float(npoints)/r.size,float(npoints)/etar.size],order=1).T
+	
+	## Smooth
+	Zsm = scipy.ndimage.gaussian_filter(Z, sigma=2.0, order=0, mode="nearest")
 
 #	x, y = r, etar
 #	X, Y = np.meshgrid(x, y)
@@ -108,24 +110,29 @@ def plot_pdf3D(histfile, nosave, vb):
 	fig = plt.figure()
 	ax = fig.gca(projection="3d")
 
-	ax.plot_surface(X, Y, Z, rstride=5, cstride=5, alpha=0.2, antialiased=True)
+	## 3D contour plot
+	ax.plot_surface(X, Y, Zsm, rstride=5, cstride=5, alpha=0.2, antialiased=True)
 	
-	xoff, yoff, zoff = X.min(), -0.1*Y.max(), -0.2*Z.max()
-	ax.contourf(X, Y, Z, zdir='z', offset=zoff,	cmap=cm.coolwarm, antialiased=True)	## 2D projection
-	ax.contourf(X, Y, Z, zdir='x', offset=xoff,	cmap=cm.coolwarm, antialiased=True)	## p(eta)
-#	ax.contourf(X, Y, Z, zdir='y', offset=yoff,	cmap=cm.coolwarm, antialiased=True)	## p(r)	## Too choppy
+	## 2D contours
+	xoff, yoff, zoff = X.min()-0.1*X.max(), -0.1*Y.max(), -0.1*Z.max()
+	ax.contourf(X, Y, Zsm, zdir='z', offset=zoff,	cmap=cm.coolwarm, antialiased=True)	## 2D projection
+	ax.contourf(X, Y, Zsm, zdir='x', offset=xoff,	cmap=cm.coolwarm, antialiased=True)	## p(eta)
+#	ax.contourf(X, Y, Z, zdir='y', offset=yoff,	cmap=cm.coolwarm, antialiased=True)	## p(r) choppy
+	ax.contourf(X, Y, Zsm, zdir='y', offset=yoff, cmap=cm.coolwarm, antialiased=True)	## p(r) smoothed
 
-	## Plot smoothed p(r) contour
-	Zsm = scipy.ndimage.gaussian_filter(Z, sigma=2.0, order=0, mode="nearest")
-	ax.contourf(X, Y, Zsm, zdir='y', offset=yoff, cmap=cm.coolwarm, antialiased=True)
+	## Plot smoothed p(r) envelope
 	Q = np.trapz(Z.T*2*np.pi*y,y,axis=1)
-	ax.plot(x, yoff*np.ones(y.shape),Q/Q.max()*Z.max(), "r--",lw=3)	## p(r)
+	ax.plot(x, yoff*np.ones(y.shape),Q/Q.max()*Zsm.max(), "r--",lw=3)	## p(r) envelope
+	E = np.trapz(Zsm*2*np.pi*y,y,axis=1)
 
-	## Fit
-	ax.plot(xoff*np.ones(x.size), y, Z[5:,:].max()*np.exp(-0.5*a*y*y), "g--", lw=3, zorder=2)
+	## Fit p(eta)
+	fitfunc = lambda x, B, b: B*a*b/(2*np.pi)*np.exp(-0.5*a*b*y*y)
+	fit = scipy.optimize.curve_fit(fitfunc, y, E, p0=[+1.0,+1.0])[0]
+	ax.plot(xoff*np.ones(x.size), y, fitfunc(y,*fit)*Zsm.max()/E.max(), "g--", lw=3, zorder=2)
+	
 	## Wall
-	ax.plot(S*np.ones(x.size), y, 0.8*zoff*np.ones(x.size), "g--", lw=3, zorder=2)
-	ax.plot(R*np.ones(x.size), y, 0.8*zoff*np.ones(x.size), "g--", lw=3, zorder=2)
+	if S>0:	ax.plot(S*np.ones(x.size), y, 0.8*zoff*np.ones(x.size), "g--", lw=3, zorder=2)
+	if S>0:	ax.plot(R*np.ones(x.size), y, 0.8*zoff*np.ones(x.size), "g--", lw=3, zorder=2)
 
 	## Accoutrements
 	ax.set_zlim(zoff,ax.get_zlim()[1])
