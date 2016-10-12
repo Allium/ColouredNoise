@@ -20,7 +20,8 @@ warnings.filterwarnings("ignore",category=FutureWarning)
 
 """
 TO DO
-Gaussian fits
+Gaussian fits not working
+Sensitive to grid shape
 """
 
 def input():
@@ -70,7 +71,7 @@ def plot_pdf3D(histfile, nosave, vb):
 	"""
 	Read in data for a single file and plot 3D PDF.
 	"""
-	me = me0+"plot_pdf3D_file: "
+	me = me0+"plot_pdf3D: "
 
 	## Get pars from filename
 	a = filename_par(histfile, "_a")
@@ -84,59 +85,69 @@ def plot_pdf3D(histfile, nosave, vb):
 	r = 0.5*(rbins[1:]+rbins[:-1])
 	etar = 0.5*(erbins[1:]+erbins[:-1])
 
-	## Load histogram, convert to normalised pdf
+	## Load histogram
 	H = np.load(histfile)
-	try:				H = H.sum(axis=2)	## If old file
+	try:				H = H.sum(axis=2)	## If old _phi file
 	except ValueError: 	pass
+	
+	## ------------------------------------------------------------------------
+	
+	## Normalise and convert to density
 	H /= np.trapz(np.trapz(H,etar,axis=1),r,axis=0)
-	## To get probability density rather than probability
 	rho = H / ( (2*np.pi)**2.0 * reduce(np.multiply, np.ix_(r,etar)) )
 	
-	## Resample
-	npoints = 100
-	x, y = np.linspace(r[0],r[-1],npoints), np.linspace(etar[0],etar[-1],npoints)
+	## Resample to speed up
+	nrpoints, nerpoints = 100, 100
+	x, y = np.linspace(r[0],r[-1],nrpoints), np.linspace(etar[0],etar[-1],nerpoints)
 	X, Y = np.meshgrid(x, y)
 #	Z = scipy.interpolate.RectBivariateSpline(r,etar,rho, s=0)(x,y,grid=True).T	## Slower
-	Z = scipy.ndimage.interpolation.zoom(rho,[float(npoints)/r.size,float(npoints)/etar.size],order=1).T
+	Z = scipy.ndimage.interpolation.zoom(rho,[float(nrpoints)/r.size,float(nerpoints)/etar.size],order=1).T
 	
 	## Smooth
-	Zsm = scipy.ndimage.gaussian_filter(Z, sigma=2.0, order=0, mode="nearest")
+#	Z = scipy.ndimage.gaussian_filter(Z, sigma=2.0, order=0, mode="nearest")
 
+	## To plot full, unsmoothed data
 #	x, y = r, etar
 #	X, Y = np.meshgrid(x, y)
 #	Z = rho.T
+
+	## Marginalised PDFs
+	Q = np.trapz(Z.T*2*np.pi*y,y,axis=1)	## p(r)
+	E = np.trapz(Z*2*np.pi*x,x,axis=1)		## p(eta)
+	
+	## Fit p(eta)
+	fitfunc = lambda x, B, b: B*a*b/(2*np.pi)*np.exp(-0.5*a*b*y*y)
+	fitE = scipy.optimize.curve_fit(fitfunc, y, E, p0=[+1.0,+1.0])[0]
+
+	## ------------------------------------------------------------------------
 
 	## Plotting
 	fig = plt.figure()
 	ax = fig.gca(projection="3d")
 
 	## 3D contour plot
-	ax.plot_surface(X, Y, Zsm, rstride=5, cstride=5, alpha=0.2, antialiased=True)
+	ax.plot_surface(X, Y, Z, alpha=0.2, antialiased=True)	## Lost rstride/cstride
 	
 	## 2D contours
-	xoff, yoff, zoff = X.min()-0.1*X.max(), -0.1*Y.max(), -0.1*Z.max()
-	ax.contourf(X, Y, Zsm, zdir='z', offset=zoff,	cmap=cm.coolwarm, antialiased=True)	## 2D projection
-	ax.contourf(X, Y, Zsm, zdir='x', offset=xoff,	cmap=cm.coolwarm, antialiased=True)	## p(eta)
-#	ax.contourf(X, Y, Z, zdir='y', offset=yoff,	cmap=cm.coolwarm, antialiased=True)	## p(r) choppy
-	ax.contourf(X, Y, Zsm, zdir='y', offset=yoff, cmap=cm.coolwarm, antialiased=True)	## p(r) smoothed
+	xoff, yoff, zoff = X.min()-0.1*X.max(), Y.min()-0.1*Y.max(), Z.min()-0.1*Z.max()## Offsets
+	ax.contourf(X, Y, Z, zdir='x', offset=xoff,	cmap=cm.coolwarm, antialiased=True)	## p(eta)
+	ax.contourf(X, Y, Z, zdir='y', offset=yoff, cmap=cm.coolwarm, antialiased=True)	## p(r)
+	ax.contourf(X, Y, Z, zdir='z', offset=zoff,	cmap=cm.coolwarm, antialiased=True)	## 2D projection
 
 	## Plot smoothed p(r) envelope
-	Q = np.trapz(Z.T*2*np.pi*y,y,axis=1)
-	ax.plot(x, yoff*np.ones(y.shape),Q/Q.max()*Zsm.max(), "r--",lw=3)	## p(r) envelope
-	E = np.trapz(Zsm*2*np.pi*y,y,axis=1)
+	ax.plot(x, yoff*np.ones(y.shape),Q/Q.max()*Z.max(), "r--",lw=3)
 
-	## Fit p(eta)
-	fitfunc = lambda x, B, b: B*a*b/(2*np.pi)*np.exp(-0.5*a*b*y*y)
-	fit = scipy.optimize.curve_fit(fitfunc, y, E, p0=[+1.0,+1.0])[0]
-	ax.plot(xoff*np.ones(x.size), y, fitfunc(y,*fit)*Zsm.max()/E.max(), "g--", lw=3, zorder=2)
+	## Plot Gaussian fit to p(etar)
+	ax.plot(xoff*np.ones(x.size), y, fitfunc(y,*fitE)*Z.max()/E.max(), "g--", lw=3, zorder=2)
 	
-	## Wall
+	## Indicate wall
 	if S>0:	ax.plot(S*np.ones(x.size), y, 0.8*zoff*np.ones(x.size), "g--", lw=3, zorder=2)
 	if S>0:	ax.plot(R*np.ones(x.size), y, 0.8*zoff*np.ones(x.size), "g--", lw=3, zorder=2)
 
 	## Accoutrements
-	ax.set_zlim(zoff,ax.get_zlim()[1])
+	ax.set_xlim(xoff,ax.get_xlim()[1])
 	ax.set_ylim(yoff,ax.get_ylim()[1])
+	ax.set_zlim(zoff,ax.get_zlim()[1])
 	ax.elev = 30
 	ax.azim = 45
 	
