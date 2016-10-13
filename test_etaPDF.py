@@ -21,6 +21,7 @@ try:
 	S = filename_par(histfile, "_S")
 	
 	bulk = False if R==S else True
+	normalise = False
 	
 	try: nosave = not bool(argv[2])
 	except IndexError: nosave = True
@@ -37,10 +38,11 @@ try:
 	Rind = np.abs(r-R).argmin()
 	Sind = np.abs(r-S).argmin()
 		
-	## Load histogram, convert to normalised pdf
+	## Load histogram; normalise
 	H = np.load(histfile)
 	try:	H = H.sum(axis=2)
 	except ValueError:	pass
+	H /= np.trapz(np.trapz(H,er,axis=1),r,axis=0)
 	
 	## Distribution on either side of the wall: inner, outer, bulk
 	rS = r[:Sind];		HS = H[:Sind,:]
@@ -52,10 +54,20 @@ try:
 	HR = np.trapz(HR, rR, axis=0)
 	if bulk:	HB = np.trapz(HB, rB, axis=0)
 	## rho is probability density
-	erho  = H/(2*np.pi*er) / np.trapz(H, er)
-	erhoS = HS/(2*np.pi*er) / np.trapz(HS, er)
-	erhoR = HR/(2*np.pi*er) / np.trapz(HR, er)
-	if bulk:	erhoB = HB/(2*np.pi*er) / np.trapz(HB, er)
+	erho  = H/(2*np.pi*er)
+	erhoS = HS/(2*np.pi*er)
+	erhoR = HR/(2*np.pi*er)
+	if bulk:	erhoB = HB/(2*np.pi*er)
+	
+	## Normalise each individually
+	if normalise:
+		erho /= np.trapz(H, er)
+		erhoS /= np.trapz(HS, er)
+		erhoR /= np.trapz(HR, er)
+		if bulk: erhoB /= np.trapz(HB, er)
+		suf = "_norm"
+	else:
+		suf = ""
 
 	##---------------------------------------------------------------			
 	## PLOT SET-UP
@@ -99,7 +111,7 @@ try:
 	plt.title(r"PDF of $\eta$, divided into regions. $\alpha="+str(a)+"$, $R="+str(R)+"$, $S="+str(S)+"$")
 	
 	if not nosave:
-		plotfile = os.path.dirname(histfile)+"/PDFeta"+os.path.basename(histfile)[4:-4]+".jpg"
+		plotfile = os.path.dirname(histfile)+"/PDFeta"+os.path.basename(histfile)[4:-4]+suf+".jpg"
 		fig.savefig(plotfile)
 		print me0+": Figure saved to",plotfile
 	plt.show()
