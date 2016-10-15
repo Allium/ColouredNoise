@@ -24,6 +24,7 @@ Gaussian fits not working
 Sensitive to grid shape
 """
 
+##=============================================================================
 def input():
 	"""
 	Read command-line arguments and decide which plot to make.
@@ -115,9 +116,13 @@ def plot_pdf3D(histfile, nosave, vb):
 	Q = np.trapz(Z.T*2*np.pi*y,y,axis=1)	## p(r)
 	E = np.trapz(Z*2*np.pi*x,x,axis=1)		## p(eta)
 	
+	## Fit -- Gaussian
+	fitfunc = lambda xx, B, b: B*b/(2*np.pi)*np.exp(-0.5*b*xx*xx)
 	## Fit p(eta)
-	fitfunc = lambda x, B, b: B*a*b/(2*np.pi)*np.exp(-0.5*a*b*y*y)
-	fitE = scipy.optimize.curve_fit(fitfunc, y, E, p0=[+1.0,+1.0])[0]
+	fitE = scipy.optimize.curve_fit(fitfunc, y, E, p0=[1.0,a])[0]
+	## Fit p(r) -- only when S=R
+	fitR = scipy.optimize.curve_fit(fitfunc, (x-R), Q, p0=[(a+1),(a+1)])[0]
+	# print [a,R],"\t",np.around([a+1,fitR[1]],2); return
 
 	## ------------------------------------------------------------------------
 
@@ -126,19 +131,20 @@ def plot_pdf3D(histfile, nosave, vb):
 	ax = fig.gca(projection="3d")
 
 	## 3D contour plot
-	ax.plot_surface(X, Y, Z, alpha=0.2, antialiased=True)	## Lost rstride/cstride
+	ax.plot_surface(X, Y, Z, alpha=0.2, rstride=2, cstride=2, antialiased=True)
 	
 	## 2D contours
 	xoff, yoff, zoff = X.min()-0.1*X.max(), Y.min()-0.1*Y.max(), Z.min()-0.1*Z.max()## Offsets
-	ax.contourf(X, Y, Z, zdir='x', offset=xoff,	cmap=cm.coolwarm, antialiased=True)	## p(eta)
+	ax.contourf(X, Y, Z, zdir='x', offset=xoff,	cmap=cm.coolwarm, antialiased=True)	## p(etar)
 	ax.contourf(X, Y, Z, zdir='y', offset=yoff, cmap=cm.coolwarm, antialiased=True)	## p(r)
 	ax.contourf(X, Y, Z, zdir='z', offset=zoff,	cmap=cm.coolwarm, antialiased=True)	## 2D projection
 
-	## Plot smoothed p(r) envelope
-	ax.plot(x, yoff*np.ones(y.shape),Q/Q.max()*Z.max(), "r--",lw=3)
+	## Plot p(r) and p(etar) envelopes
+	ax.plot(x, yoff*np.ones(y.shape), Q/Q.max()*Z.max(), "r--",lw=3)	## p(r)
+	ax.plot(xoff*np.ones(x.shape), y, E/E.max()*Z.max(), "g--",lw=3)	## p(etar)
 
 	## Plot Gaussian fit to p(etar)
-	ax.plot(xoff*np.ones(x.size), y, fitfunc(y,*fitE)*Z.max()/E.max(), "g--", lw=3, zorder=2)
+#	ax.plot(xoff*np.ones(x.size), y, fitfunc(y,*fitE)*Z.max()/E.max(), "g--", lw=3, zorder=2)
 	
 	## Indicate wall
 	if S>0:	ax.plot(S*np.ones(x.size), y, 0.8*zoff*np.ones(x.size), "g--", lw=3, zorder=2)
@@ -154,7 +160,7 @@ def plot_pdf3D(histfile, nosave, vb):
 	ax.set_xlabel(r"$r$", 		fontsize=18)
 	ax.set_ylabel(r"$\eta_r$", 	fontsize=18)
 	ax.set_zlabel(r"$\rho$", 	fontsize=18)
-	fig.suptitle(r"PDF in $r$-$\eta_r$ space. $\alpha="+str(a)+", R="+str(R)+", S="+str(S)+"$",
+	fig.suptitle(r"PDF in $r$-$\eta_r$ space. $\alpha="+str(a)+"$, $R="+str(R)+"$, $S="+str(S)+"$",
 				fontsize=16)
 	
 	if not nosave:
