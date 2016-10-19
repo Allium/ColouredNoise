@@ -82,11 +82,12 @@ def plot_file(histfile, nosave, vb):
 	ax.plot(x,Q/Q.mean(),label="$\\rho("+ord+")$")
 	ax.plot(x,e2E/e2E.mean(),label="$\\langle\\eta^2\\rangle("+ord+")$")
 	ax.plot(x,c1/c1.mean(),label="$\\rho\\cdot\\langle\\eta^2\\rangle$")
+#	ax.plot(x,Q*e2E,label="$\\rho\\cdot\\langle\\eta^2\\rangle$")
 	
 	ax.axvspan(pars["S"],pars["R"],color="yellow",alpha=0.2)
 	
 	## ATTRIBUTES
-	ax.set_xlim(left=x[0],right=x[-1])
+	ax.set_xlim(left=0.0,right=x[-1])
 	if ftype[0]!="d":
 		if innerwall:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[0]-x).argmin():])
 		else:			ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()+1])
@@ -140,7 +141,10 @@ def plot_dir(histdir, nosave, searchstr, vb):
 		if geo == "CIR":
 			fpars = [pars["R"],pars["S"],pars["lam"],pars["nu"]]
 			Ridx, Sidx = np.abs(x-fpars[0]).argmin(), np.abs(x-fpars[1]).argmin()
-			C[i] = c1[Sidx+10:Ridx-10].mean() if Ridx!=Sidx else c1[max(0,Sidx-10):Ridx+10].mean()  ##MESS
+#			C[i] = c1[Sidx+10:Ridx-10].mean() if Ridx!=Sidx else c1[max(0,Sidx-5):Ridx+5].mean()  ##MESS
+	
+			C[i] = c1[Sidx:(Sidx+Ridx)/2].mean()
+#			C[i] = c1[(Sidx+Ridx)/2:Ridx].mean()
 			
 	## SORT BY ALPHA
 	srtidx = A.argsort()
@@ -161,10 +165,9 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	## FIT -- A*C -- fit in log coordinates
 	fitfunc = lambda x, B, nu: B + nu*x
 	fitBC = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(A*C), p0=[+1.0,-1.0])[0]
-	if vb:	print me+": BC:  [B, nu] = ",fitBC.round(3)
 	## FIT -- P_int
 	fitP = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(P), p0=[+1.0,-1.0])[0]
-	if vb:	print me+": Int: [B, nu] = ",fitP.round(3)
+	if vb:	print me+": nu_BC = ",fitBC.round(3)[1],"\t nu_Int = ",fitP.round(3)[1]
 	
 	## PLOT DATA AND FIT
 	fig = plt.figure(); ax = fig.gca()
@@ -177,15 +180,25 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitBC)), "g--", lw=1,
 			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitBC[0]),fitBC[1]))
 	
+	## Prediction for R=S
+	if fpars[0] == fpars[1]:
+		R = fpars[0]
+		Pout = 1/(4*np.pi*(1+A)*(1/(1+A)*np.exp(-0.5*(1+A)*R*R)+\
+							+np.sqrt(np.pi/(2*(1+A)))*R*(sp.special.erf(np.sqrt((0.5*(1+A))*R)+1))))
+		ax.plot(1+A, Pout/P_WN, ":", label = r"Predicted $P_{\rm out}$")
+		if R <= 2*np.sqrt(np.log(10)):
+			ax.plot(1+A, Pout/P_WN * (1-np.exp(-0.5*(1+A)*R*R)), ":", label = r"Predicted $P_{\rm in}$")
+	
 	## ACCOUTREMENTS
 	ax.set_xscale("log")
 	ax.set_yscale("log")
-	ax.set_xlim(right=1+A[-1])
+	ax.set_xlim(1,1+A[-1])
+	ax.set_ylim(1e-1,1e1)
 	
-	ax.set_xlabel(r"$\alpha+1$",fontsize=fsa)
+	ax.set_xlabel(r"$1+\alpha$",fontsize=fsa)
 	ax.set_ylabel(r"$P$",fontsize=fsa)
 	ax.grid()
-	ax.legend()
+	ax.legend(loc="best")
 	fig.suptitle("Pressure normalised by WN result. $R=%.2g, S=%.2g.$"%(fpars[0],fpars[1]),fontsize=fst)
 	
 	## SAVING
@@ -244,8 +257,7 @@ def bulk_const(histfile):
 		## For old _phi files
 		try:
 			epbins = bins["epbins"]
-			etap = 0.5*(epbins[1:]+epbins[:-1])	## Unneccessary
-			H = H.sum(axis=2) * (etap[1]-etap[0])
+			H = H.sum(axis=2) * (epbins[1]-epbins[0])
 		except KeyError:
 			pass
 		
@@ -255,30 +267,39 @@ def bulk_const(histfile):
 		## Marginalise over eta turn into radial density
 		Q = np.trapz(H,etar,axis=1) / (2*np.pi*r)
 		## To get probability density rather than probability
-		rho = H / ( (2*np.pi)**2.0 * reduce(np.multiply, np.ix_(r,etar)) )
-				
+		rho = H / ((2*np.pi)**2.0 * reduce(np.multiply, np.ix_(r,etar)))
+						
 		## Conventional pressure calculation
 		## For disc, integrate from zero; for annulus, integrate from bulk to infinity (outer wall)
 		Ridx, Sidx = np.abs(r-R).argmin(), np.abs(r-S).argmin()
 		p = +calc_pressure(r[Ridx:],Q[Ridx:],ftype,[R,S,lam,nu])	## For outer wall
 #		p = -calc_pressure(r[:Sidx],Q[:Sidx],ftype,[R,S,lam,nu])	## For inner wall
 		
-		## 2D array of etar
-		ETAR = etar[np.newaxis,:].repeat(H.shape[0],axis=0)
-		## Calculate averages
-		Qp = Q+(Q==0) ## Avoid /0 warning (numerator is 0 anyway)
-		er2E = np.trapz(rho * etar * (etar*etar), etar, axis=1) / (Qp)	## 1 file
-#		er2E = np.trapz(rho * (etar*etar), etar, axis=1) / (Qp)			## 2 P(a)
-		e2E = er2E*er2E
-		e2E[np.isnan(e2E)] = 0.0
 		## Bulk constant
-		c1 = Q*e2E * (2.0*np.pi)**2.0
-#		c1 = sp.ndimage.filters.gaussian_filter(c1,1,order=0)
+		c1 = np.trapz(rho * etar*etar * 2*np.pi*etar, etar, axis=1)
+		## Calculate average eta
+		er2E = c1 / (Q+(Q==0))	  ## Avoid /0 warning (numerator is 0 anyway)
+	
+#	X, Y = np.meshgrid(r, etar)
+#	Z = rho * etar*etar / Q[:,np.newaxis] #* 2*np.pi*etar
+#	Z[X.T>R]=0.0; Z[X.T<S]=0.0
+#	plt.contourf(X,Y,Z.T, 15)
+#	plt.vlines([R,S],etar[0],etar[-1], linewidth=2)
+#	plt.colorbar()
+#	plt.xlabel("r"); plt.ylabel("eta"); plt.title("rho eta^2 / Q. a,R,S = %.1f, %.1f, %.1f"%(a,R,S))
+#	plt.show();	plt.close()
+##	numcurv = 5
+##	for i in range(numcurv):
+##		plt.plot(r, Z.T[i*etar.size/(numcurv)],label=str(i))
+##	plt.legend()
+##	plt.xlim(left=S)
+##	plt.show()
+#	exit()
 	
 	try: x = r
 	except UnboundLocalError: pass
 	
-	return [r, Q, e2E, c1, p, pars]
+	return [r, Q, er2E, 0.5*c1, p, pars]
 	
 ##=============================================================================
 if __name__ == "__main__":
