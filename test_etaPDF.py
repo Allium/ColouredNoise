@@ -23,6 +23,7 @@ try:
 	inner = False if S==0.0 else True
 	bulk = False if R==S else True
 	
+	## Normalise each pdf individually (True) or have them all sum to 1
 	normalise = False
 	
 	try: nosave = not bool(argv[2])

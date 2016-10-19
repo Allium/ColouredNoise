@@ -305,7 +305,6 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 		
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 	
-	
 	rcoord = np.sqrt((xy*xy).sum(axis=1))
 	ercoord = np.sqrt((exy*exy).sum(axis=1))
 	
