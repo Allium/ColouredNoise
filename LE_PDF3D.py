@@ -148,7 +148,7 @@ def plot_pdf3D(histfile, nosave, vb):
 	
 	## Indicate wall
 	if S>0:	ax.plot(S*np.ones(x.size), y, 0.8*zoff*np.ones(x.size), "g--", lw=3, zorder=2)
-	if S>0:	ax.plot(R*np.ones(x.size), y, 0.8*zoff*np.ones(x.size), "g--", lw=3, zorder=2)
+	if R>0:	ax.plot(R*np.ones(x.size), y, 0.8*zoff*np.ones(x.size), "g--", lw=3, zorder=2)
 
 	## Accoutrements
 	ax.set_xlim(xoff,ax.get_xlim()[1])

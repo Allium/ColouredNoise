@@ -41,7 +41,7 @@ def plot_bulkconst(histfile, noshow=False):
 	"""
 	me = me0+".plot_bulkconst: "
 	
-	zoom = True
+	zoom = False
 	
 	a = filename_par(histfile,"_a")
 	R = filename_par(histfile,"_R")
@@ -128,7 +128,7 @@ def plot_limb_a(histdir, noshow=False):
 	ax.grid()
 	ax.legend(loc="best",fontsize=fsl)
 		
-	plotfile = os.path.dirname(histdir)+"/LIMB_a.jpg"
+	plotfile = histdir+"/LIMB_a.jpg"
 	fig.savefig(plotfile)
 	
 	if not noshow:	plt.show()
@@ -142,7 +142,7 @@ if os.path.isfile(argv[1]):
 elif os.path.isdir(argv[1]):
 	plot_limb_a(argv[1])
 elif argv[1] == "all":
-	histdir = "Pressure/161008_CIR_DL_dt0.01"
+	histdir = "Pressure/161019_CIR_DL_dt0.01"
 	for histfile in np.sort(glob.glob(histdir+"/BHIS_*R10.0_S0.0*.npy")):
 		plot_bulkconst(histfile, True)
 	plot_limb_a(histdir, True)
