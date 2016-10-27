@@ -79,20 +79,22 @@ def plot_file(histfile, nosave, vb):
 	## PLOT
 	fig = plt.figure(); ax = fig.gca()
 	plot_wall(ax, ftype, fpars, x)
-	ax.plot(x,Q/Q.mean(),label="$\\rho("+ord+")$")
-	ax.plot(x,e2E/e2E.mean(),label="$\\langle\\eta^2\\rangle("+ord+")$")
-	ax.plot(x,c1/c1.mean(),label="$\\rho\\cdot\\langle\\eta^2\\rangle$")
-#	ax.plot(x,Q*e2E,label="$\\rho\\cdot\\langle\\eta^2\\rangle$")
+	ax.plot(x,Q/Q.mean(),label=r"$Q("+ord+")$")
+	ax.plot(x,e2E/e2E.mean(),label=r"$\langle\eta^2\cos\psi\rangle("+ord+")$")
+	ax.plot(x,c1/c1.mean(),label=r"$Q\cdot\langle\eta^2\cos\psi\rangle$")
 	
 	ax.axvspan(pars["S"],pars["R"],color="yellow",alpha=0.2)
 	
 	## ATTRIBUTES
 	ax.set_xlim(left=0.0,right=x[-1])
-	if ftype[0]!="d":
-		if innerwall:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[0]-x).argmin():])
-		else:			ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()+1])
-	else:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[1]-x).argmin():np.abs(fpars[0]-x).argmin()+1])
-	ax.set_ylim(bottom=0.0,top=ymax)
+#	if ftype[0]!="d":
+#		if innerwall:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[0]-x).argmin():])
+#		else:			ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()+1])
+#	else:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[1]-x).argmin():np.abs(fpars[0]-x).argmin()+1])
+	Rind = np.abs(x-pars["R"]).argmin()
+	ymin = float("%.1g"%(c1.min()/c1.mean()))	## Choose max of Q and c1 after wall
+	ymax = float("%.1g"%(max(Q[Rind:].max()/Q.mean(),c1[Rind:].max()/c1.mean())))	## Choose max of Q and c1 after wall
+	ax.set_ylim(bottom=ymin,top=ymax)
 	ax.set_xlabel("$"+ord+"$",fontsize=fsa)
 	ax.set_ylabel("Rescaled variable",fontsize=fsa)
 	ax.grid()
@@ -227,6 +229,9 @@ def bulk_const(histfile):
 		R,lam,nu = 100,None,None
 		pars = {"a":a,"R":R,"S":S,"lam":lam,"nu":nu,"ftype":ftype,"geo":geo}
 	
+	psifile = bool(histfile.find("_psi")+1)
+	phifile = bool(histfile.find("_phi")+1)
+	
 	H = np.load(histfile)
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
 	
@@ -254,11 +259,19 @@ def bulk_const(histfile):
 		erbins = bins["erbins"]
 		r = 0.5*(rbins[1:]+rbins[:-1])
 		etar = 0.5*(erbins[1:]+erbins[:-1])
+		if bool(histfile.find("_psi")+1):
+			epbins = bins["epbins"]
+			etap = 0.5*(epbins[1:]+epbins[:-1])
+		
+		## Wall indices
+		Ridx, Sidx = np.abs(r-R).argmin(), np.abs(r-S).argmin()
+		
 		## For old _phi files
 		if bool(histfile.find("_phi")+1):
 			epbins = bins["epbins"]
 			H = H.sum(axis=2) * (epbins[1]-epbins[0])
 		
+		"""FOR NORMAL FILES (NOT PSI)
 		## Probability
 		## Normalise
 		H /= np.trapz(np.trapz(H,etar,axis=1),r,axis=0)
@@ -269,12 +282,38 @@ def bulk_const(histfile):
 						
 		## Conventional pressure calculation
 		## For disc, integrate from zero; for annulus, integrate from bulk to infinity (outer wall)
-		Ridx, Sidx = np.abs(r-R).argmin(), np.abs(r-S).argmin()
 		p = +calc_pressure(r[Ridx:],Q[Ridx:],ftype,[R,S,lam,nu])	## For outer wall
 #		p = -calc_pressure(r[:Sidx],Q[:Sidx],ftype,[R,S,lam,nu])	## For inner wall
 		
 		## Bulk constant
 		c1 = np.trapz(rho * etar*etar * 2*np.pi*etar, etar, axis=1)
+		## Calculate average eta
+		er2E = c1 / (Q+(Q==0))	  ## Avoid /0 warning (numerator is 0 anyway)
+		"""
+		
+		## Spatial arrays with dimensions commensurate to rho
+		if psifile:
+			rr = r[:,np.newaxis,np.newaxis]
+			ee = etar[np.newaxis,:,np.newaxis]
+			pp = etap[np.newaxis,np.newaxis,:]
+			dV = (r[1]-r[0])*(etar[1]-etar[0])*(etap[1]-etap[0])	## Assumes regular grid
+		else:
+			rr = r[:,np.newaxis]
+			ee = etar[np.newaxis,:]
+			dV = (r[1]-r[0])*(etar[1]-etar[0])	## Assumes regular grid
+	
+		## Normalise histogram and convert to density
+		H /= H.sum()*dV
+		rho = H / ( (2*np.pi)**2.0 * rr*ee )
+		## Marginalise over eta turn into radial density
+		Q = H.sum(axis=2).sum(axis=1) / (2*np.pi*r)
+						
+		## Conventional pressure calculation
+		## For disc, integrate from zero; for annulus, integrate from bulk to infinity (outer wall)
+		p = +calc_pressure(r[Ridx:],Q[Ridx:],ftype,[R,S,lam,nu])	## For outer wall
+		
+		## Bulk constant
+		c1 = np.trapz(np.trapz(rho * ee*ee*np.cos(pp) * ee, etap, axis=2), etar, axis=1) 
 		## Calculate average eta
 		er2E = c1 / (Q+(Q==0))	  ## Avoid /0 warning (numerator is 0 anyway)
 
