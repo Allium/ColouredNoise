@@ -24,8 +24,9 @@ try:
 	bulk = False if R==S else True
 	
 	## Normalise each pdf individually (True) or have them all sum to 1
-	normalise = False
+	normalise = True
 	
+	## To save, need argv2
 	try: nosave = not bool(argv[2])
 	except IndexError: nosave = True
 

@@ -255,11 +255,9 @@ def bulk_const(histfile):
 		r = 0.5*(rbins[1:]+rbins[:-1])
 		etar = 0.5*(erbins[1:]+erbins[:-1])
 		## For old _phi files
-		try:
+		if bool(histfile.find("_phi")+1):
 			epbins = bins["epbins"]
 			H = H.sum(axis=2) * (epbins[1]-epbins[0])
-		except KeyError:
-			pass
 		
 		## Probability
 		## Normalise
@@ -279,7 +277,8 @@ def bulk_const(histfile):
 		c1 = np.trapz(rho * etar*etar * 2*np.pi*etar, etar, axis=1)
 		## Calculate average eta
 		er2E = c1 / (Q+(Q==0))	  ## Avoid /0 warning (numerator is 0 anyway)
-	
+
+#	## Plot rho eta^2, in bulk region, on r-etar plane.
 #	X, Y = np.meshgrid(r, etar)
 #	Z = rho * etar*etar / Q[:,np.newaxis] #* 2*np.pi*etar
 #	Z[X.T>R]=0.0; Z[X.T<S]=0.0

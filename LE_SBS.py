@@ -179,7 +179,8 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	if ephi:	
 		Nepbin = 50
 		epbins = np.linspace(0.0,2*np.pi,Nepbin+1)
-		pstr = "_phi"
+		# pstr = "_phi"
+		pstr = "_psi"
 		bins = [rbins,erbins,epbins]	
 	else:
 		pstr = ""
@@ -335,7 +336,7 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 	## -----------------===================-----------------
 			
 	if ephi:
-		epcoord = np.arctan2(exy[:,1],exy[:,0])
+		epcoord = np.arctan2(exy[:,1],exy[:,0]) - np.arctan2(xy[:,1],xy[:,0])
 		return [rcoord, ercoord, epcoord]
 	else:
 		return [rcoord, ercoord]

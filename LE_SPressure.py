@@ -169,14 +169,6 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	ax.plot(r,rho,   "b-", label="CN simulation")
 	ax.plot(r_WN,rho_WN,"r-", label="WN theory")
 	
-	# ## Fit TEMPORARY
-	# fitfunc = lambda x, A, s2:\
-				# A/(2*np.pi*s2)*np.exp(-0.5*x*x/s2)
-	# fit = sp.optimize.curve_fit(fitfunc, r, rho, p0=[1.0,1.0])[0]
-	# print [a],"\t[A, s2] = ",fit
-	# ax.plot(r_WN, fitfunc(r_WN, *fit), "g--", lw=2)
-	# ax.plot(r_WN, fitfunc(r_WN, 1.0, 0.5-0.25*np.log(a)), "g-", lw=2)
-	
 	## Accoutrements
 	ax.set_xlim(xlim)
 	ax.set_ylim(bottom=0.0, top=min(20,1.2*max(rho.max(),rho_WN.max())))
