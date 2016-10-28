@@ -16,11 +16,10 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable as mplmal
 from LE_SBS import force_const, force_lin, force_dcon, force_dlin,\
 					force_tan, force_dtan, force_nu, force_dnu
 from LE_Utils import filename_par
+from LE_Utils import fs;	fsa, fsl, fst = fs
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
-
-fsa, fsl, fst = 18, 12, 14
 
 """
 Does the derived density in r and etar satisfy the radial FPE.
@@ -133,12 +132,12 @@ def plot_FPEres(histfile, nosave, vb):
 	D = lambda arr, x, order, **kwargs: \
 			scipy.ndimage.gaussian_filter1d(arr, 1.0, order=order, axis=kwargs["axis"]) / (x[1]-x[0])
 	
-	## FPE operator
+	## FPE operator -- caluclate residue (res should be 0)
 	t0 = time.time()
 	if psifile:
-		res = -D((ee*np.cos(pp)+ff)*rho, r, 1, axis=0) -1/rr*ff*rho + 1/rr*ee*np.sin(pp)*D(rho, etap, 1, axis=2) +\
+		res = -D((ee*np.cos(pp)+ff)*rho, r, 1, axis=0) -1/rr*(ee*np.cos(pp)+ff)*rho + 1/rr*D(ee*np.sin(pp)*rho, etap, 1, axis=2) +\
 				+ 1/a*D(ee*rho, etar, 1, axis=1) + 1/a*rho +\
-				+ 1/a**2*1/ee*D(rho, etar, 1, axis=1) + 1/a**2*D(rho, etar, 2, axis=1) + 1/a**2*1/ee**2*D(rho, etap, 2, axis=2)
+				+ 1/a**2*1/ee*D(rho, etar, 1, axis=1) + 1/a**2*D(rho, etar, 2, axis=1) + 1/a**2*1/(ee*ee)*D(rho, etap, 2, axis=2)
 	else:
 		## If radial (r,eta) only, or (r,eta,eta_phi) converted to (r,eta)
 		res = -D((ee+ff)*rho, r, 1, axis=0) -1/rr*(ee+ff)*rho + 1/a*D(ee*rho, etar, 1, axis=1) +\

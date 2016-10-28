@@ -30,8 +30,8 @@ warnings.filterwarnings("ignore",
 	RuntimeWarning)
 
 ## Global variables
-from LE_Utils import plot_fontsizes
-fsa,fsl,fst = plot_fontsizes()
+from LE_Utils import fs
+fsa,fsl,fst = fs
 
 def main():
 	"""
@@ -155,9 +155,9 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 		ax = axs[0]
 		plotfile = os.path.dirname(plotfile)+"/PDFP"+os.path.basename(plotfile)[3:]
 	figtit += ftype+"; $\\alpha="+str(a)+"$, $R = "+str(R)+"$"
-	if ftype[0]   == "d":	figtit += ", $S = "+str(S)+"$"
-	if ftype[-3:] == "tan": figtit += ", $\\lambda="+str(lam)+"$"
-	if ftype[-2:] == "nu":  figtit += ", $\\lambda="+str(lam)+"$, $\\nu="+str(nu)+"$"
+	if ftype[0]   == "d":	figtit += r", $S = "+str(S)+"$"
+	if ftype[-3:] == "tan": figtit += r", $\lambda="+str(lam)+"$"
+	if ftype[-2:] == "nu":  figtit += r", $\lambda="+str(lam)+"$, $\nu="+str(nu)+"$"
 	xlim = [S-2*lam,R+2*lam] if (ftype[-3:]=="tan" or ftype[-2:]=="nu") else [S-4.0,R+4.0]
 		
 	##---------------------------------------------------------------	
@@ -173,7 +173,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	ax.set_xlim(xlim)
 	ax.set_ylim(bottom=0.0, top=min(20,1.2*max(rho.max(),rho_WN.max())))
 	if not plotpress: ax.set_xlabel("$r$", fontsize=fsa)
-	ax.set_ylabel("$\\rho(r,\\phi)$", fontsize=fsa)
+	ax.set_ylabel(r"$\rho(r,\phi)$", fontsize=fsa)
 	ax.grid()
 	
 	
