@@ -17,7 +17,10 @@ fsa,fsl,fst = fs
 from LE_Pressure import pressure_x
 from LE_SPressure import calc_pressure, pdf_WN, plot_wall
 
+import warnings
+warnings.filterwarnings("ignore",category=FutureWarning)
 
+## ============================================================================
 
 def main():
 	"""
@@ -70,7 +73,7 @@ def plot_file(histfile, nosave, vb):
 	me = me0+".plot_file: "
 
 	## CALCULATIONS
-	x, Q, e2E, c1, p, pars = bulk_const(histfile)
+	x, Q, e2E, BC, p, pars = bulk_const(histfile)
 	ftype = pars["ftype"]
 	fpars = [pars["X"]] if pars["geo"] is "1D" else [pars["R"],pars["S"],pars["lam"],pars["nu"]]
 	Rind = np.abs(x-pars["R"]).argmin()
@@ -81,18 +84,18 @@ def plot_file(histfile, nosave, vb):
 	plot_wall(ax, ftype, fpars, x)
 	ax.plot(x,Q/Q.mean(),label=r"$Q("+ord+")$")
 	ax.plot(x,e2E/e2E.mean(),label=r"$\langle\eta^2\cos^2\psi\rangle("+ord+")$")
-	ax.plot(x,c1/c1.mean(),label=r"$Q\cdot\langle\eta^2\cos^2\psi\rangle$")
+	ax.plot(x,BC/BC.mean(),label=r"$Q\cdot\langle\eta^2\cos^2\psi\rangle$")
 	
 	ax.axvspan(pars["S"],pars["R"],color="yellow",alpha=0.2)
 	
 	## ATTRIBUTES
 	ax.set_xlim(left=0.0,right=x[-1])
 #	if ftype[0]!="d":
-#		if innerwall:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[0]-x).argmin():])
-#		else:			ymax = 3.0*np.median((c1/c1.mean())[:np.abs(fpars[0]-x).argmin()+1])
-#	else:	ymax = 3.0*np.median((c1/c1.mean())[np.abs(fpars[1]-x).argmin():np.abs(fpars[0]-x).argmin()+1])
-#	ymin = float("%.1g"%(c1.min()/c1.mean()))	## Choose max of Q and c1 after wall
-#	ymax = float("%.1g"%(max(Q[Rind:].max()/Q.mean(),c1[Rind:].max()/c1.mean())))	## Choose max of Q and c1 after wall
+#		if innerwall:	ymax = 3.0*np.median((BC/BC.mean())[np.abs(fpars[0]-x).argmin():])
+#		else:			ymax = 3.0*np.median((BC/BC.mean())[:np.abs(fpars[0]-x).argmin()+1])
+#	else:	ymax = 3.0*np.median((BC/BC.mean())[np.abs(fpars[1]-x).argmin():np.abs(fpars[0]-x).argmin()+1])
+#	ymin = float("%.1g"%(BC.min()/BC.mean()))	## Choose max of Q and BC after wall
+#	ymax = float("%.1g"%(max(Q[Rind:].max()/Q.mean(),BC[Rind:].max()/BC.mean())))	## Choose max of Q and BC after wall
 #	ax.set_ylim(bottom=ymin,top=ymax)
 	ax.set_xlabel("$"+ord+"$",fontsize=fsa)
 	ax.set_ylabel("Rescaled variable",fontsize=fsa)
@@ -129,7 +132,7 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	for i,histfile in enumerate(filelist):
 		
 		t0 = time.time()
-		[x, Hx, e2E, c1, p, pars] = bulk_const(histfile)
+		[x, Hx, e2E, BC, p, pars] = bulk_const(histfile)
 		if vb: print me+"File %i of %i: BC calculation %.2g seconds"%(i,numfiles,time.time()-t0)
 		A[i] = pars["a"]
 		P[i] = p
@@ -140,12 +143,12 @@ def plot_dir(histdir, nosave, searchstr, vb):
 			Xidx = np.argmin(np.abs(x-X[i]))
 			force = 0.5*(np.sign(X[i]-x)-1)* ((x-X[i]) if ftype is "lin" else 1)
 			P_WN[i] = -(force*pdf_WN(x,R[i],ftype)).sum()*(x[1]-x[0])
-			C[i] = c1[:widx].mean()"""
+			C[i] = BC[:widx].mean()"""
 			
 		if geo == "CIR":
 			fpars = [pars["R"],pars["S"],pars["lam"],pars["nu"]]
 			Rind, Sind = np.abs(x-fpars[0]).argmin(), np.abs(x-fpars[1]).argmin()
-			C[i] = c1[Sind+10:Rind-10].mean() if Rind!=Sind else c1[max(0,Sind-5):Rind+5].mean()  ##MESS
+			C[i] = BC[Sind+10:Rind-10].mean() if Rind!=Sind else BC[max(0,Sind-5):Rind+5].mean()  ##MESS
 			
 	## SORT BY ALPHA
 	srtidx = A.argsort()
@@ -248,7 +251,7 @@ def bulk_const(histfile):
 		elif ftype == "lin":	force = force_1D_lin(x,X,D)
 		p = pressure_x(force,Q,x)
 		e2E = np.trapz(((H/Q).T*(eta*eta)).T,x=eta,axis=0)
-		c1 = Q*e2E"""
+		BC = Q*e2E"""
 		
 	## Circular sim
 	if "CIR" in geo:
@@ -266,36 +269,6 @@ def bulk_const(histfile):
 			epbins = bins["epbins"]
 			H = H.sum(axis=2) * (epbins[1]-epbins[0])
 		
-		## Wall indices
-		Rind, Sind = np.abs(r-R).argmin(), np.abs(r-S).argmin()
-				
-		"""FOR NORMAL FILES (NOT PSI)
-		## Probability
-		## Normalise
-		H /= np.trapz(np.trapz(H,etar,axis=1),r,axis=0)
-		## Marginalise over eta turn into radial density
-		Q = np.trapz(H,etar,axis=1) / (2*np.pi*r)
-		## To get probability density rather than probability
-		rho = H / ((2*np.pi)**2.0 * reduce(np.multiply, np.ix_(r,etar)))
-						
-		## Conventional pressure calculation
-		## For disc, integrate from zero; for annulus, integrate from bulk to infinity (outer wall)
-		p = +calc_pressure(r[Rind:],Q[Rind:],ftype,[R,S,lam,nu])	## For outer wall
-#		p = -calc_pressure(r[:Sind],Q[:Sind],ftype,[R,S,lam,nu])	## For inner wall
-		
-		## Bulk constant
-		c1 = np.trapz(rho * etar*etar * 2*np.pi*etar, etar, axis=1)
-		## Calculate average eta
-		er2E = c1 / (Q+(Q==0))	  ## Avoid /0 warning (numerator is 0 anyway)
-		"""
-		
-		## --------------------------------------------------------------------
-		## Correcting domain issue by mirroring
-#		etap = np.linspace(-2*np.pi,+2*np.pi,etap.size*2)
-#		H = np.concatenate([H[:,:,::-1],H[:,:,:]],axis=2)		
-		## --------------------------------------------------------------------
-				
-		## PSI FILES
 		## Spatial arrays with dimensions commensurate to rho
 		if psifile:
 			rr = r[:,np.newaxis,np.newaxis]
@@ -307,87 +280,95 @@ def bulk_const(histfile):
 			ee = etar[np.newaxis,:]
 			dV = (r[1]-r[0])*(etar[1]-etar[0])	## Assumes regular grid
 	
+		## --------------------------------------------------------------------
+		
 		## Normalise histogram and convert to density
 		H /= H.sum()*dV
 		rho = H / ( (2*np.pi)**2.0 * rr*ee )
-		## Marginalise over eta turn into radial density
-		Q = np.trapz(np.trapz(rho, etap, axis=2)*etar, etar, axis=1) * 2*np.pi
 		
-#		## --------------------------------------------------------------------
-#		## PDF		
-#		pdfp = np.trapz(np.trapz(rho *ee*rr, etar, axis=1), r, axis=0) *2*np.pi
-#		lpdfp = plt.plot(etap, pdfp, label=r"$p(\psi)$")
-#		lpdfp = plt.plot(etap, pdfp[::-1], label=r"$p(-\psi)$")
-#		plt.vlines([-2*np.pi,-np.pi,0,+np.pi,+2*np.pi], *plt.gca().get_ylim())
-#		plt.xlabel(r"$\psi$", fontsize=fsa)
-#		plt.suptitle(r"PDF of angle. $\alpha=%.1f$, $R=%.1f$, $S=%.1f$"%(a,R,S), fontsize=fst)
-#		plt.grid(); plt.legend(loc="upper left", fontsize=fsl)
-#		plt.savefig(os.path.dirname(histfile)+"/BC_1PDFpsi_a%.1f_R%.1f_S%.1f.jpg"%(a,R,S))
-##		plt.show()
-#		plt.close()
-#		## --------------------------------------------------------------------
-#		## Angles		
-#		Ecp = np.trapz(np.trapz(rho * np.cos(pp), etap, axis=2)*etar, etar, axis=1)*2*np.pi / (Q+(Q==0))
-#		Esp = np.trapz(np.trapz(rho * np.sin(pp), etap, axis=2)*etar, etar, axis=1)*2*np.pi / (Q+(Q==0))
-#		lEcp = plt.plot(r, Ecp, label=r"$\langle\cos\psi\rangle(r)$")
-#		lEsp = plt.plot(r, Esp, label=r"$\langle\sin\psi\rangle(r)$")
-#		plt.ylim(top=np.ceil(Ecp.max()))
-#		plt.xlabel(r"$r$", fontsize=fsa)
-#		plt.suptitle(r"Angles. $\alpha=%.1f$, $R=%.1f$, $S=%.1f$"%(a,R,S), fontsize=fst)
-#		plt.grid(); plt.legend(loc="upper left", fontsize=fsl)
-#		plt.savefig(os.path.dirname(histfile)+"/BC_2Angles_a%.1f_R%.1f_S%.1f.jpg"%(a,R,S))
-##		plt.show()
-#		plt.close()
-#		## --------------------------------------------------------------------
-#		## Force (assume dlin)			
-#		Eecp = np.trapz(np.trapz(rho * ee*np.cos(pp), etap, axis=2)*etar, etar, axis=1)*2*np.pi / (Q+(Q==0))
-#		Eesp = np.trapz(np.trapz(rho * ee*np.sin(pp), etap, axis=2)*etar, etar, axis=1)*2*np.pi / (Q+(Q==0))
-#		lEecp = plt.plot(r, Eecp, label=r"$\langle\eta\,\cos\psi\rangle(r)$")
-#		lEesp = plt.plot(r, Eesp, label=r"$\langle\eta\,\sin\psi\rangle(r)$")
-#		f = -np.hstack([np.zeros(Rind),np.linspace(0,r[-1]-R,r.size-Rind)])
-#		plt.plot(r, -f, "k--", label=r"$-f(r)$")
-#		plt.ylim(top=np.ceil(Eecp.max()))
-#		plt.xlabel(r"$r$", fontsize=fsa)
-#		plt.suptitle(r"Forces. $\alpha=%.1f$, $R=%.1f$, $S=%.1f$"%(a,R,S), fontsize=fst)
-#		plt.grid(); plt.legend(loc="upper left", fontsize=fsl)
-#		plt.savefig(os.path.dirname(histfile)+"/BC_3Forces_a%.1f_R%.1f_S%.1f.jpg"%(a,R,S))
-##		plt.show()
-#		plt.close()
-##		exit()
-#		# --------------------------------------------------------------------
+		## Marginalise over eta and calculate BC
+		if psifile:
+			## Radial density
+			Q = np.trapz(np.trapz(rho, etap, axis=2)*etar, etar, axis=1) * 2*np.pi
+			## Bulk constant <eta^2 cos^2psi> Q
+			BC = np.trapz(np.trapz(rho * ee*ee*np.cos(pp)*np.cos(pp), etap, axis=2)*etar, etar, axis=1)
+		else:
+			## Radial density
+			Q = np.trapz(H,etar,axis=1) / (2*np.pi*r)
+			## Bulk constant <eta^2> Q
+			BC = np.trapz(rho * etar*etar * 2*np.pi*etar, etar, axis=1)
+		
+		## Calculate average eta
+		e2E = BC / (Q+(Q==0))	  ## Avoid /0 warning (numerator is 0 anyway)
+		
+		## --------------------------------------------------------------------
+
+		## Wall indices
+		Rind, Sind = np.abs(r-R).argmin(), np.abs(r-S).argmin()
+
+		## psi diagnostics plot
+		if (1 and psifile):	plot_psi_diagnostics(rho,Q,r,etar,etap,rr,ee,pp,R,Rind,S,Sind,a,histfile,showfig=False)			
 						
-		## Conventional pressure calculation
+		## Integral pressure calculation
 		## Integrate from bulk to infinity (outer wall)
 		p = +calc_pressure(r[Rind:],Q[Rind:],ftype,[R,S,lam,nu])	## For outer wall
-		
-		## Bulk constant <eta^2 cos^2psi> Q
-		BC = np.trapz(np.trapz(rho * ee*ee*np.cos(pp)*np.cos(pp), etap, axis=2)*etar, etar, axis=1)
+		# p = -calc_pressure(r[:Sind],Q[:Sind],ftype,[R,S,lam,nu])	## For inner wall
+				
+	return [r, Q, e2E, BC, p, pars]
+	
+##=============================================================================
+def plot_psi_diagnostics(rho,Q,r,etar,etap,rr,ee,pp,R,Rind,S,Sind,a,histfile,showfig=False):
+	"""
+	Plot things to do with the psi angle
+	"""
+	me = me0+".plot_psi_diagnostics: "
+	fig, axs = plt.subplots(3,1, figsize=(9,12))
+	## --------------------------------------------------------------------
+	## PDF
+	ax = axs[0]
+	pdfp = np.trapz(np.trapz(rho *ee*rr, etar, axis=1), r, axis=0) *2*np.pi
+	lpdfp = ax.plot(etap, pdfp, label=r"$p(\psi)$")
+	lpdfp = ax.plot(etap, pdfp[::-1], label=r"$p(-\psi)$")
+	ax.vlines([-2*np.pi,-np.pi,0,+np.pi,+2*np.pi], *ax.get_ylim())
+	ax.set_xlabel(r"$\psi$", fontsize=fsa)
+	ax.set_ylabel(r"$p(\psi)$", fontsize=fsa)
+	ax.grid(); ax.legend(loc="upper left", fontsize=fsl)
+	## --------------------------------------------------------------------
+	## Angles	
+	ax = axs[1]
+	Ecp = np.trapz(np.trapz(rho * np.cos(pp), etap, axis=2)*etar, etar, axis=1)*2*np.pi / (Q+(Q==0))
+	Esp = np.trapz(np.trapz(rho * np.sin(pp), etap, axis=2)*etar, etar, axis=1)*2*np.pi / (Q+(Q==0))
+	lEcp = ax.plot(r, Ecp, label=r"$\langle\cos\psi\rangle(r)$")
+	lEsp = ax.plot(r, Esp, label=r"$\langle\sin\psi\rangle(r)$")
+	ax.set_ylim(top=np.ceil(Ecp.max()))
+	ax.set_xlabel(r"$r$", fontsize=fsa)
+	ax.set_ylabel(r"Pointing", fontsize=fsa)
+	ax.grid(); ax.legend(loc="upper left", fontsize=fsl)
+	## --------------------------------------------------------------------
+	## Force (assume dlin)	
+	ax = axs[2]
+	Eecp = np.trapz(np.trapz(rho * ee*np.cos(pp), etap, axis=2)*etar, etar, axis=1)*2*np.pi / (Q+(Q==0))
+	Eesp = np.trapz(np.trapz(rho * ee*np.sin(pp), etap, axis=2)*etar, etar, axis=1)*2*np.pi / (Q+(Q==0))
+	lEecp = ax.plot(r, Eecp, label=r"$\langle\eta\,\cos\psi\rangle(r)$")
+	lEesp = ax.plot(r, Eesp, label=r"$\langle\eta\,\sin\psi\rangle(r)$")
+	f = -np.hstack([np.zeros(Rind),np.linspace(0,r[-1]-R,r.size-Rind)])
+	ax.plot(r, -f, "k--", label=r"$-f(r)$")
+	ax.set_ylim(top=np.ceil(Eecp.max()))
+	ax.set_xlabel(r"$r$", fontsize=fsa)
+	ax.set_ylabel(r"Force", fontsize=fsa)
+	ax.grid(); ax.legend(loc="upper left", fontsize=fsl)
+	## --------------------------------------------------------------------
+	fig.suptitle(r"$\psi$ diagnostics. $\alpha=%.1f$, $R=%.1f$, $S=%.1f$"%(a,R,S), fontsize=fst)
+	fig.tight_layout()
+	fig.subplots_adjust(top=0.93)
+	plotfile = os.path.dirname(histfile)+"/PSI_a%.1f_R%.1f_S%.1f.jpg"%(a,R,S)
+	fig.savefig(plotfile)
+	print me+"psi diagnostics plot saved to "+plotfile
+	if showfig:	plt.show()
+	## --------------------------------------------------------------------
+	return
 
-		## Calculate average eta
-		e2c2 = BC / (Q+(Q==0))	  ## Avoid /0 warning (numerator is 0 anyway)
-
-#	## Plot rho eta^2, in bulk region, on r-etar plane.
-#	X, Y = np.meshgrid(r, etar)
-#	Z = rho * etar*etar / Q[:,np.newaxis] #* 2*np.pi*etar
-#	Z[X.T>R]=0.0; Z[X.T<S]=0.0
-#	plt.contourf(X,Y,Z.T, 15)
-#	plt.vlines([R,S],etar[0],etar[-1], linewidth=2)
-#	plt.colorbar()
-#	plt.xlabel("r"); plt.ylabel("eta"); plt.title("rho eta^2 / Q. a,R,S = %.1f, %.1f, %.1f"%(a,R,S))
-#	plt.show();	plt.close()
-##	numcurv = 5
-##	for i in range(numcurv):
-##		plt.plot(r, Z.T[i*etar.size/(numcurv)],label=str(i))
-##	plt.legend()
-##	plt.xlim(left=S)
-##	plt.show()
-#	exit()
-	
-	try: x = r
-	except UnboundLocalError: pass
-	
-	return [r, Q, e2c2, BC, p, pars]
-	
+##=============================================================================
 ##=============================================================================
 if __name__ == "__main__":
 	main()
