@@ -161,8 +161,9 @@ def plot_FPEres(histfile, nosave, vb):
 	else:
 		Z = rho.T
 	
-	clim = float("%.1g"%(Z.max()))
-	im = ax.contourf(X, Y, Z, levels=np.linspace(0,clim,11), vmin=0.0, antialiased=True)
+	clim = [0.0,float("%.1g"%(Z.mean()+5*np.sqrt(a)*Z.std()))]
+#	clim = [0.0,float("%.1g"%(Z.max()))]
+	im = ax.contourf(X, Y, Z, levels=np.linspace(clim[0],clim[1],11), vmin=0.0, antialiased=True)
 	cax = mplmal(ax).append_axes("right", size="5%", pad=0.05)
 	fig.colorbar(im, cax=cax)
 	
@@ -173,12 +174,14 @@ def plot_FPEres(histfile, nosave, vb):
 
 	## Plot residue
 	ax = axs[1]
+#	res = scipy.ndimage.gaussian_filter(res,sigma=2.0,order=0)
 	if psifile:
 		Z = np.trapz(res, etap, axis=2).T
 	else:
 		Z = res.T
-	clim = float("%.1g"%(Z.mean()+1.0*Z.std()))	## std dominated by choppy r=0.
-	im = ax.contourf(X, Y, Z, levels=np.linspace(-clim,clim,11), cmap=cm.BrBG, antialiased=True)
+	p = 1.0
+	clim = [float("%.1g"%(Z.mean()-p*Z.std())),float("%.1g"%(Z.mean()+p*Z.std()))]	## std dominated by choppy r=0.
+	im = ax.contourf(X, Y, Z, levels=np.linspace(clim[0],clim[1],11), cmap=cm.BrBG, antialiased=True)
 	cax = mplmal(ax).append_axes("right", size="5%", pad=0.05)
 	fig.colorbar(im, cax=cax)
 	

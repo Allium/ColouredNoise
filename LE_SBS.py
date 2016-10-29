@@ -177,9 +177,11 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	erbins = np.linspace(0.0,ermax,Nerbin+1)
 	
 	if ephi:	
-		Nepbin = 50
-		epbins = np.linspace(0.0,2*np.pi,Nepbin+1)
+		# Nepbin = 50
+		# epbins = np.linspace(0.0,2*np.pi,Nepbin+1)
 		# pstr = "_phi"
+		Nepbin = 100
+		epbins = np.linspace(-2*np.pi,+2*np.pi,Nepbin+1)
 		pstr = "_psi"
 		bins = [rbins,erbins,epbins]	
 	else:
@@ -336,6 +338,11 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 	## -----------------===================-----------------
 			
 	if ephi:
+#		fig,axs=plt.subplots(3,1,sharex=True)
+#		axs[0].hist(np.arctan2(xy[:,1],xy[:,0]),50, normed=True)
+#		axs[1].hist(np.arctan2(exy[:,1],exy[:,0]),50, normed=True)
+#		axs[2].hist(np.arctan2(exy[:,1],exy[:,0])-np.arctan2(xy[:,1],xy[:,0]),50, normed=True)
+#		plt.show(); exit()
 		epcoord = np.arctan2(exy[:,1],exy[:,0]) - np.arctan2(xy[:,1],xy[:,0])
 		return [rcoord, ercoord, epcoord]
 	else:
@@ -447,7 +454,7 @@ def calc_rbins(infpot, fpar, rmin, rmax):
 		rbins = np.unique(rbins)
 	## Keep things simple when potential is low-order
 	else:
-		Nrbin = int(150 * (rmax-rmin))
+		Nrbin = int(100 * (rmax-rmin))
 		rbins = np.linspace(rmin,rmax,Nrbin+1)
 	return rbins
 	
