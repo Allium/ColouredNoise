@@ -4,8 +4,8 @@ from matplotlib import pyplot as plt
 import optparse, os, time
 from datetime import datetime
 
-from LE_Utils import save_data
-from LE_LightBoundarySim import check_path, create_readme, sim_eta
+from LE_Utils import save_data, check_path, create_readme
+from LE_LightBoundarySim import sim_eta
 
 def input():
 	"""

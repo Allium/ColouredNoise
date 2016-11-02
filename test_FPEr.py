@@ -83,8 +83,8 @@ def plot_FPEres(histfile, nosave, vb):
 	R = filename_par(histfile, "_R")
 	S = filename_par(histfile, "_S")
 	
-	phifile = bool(histfile.find("_phi") + 1)
-	psifile = bool(histfile.find("_psi") + 1)
+	psifile = "_psi" in histfile
+	phifile = "_phi" in histfile
 				
 	## ------------------------------------------------------------------------
 	## Space (for axes)

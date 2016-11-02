@@ -99,11 +99,11 @@ def boundaryfilenames(b,X,ym,nb,nr):
 	""" Returns the filename for boundary pdfs, trajectories and histograms. """
 	head = "./dat_LE_stream/b="+str(b)+"/"
 	tail = "_y"+str(ym)+"bi"+str(nb)+"r"+str(nr)+"b"+str(b)+"X"+str(int(X))+"seed65438"
-	hisfile = head+"BHIS"+tail+".npy"
+	histfile = head+"BHIS"+tail+".npy"
 	trafile = head+"BTRA"+tail+".png"
 	pdffile = head+"BPDF"+tail+".png"
 	strfile = head+"BSTR"+tail+".png"
-	return hisfile, trafile, pdffile, strfile
+	return histfile, trafile, pdffile, strfile
 		
 def save_data(outfile,data,vb=False):
 	""" Write .npy file of data. File must read with np.load() """	
@@ -196,3 +196,42 @@ def filename_par(filename, searchstr):
 	while unicode(filename[start:].replace(".",""))[:finish-start].isnumeric():
 		finish += 1
 	return float(filename[start:finish])
+
+
+## ====================================================================
+
+def check_path(histfile, vb):
+	"""
+	Check whether directory exists; and if existing file will be overwritten.
+	"""
+	me = "LE_Utils.check_path: "
+	if os.path.isfile(histfile):
+		raise IOError(me+"file",histfile,"already exists. Not overwriting.")
+	try:
+		assert os.path.isdir(os.path.dirname(histfile))
+	except AssertionError:
+		os.mkdir(os.path.dirname(histfile))
+		if vb: print me+"Created directory",os.path.dirname(histfile)
+	return
+	
+def create_readme(histfile, vb):
+	"""
+	If no readme exists, make one.
+	NOTE commit is the LAST COMMIT -- maybe there have been changes since then.
+	Assumes directory exists.
+	"""
+	me = "LE_Utils.create_readme: "
+	readmefile = os.path.dirname(histfile)+"/README.txt"
+	try:
+		assert os.path.isfile(readmefile)
+	except AssertionError:
+		now = str(datetime.now().strftime("%Y-%m-%d %H.%M"))
+		execute = " ".join(argv)
+		commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'])
+		header = "Time:\t"+now+"\nCommit hash:\t"+commit+"\n\n"
+		with open(readmefile,"w") as f:
+			f.write(header)
+		if vb: print me+"Created readme file "+readmefile
+	return
+
+## ====================================================================

@@ -691,7 +691,7 @@ def calc_pressure(r,rho,ftype,fpars,spatial=False):
 	## Pressure
 	if spatial == True:
 #		P = -np.array([np.trapz(force[:i]*rho[:i], r[:i]) for i in range(1,r.size+1)])
-		P = np.concatenate(([0],-sp.integrate.cumtrapz(force*rho, r)))
+		P = -sp.integrate.cumtrapz(force*rho, r, initial=0.0)
 		# P = -np.array([sp.integrate.simps(force[:i]*rho[:i], r[:i]) for i in range(1,r.size+1)])
 	else:
 #		P = -np.trapz(force*rho, r)

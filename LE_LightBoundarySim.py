@@ -306,7 +306,7 @@ def check_path(hisfile, vb):
 	"""
 	Check whether directory exists; and if existing file will be overwritten.
 	"""
-	me = "LE_LignBoundarySim.check_path: "
+	me = "LE_LightBoundarySim.check_path: "
 	if os.path.isfile(hisfile):
 		raise IOError(me+"file",hisfile,"already exists. Not overwriting.")
 	try:

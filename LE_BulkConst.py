@@ -231,8 +231,8 @@ def bulk_const(histfile):
 		R,lam,nu = 100,None,None
 		pars = {"a":a,"R":R,"S":S,"lam":lam,"nu":nu,"ftype":ftype,"geo":geo}
 	
-	psifile = bool(histfile.find("_psi")+1)
-	phifile = bool(histfile.find("_phi")+1)
+	psifile = "_psi" in histfile
+	phifile = "_phi" in histfile
 	
 	H = np.load(histfile)
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -291,7 +291,7 @@ def bulk_const(histfile):
 			## Radial density
 			Q = np.trapz(np.trapz(rho, etap, axis=2)*etar, etar, axis=1) * 2*np.pi
 			## Bulk constant <eta^2 cos^2psi> Q
-			BC = np.trapz(np.trapz(rho * ee*ee*np.cos(pp)*np.cos(pp), etap, axis=2)*etar, etar, axis=1)
+			BC = np.trapz(np.trapz(rho * np.cos(pp)*np.cos(pp), etap, axis=2)*etar*etar*etar, etar, axis=1)
 		else:
 			## Radial density
 			Q = np.trapz(H,etar,axis=1) / (2*np.pi*r)
@@ -307,7 +307,8 @@ def bulk_const(histfile):
 		Rind, Sind = np.abs(r-R).argmin(), np.abs(r-S).argmin()
 
 		## psi diagnostics plot
-		if (1 and psifile):	plot_psi_diagnostics(rho,Q,r,etar,etap,rr,ee,pp,R,Rind,S,Sind,a,histfile,showfig=False)			
+		if (0 and psifile):
+			plot_psi_diagnostics(rho,Q,r,etar,etap,rr,ee,pp,R,Rind,S,Sind,a,histfile,showfig=False)			
 						
 		## Integral pressure calculation
 		## Integrate from bulk to infinity (outer wall)
@@ -351,7 +352,7 @@ def plot_psi_diagnostics(rho,Q,r,etar,etap,rr,ee,pp,R,Rind,S,Sind,a,histfile,sho
 	Eesp = np.trapz(np.trapz(rho * ee*np.sin(pp), etap, axis=2)*etar, etar, axis=1)*2*np.pi / (Q+(Q==0))
 	lEecp = ax.plot(r, Eecp, label=r"$\langle\eta\,\cos\psi\rangle(r)$")
 	lEesp = ax.plot(r, Eesp, label=r"$\langle\eta\,\sin\psi\rangle(r)$")
-	f = -np.hstack([np.zeros(Rind),np.linspace(0,r[-1]-R,r.size-Rind)])
+	f = -np.hstack([np.linspace(r[0]-S,0.0,Sind),np.zeros(Rind-Sind),np.linspace(0,r[-1]-R,r.size-Rind)])	## Assume dlin
 	ax.plot(r, -f, "k--", label=r"$-f(r)$")
 	ax.set_ylim(top=np.ceil(Eecp.max()))
 	ax.set_xlabel(r"$r$", fontsize=fsa)
