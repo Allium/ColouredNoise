@@ -1,5 +1,6 @@
 import numpy as np
-import os, time
+import os, time, subprocess
+from datetime import datetime
 
 """
 NAME
@@ -226,7 +227,6 @@ def create_readme(histfile, vb):
 		assert os.path.isfile(readmefile)
 	except AssertionError:
 		now = str(datetime.now().strftime("%Y-%m-%d %H.%M"))
-		execute = " ".join(argv)
 		commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'])
 		header = "Time:\t"+now+"\nCommit hash:\t"+commit+"\n\n"
 		with open(readmefile,"w") as f:
