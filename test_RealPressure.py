@@ -203,11 +203,13 @@ def bulk_const(histfile):
 		## Bulk constant
 		f = -np.hstack([np.linspace(S-r[0],0.0,Sind),np.zeros(Rind-Sind),np.linspace(0.0,r[-1]-R,r.size-Rind)])
 		## <\eta^2\cos^2\psi>Q
-		e2c2Q = np.trapz(np.trapz(rho * np.cos(pp)*np.cos(pp), etap, axis=2)*etar*etar*etar, etar, axis=1)
+		e2c2Q = np.trapz(np.trapz(rho * np.cos(pp)*np.cos(pp), etap, axis=2)*etar*etar * 2*np.pi*etar, etar, axis=1)
+		e2s2Q = np.trapz(np.trapz(rho * np.sin(pp)*np.sin(pp), etap, axis=2)*etar*etar * 2*np.pi*etar, etar, axis=1)
 		## <\eta^2>Q
-		e2Q = np.trapz(np.trapz(rho, etap, axis=2)*etar*etar*etar, etar, axis=1)
+#		e2Q = np.trapz(np.trapz(rho, etap, axis=2)*etar*etar * 2*np.pi*etar, etar, axis=1)
+						
 		## -\int_{bulk}^{\infty} (2<\eta^2\cos^2\psi>-<\eta^2>-f^2)*Q/r' dr'
-		intgl = -sp.integrate.cumtrapz(((2*e2c2Q-e2Q-f*f*Q)/r)[::-1], r, axis=0, initial=0.0)[::-1]
+		intgl = -sp.integrate.cumtrapz(((e2c2Q-e2s2Q-f*f*Q)/r)[::-1], r, axis=0, initial=0.0)[::-1]
 		if S!=0.0:	intgl -= intgl[(Rind+Sind)/2]
 		BC = e2c2Q + intgl
 		
