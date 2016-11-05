@@ -16,6 +16,7 @@ from LE_Utils import fs
 fsa,fsl,fst = fs
 from LE_Pressure import pressure_x
 from LE_SPressure import calc_pressure, pdf_WN, plot_wall
+from LE_SBS import force_dlin
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
@@ -133,7 +134,7 @@ def plot_dir(histdir, nosave, searchstr, vb):
 		
 		t0 = time.time()
 		[x, Hx, e2E, BC, p, pars] = bulk_const(histfile)
-		if vb: print me+"File %i of %i: BC calculation %.2g seconds"%(i,numfiles,time.time()-t0)
+		if vb: print me+"File %i of %i: BC calculation %.2g seconds"%(i+1,numfiles,time.time()-t0)
 		A[i] = pars["a"]
 		P[i] = p
 		
@@ -177,7 +178,7 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	fig = plt.figure(); ax = fig.gca()
 	
 	ax.plot(1+A, P, "o-", label=r"$-\int_{\rm bulk}^{\infty} fQ\,{\rm d}r$")
-	ax.plot(1+A, A*C, "o-", label=r"$\alpha Q\langle\eta^2\cos^2\psi\rangle|_{\rm bulk}$")
+	ax.plot(1+A, A*C, "o-", label=r"Moment (1,1)")
 
 	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitP)), "b--", lw=1,
 			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitP[0]),fitP[1]))
@@ -197,12 +198,12 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	ax.set_xscale("log")
 	ax.set_yscale("log")
 	ax.set_xlim(1,1+A[-1])
-	ax.set_ylim(1e-2,1e1)
+	ax.set_ylim(1e-1,1e1)
 	
 	ax.set_xlabel(r"$1+\alpha$",fontsize=fsa)
 	ax.set_ylabel(r"$P$",fontsize=fsa)
 	ax.grid()
-	ax.legend(loc="best")
+	ax.legend(loc="best", fontsize=fsl).get_frame().set_alpha(0.5)
 	fig.suptitle("Pressure normalised by WN result. $R=%.2g, S=%.2g.$"%(fpars[0],fpars[1]),fontsize=fst)
 	
 	## SAVING
@@ -279,6 +280,9 @@ def bulk_const(histfile):
 			rr = r[:,np.newaxis]
 			ee = etar[np.newaxis,:]
 			dV = (r[1]-r[0])*(etar[1]-etar[0])	## Assumes regular grid
+
+		## Wall indices
+		Rind, Sind = np.abs(r-R).argmin(), np.abs(r-S).argmin()
 	
 		## --------------------------------------------------------------------
 		
@@ -290,21 +294,27 @@ def bulk_const(histfile):
 		if psifile:
 			## Radial density
 			Q = np.trapz(np.trapz(rho, etap, axis=2)*etar, etar, axis=1) * 2*np.pi
-			## Bulk constant <eta^2 cos^2psi> Q
-			BC = np.trapz(np.trapz(rho * np.cos(pp)*np.cos(pp), etap, axis=2)*etar*etar*etar, etar, axis=1)
+			assert "_DL_" in histfile, me+"Only dlin force supported at the moment."
+			f = force_dlin(r,r,R,S)
+			## <\eta^2\cos^2\psi>Q, <\eta^2\sin^2\psi>Q
+			e2c2Q = np.trapz(np.trapz(rho * np.cos(pp)*np.cos(pp), etap, axis=2)*etar*etar * 2*np.pi*etar, etar, axis=1)
+			e2s2Q = np.trapz(np.trapz(rho * np.sin(pp)*np.sin(pp), etap, axis=2)*etar*etar * 2*np.pi*etar, etar, axis=1)
+			## <\eta^2>Q
+			# e2Q = np.trapz(np.trapz(rho, etap, axis=2)*etar*etar * 2*np.pi*etar, etar, axis=1)
+			## -\int_{bulk}^{\infty} (2<\eta^2\cos^2\psi>-<\eta^2>-f^2)*Q/r' dr'
+			intgl = -sp.integrate.cumtrapz(((e2c2Q-e2s2Q-f*f*Q)/r)[::-1], r, axis=0, initial=0.0)[::-1]
+			if S!=0.0:	intgl -= intgl[(Rind+Sind)/2]
+			BC = e2c2Q + intgl
 		else:
 			## Radial density
 			Q = np.trapz(H,etar,axis=1) / (2*np.pi*r)
 			## Bulk constant <eta^2> Q
 			BC = np.trapz(rho * etar*etar * 2*np.pi*etar, etar, axis=1)
 		
-		## Calculate average eta
+		## Calculate average eta THIS IS SOMETHING I DON'T KNOW WHAT
 		e2E = BC / (Q+(Q==0))	  ## Avoid /0 warning (numerator is 0 anyway)
 		
 		## --------------------------------------------------------------------
-
-		## Wall indices
-		Rind, Sind = np.abs(r-R).argmin(), np.abs(r-S).argmin()
 
 		## psi diagnostics plot
 		if (0 and psifile):
