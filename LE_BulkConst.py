@@ -74,23 +74,25 @@ def plot_file(histfile, nosave, vb):
 	me = me0+".plot_file: "
 
 	## CALCULATIONS
-	x, Q, e2E, BC, p, pars = bulk_const(histfile)
+	r, Q, BCout, BCin, Pout, Pin, pars = bulk_const(histfile)
 	ftype = pars["ftype"]
-	fpars = [pars["X"]] if pars["geo"] is "1D" else [pars["R"],pars["S"],pars["lam"],pars["nu"]]
-	Rind = np.abs(x-pars["R"]).argmin()
-	ord = "r" if pars["geo"] == "CIR" else "x"
+	R, S = pars["R"], pars["S"]
+	Rind, Sind = np.abs(r-R).argmin(), np.abs(r-S).argmin()
+	fpars = [R,S,pars["lam"],pars["nu"]]
 	
 	## PLOT
 	fig = plt.figure(); ax = fig.gca()
-	plot_wall(ax, ftype, fpars, x)
-	ax.plot(x,Q/Q.mean(),label=r"$Q("+ord+")$")
-	ax.plot(x,e2E/e2E.mean(),label=r"$\langle\eta^2\cos^2\psi\rangle("+ord+")$")
-	ax.plot(x,BC/BC.mean(),label=r"$Q\cdot\langle\eta^2\cos^2\psi\rangle$")
+	plot_wall(ax, ftype, fpars, r)
 	
-	ax.axvspan(pars["S"],pars["R"],color="yellow",alpha=0.2)
+	ax.plot(r,Q/Q.mean(), label=r"$Q(r)$")
+	ax.plot(r,BCout/BCout.mean(), label=r"Bulk constant (out)", lw=2)
+	if S>0.0:
+		ax.plot(r,BCin/BCin.mean(),label=r"Bulk constant (in)", lw=2)
+		
+	ax.axvspan(S,R, color="yellow",alpha=0.2)
 	
 	## ATTRIBUTES
-	ax.set_xlim(left=0.0,right=x[-1])
+	ax.set_xlim(left=0.0,right=r[-1])
 #	if ftype[0]!="d":
 #		if innerwall:	ymax = 3.0*np.median((BC/BC.mean())[np.abs(fpars[0]-x).argmin():])
 #		else:			ymax = 3.0*np.median((BC/BC.mean())[:np.abs(fpars[0]-x).argmin()+1])
@@ -98,11 +100,11 @@ def plot_file(histfile, nosave, vb):
 #	ymin = float("%.1g"%(BC.min()/BC.mean()))	## Choose max of Q and BC after wall
 #	ymax = float("%.1g"%(max(Q[Rind:].max()/Q.mean(),BC[Rind:].max()/BC.mean())))	## Choose max of Q and BC after wall
 #	ax.set_ylim(bottom=ymin,top=ymax)
-	ax.set_xlabel("$"+ord+"$",fontsize=fsa)
+	ax.set_xlabel("$r$",fontsize=fsa)
 	ax.set_ylabel("Rescaled variable",fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="upper right",fontsize=fsl)
-	fig.suptitle(r"Bulk Constant. $\alpha = "+str(pars["a"])+"$.",fontsize=fst)
+	ax.set_title(r"Bulk Constant. $\alpha = "+str(pars["a"])+"$.",fontsize=fst)
 	
 	## SAVE
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".jpg"
@@ -127,72 +129,97 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	if vb: print me+"Found",numfiles,"files."
 	
 	## Initialise arrays
-	A,X,C,P,P_WN = np.zeros([5,numfiles])	
+	A,Cout,Cin,Pout,Pin = np.zeros([5,numfiles])	
 	
 	## Retrieve data
 	for i,histfile in enumerate(filelist):
 		
 		t0 = time.time()
-		x, Hx, e2E, BC, p, pars = bulk_const(histfile)
+		r, Q, BCout, BCin, Pout[i], Pin[i], pars = bulk_const(histfile)
 		if vb: print me+"a=%.1f:\tBC calculation %.2g seconds"%(pars["a"],time.time()-t0)
-		A[i] = pars["a"]
-		P[i] = p
-		
-		
-		"""if geo == "1D":
-			X[i] = pars["X"]
-			Xidx = np.argmin(np.abs(x-X[i]))
-			force = 0.5*(np.sign(X[i]-x)-1)* ((x-X[i]) if ftype is "lin" else 1)
-			P_WN[i] = -(force*pdf_WN(x,R[i],ftype)).sum()*(x[1]-x[0])
-			C[i] = BC[:widx].mean()"""
-			
-		if geo == "CIR":
-			R, S = pars["R"], pars["S"]
-			fpars = [R,S,pars["lam"],pars["nu"]]
-			Rind, Sind = np.abs(x-R).argmin(), np.abs(x-S).argmin()
-			C[i] = BC[Sind+10:Rind-10].mean() if Rind!=Sind else BC[max(0,Sind-1):Rind+1].mean()  ##MESS
+		A[i] = pars["a"]			
+		R, S = pars["R"], pars["S"]
+		fpars = [R,S,pars["lam"],pars["nu"]]
+		Rind, Sind = np.abs(r-R).argmin(), np.abs(r-S).argmin()
+		Cout[i] = BCout[Sind+10:Rind-10].mean() if Rind!=Sind else BCout[max(0,Sind-1):Rind+1].mean()
+		if S>0.0:
+			Cin[i] = BCin[Sind+10:Rind-10].mean() if Rind!=Sind else BCin[max(0,Sind-1):Rind+1].mean()
 			
 	## SORT BY ALPHA
 	srtidx = A.argsort()
-	A = A[srtidx]; P = P[srtidx]; P_WN = P_WN[srtidx]; C = C[srtidx]
+	A = A[srtidx]
+	Pout, Pin = Pout[srtidx], Pin[srtidx]
+	Cout, Cin = Cout[srtidx], Cin[srtidx]
+	
+	##-------------------------------------------------------------------------
 	
 	## Calculate white noise pressure and pdf
 	## Assume all files have same R & S. P_WN independent of alpha.
-	r_WN = np.linspace(x[0],x[-1],2*x.size+1)
-	Rind_WN, Sind_WN = np.abs(r_WN-fpars[0]).argmin(), np.abs(r_WN-fpars[1]).argmin()			
+	r_WN = np.linspace(r[0],r[-1],2*r.size+1)
+	Rind_WN, Sind_WN = np.abs(r_WN-R).argmin(), np.abs(r_WN-S).argmin()			
 	p_WN = calc_pressure(r_WN,pdf_WN(r_WN,fpars,ftype),ftype,fpars,True)
-	P_WN = p_WN[-1] - p_WN.min()	## For outer wall
-#	P_WN = p_WN[0]  - p_WN.min()	## For inner wall
+	Pout_WN = p_WN[-1] - p_WN.min()	## For outer wall
+	Pin_WN  = p_WN[0]  - p_WN.min()	## For inner wall
 	
 	## NORMALISE
-	P /= P_WN
-	C /= P_WN
+	Pout /= Pout_WN
+	Cout /= Pout_WN
+	if S>0.0:
+		Pin /= Pin_WN
+		Cin /= Pin_WN
+	
+	##-------------------------------------------------------------------------
 	
 	## FIT -- A*C -- fit in log coordinates
 	fitfunc = lambda x, B, nu: B + nu*x
-	fitBC = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(A*C), p0=[+1.0,-1.0])[0]
-	## FIT -- P_int
-	fitP = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(P), p0=[+1.0,-1.0])[0]
-	if vb:	print me+"nu_BC = ",fitBC.round(3)[1],"\t nu_Int = ",fitP.round(3)[1]
 	
-	## PLOT DATA AND FIT
-	fig = plt.figure(); ax = fig.gca()
+	## Outer C and P
+	fitCout = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(A*Cout), p0=[+1.0,-1.0])[0]
+	fitPout = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(Pout),   p0=[+1.0,-1.0])[0]
+	if vb:	print me+"nu_Cout = ",fitCout.round(3)[1],"\t nu_Pout = ",fitPout.round(3)[1]
 	
-	ax.plot(1+A, P, "o-", label=r"$-\int_{\rm bulk}^{\infty} fQ\,{\rm d}r$")
-	ax.plot(1+A, A*C, "o-", label=r"Moment (1,1)")
-
-	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitP)), "b--", lw=1,
-			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitP[0]),fitP[1]))
-	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitBC)), "g--", lw=1,
-			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitBC[0]),fitBC[1]))
+	## Inner C and P
+	if S>0.0:
+		fitCin = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(A*Cin), p0=[+1.0,-1.0])[0]
+		fitPin = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(Pin),  p0=[+1.0,-1.0])[0]
+		if vb:	print me+"nu_Cin = ",fitCin.round(3)[1],"\t nu_Pin = ",fitPin.round(3)[1]
 	
-	## Prediction for R=S
+	##-------------------------------------------------------------------------
+	
+	## PLOT DATA
+	fig = plt.figure(figsize=(10,10)); ax = fig.gca()
+	
+	linePo = ax.plot(1+A, Pout, "o", label=r"$-\int_{\rm bulk}^{\infty} fQ\,{\rm d}r$")
+	lineCo = ax.plot(1+A, A*Cout, "o", label=r"Moment (1,1) (out)")
+	if S>0.0:
+		linePi = ax.plot(1+A, Pin, "o", label=r"$-\int_{0}^{\rm bulk} fQ\,{\rm d}r$")
+		lineCi = ax.plot(1+A, A*Cin, "o", label=r"Moment (1,1) (in)")
+		
+	## PLOT FIT
+	## Cout, Pout
+	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitPout)), linePo[0].get_color()+"--", lw=1,
+			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitPout[0]),fitPout[1]))
+	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitCout)), lineCo[0].get_color()+"--", lw=1,
+			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitCout[0]),fitCout[1]))
+	## Cin, Pin
+	if S>0.0:
+		ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitPin)), linePi[0].get_color()+"--", lw=1,
+				label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitPin[0]),fitPin[1]))
+		ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitCin)), lineCi[0].get_color()+"--", lw=1,
+				label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitCin[0]),fitCin[1]))
+		
+	
+	## PLOT PREDICTION for R=S
 	if R == S:
+		## Outer
 		Pout = 1/(4*np.pi*(1+A)*(1/(1+A)*np.exp(-0.5*(1+A)*R*R)+\
 							+np.sqrt(np.pi/(2*(1+A)))*R*(sp.special.erf(np.sqrt((0.5*(1+A))*R)+1))))
-		ax.plot(1+A, Pout/P_WN, ":", label = r"Predicted $P_{\rm out}$")
+		ax.plot(1+A, Pout/Pout_WN, ":", label = r"Predicted $P_{\rm out}$", lw=2)
+		## Inner
 		if (S>0.0 and R <= 2*np.sqrt(np.log(10))):
-			ax.plot(1+A, Pout/P_WN * (1-np.exp(-0.5*(1+A)*R*R)), ":", label = r"Predicted $P_{\rm in}$")
+			ax.plot(1+A, Pout/Pout_WN * (1-np.exp(-0.5*(1+A)*R*R)), ":", label = r"Predicted $P_{\rm in}$", lw=2)
+	
+	##-------------------------------------------------------------------------
 	
 	## ACCOUTREMENTS
 	ax.set_xscale("log")
@@ -203,6 +230,7 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	ax.set_xlabel(r"$1+\alpha$",fontsize=fsa)
 	ax.set_ylabel(r"$P$",fontsize=fsa)
 	ax.grid()
+#	ax.legend(loc="best", fontsize=(fsl/2 if S>0.0 else fsl)).get_frame().set_alpha(0.5)
 	ax.legend(loc="best", fontsize=fsl).get_frame().set_alpha(0.5)
 	fig.suptitle("Pressure normalised by WN result. $R=%.2g, S=%.2g.$"%(fpars[0],fpars[1]),fontsize=fst)
 	
@@ -304,7 +332,8 @@ def bulk_const(histfile):
 			## -\int_{bulk}^{\infty} (2<\eta^2\cos^2\psi>-<\eta^2>-f^2)*Q/r' dr'
 			intgl = -sp.integrate.cumtrapz(((e2c2Q-e2s2Q-f*f*Q)/r)[::-1], r, axis=0, initial=0.0)[::-1]
 			if S!=0.0:	intgl -= intgl[(Rind+Sind)/2]
-			BC = e2c2Q + intgl
+			BCout = e2c2Q + intgl
+			BCin  = e2c2Q - intgl
 		else:
 			## Radial density
 			Q = np.trapz(H,etar,axis=1) / (2*np.pi*r)
@@ -312,7 +341,7 @@ def bulk_const(histfile):
 			BC = np.trapz(rho * etar*etar * 2*np.pi*etar, etar, axis=1)
 		
 		## Calculate average eta THIS IS SOMETHING I DON'T KNOW WHAT
-		e2E = BC / (Q+(Q==0))	  ## Avoid /0 warning (numerator is 0 anyway)
+#		e2E = BC / (Q+(Q==0))	  ## Avoid /0 warning (numerator is 0 anyway)
 		
 		## --------------------------------------------------------------------
 
@@ -321,11 +350,10 @@ def bulk_const(histfile):
 			plot_psi_diagnostics(rho,Q,r,etar,etap,rr,ee,pp,R,Rind,S,Sind,a,histfile,showfig=False)			
 						
 		## Integral pressure calculation
-		## Integrate from bulk to infinity (outer wall)
-		p = +calc_pressure(r[Rind:],Q[Rind:],ftype,[R,S,lam,nu])	## For outer wall
-		# p = -calc_pressure(r[:Sind],Q[:Sind],ftype,[R,S,lam,nu])	## For inner wall
+		Pout = +calc_pressure(r[Rind:],Q[Rind:],ftype,[R,S,lam,nu])	## For outer wall
+		Pin  = -calc_pressure(r[:Sind],Q[:Sind],ftype,[R,S,lam,nu])	## For inner wall
 				
-	return [r, Q, e2E, BC, p, pars]
+	return [r, Q, BCout, BCin, Pout, Pin, pars]
 	
 ##=============================================================================
 def plot_psi_diagnostics(rho,Q,r,etar,etap,rr,ee,pp,R,Rind,S,Sind,a,histfile,showfig=False):

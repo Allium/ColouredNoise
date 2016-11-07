@@ -73,6 +73,9 @@ def plot_pdf3D(histfile, nosave, vb):
 	Read in data for a single file and plot 3D PDF.
 	"""
 	me = me0+"plot_pdf3D: "
+	
+	psifile = "_psi" in histfile
+	phifile = "_phi" in histfile
 
 	## Get pars from filename
 	a = filename_par(histfile, "_a")
@@ -88,8 +91,7 @@ def plot_pdf3D(histfile, nosave, vb):
 
 	## Load histogram
 	H = np.load(histfile)
-	try:				H = H.sum(axis=2)	## If old _phi file
-	except ValueError: 	pass
+	if (psifile or phifile): H = H.sum(axis=2)
 	
 	## ------------------------------------------------------------------------
 	
