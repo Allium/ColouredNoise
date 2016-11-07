@@ -2,9 +2,15 @@ me0 = "test_limb"
 
 import numpy as np
 import scipy.optimize
-from matplotlib import pyplot as plt
 import os, glob
 from sys import argv
+
+if "SSH_TTY" in os.environ:
+	print me0+": Using Agg backend."
+	import matplotlib as mpl
+	mpl.use("Agg")
+from matplotlib import pyplot as plt
+
 from LE_Utils import filename_par, fs
 
 fsa, fsl, fst = fs
@@ -87,6 +93,7 @@ def plot_bulkconst(histfile, noshow=False):
 	
 	plotfile = os.path.dirname(histfile)+"/LIMB"+os.path.basename(histfile)[4:-4]+filesuf+".jpg"
 	fig.savefig(plotfile)
+	print me+"Plot saved to",plotfile
 	
 	if not noshow:	plt.show()
 	
@@ -114,17 +121,17 @@ def plot_limb_a(histdir, noshow=False):
 		
 		r, Q, e2c2, e2s2 = calculate_arrs(histfile)		
 		
-		LQ[i] = get_limb(r, Q, R)
-		LC[i] = get_limb(r, e2c2, R)
-		LS[i] = get_limb(r, e2s2, R)
+		LQ[i] = R - get_limb(r, Q, R)
+		LC[i] = R - get_limb(r, e2c2, R)
+		LS[i] = R - get_limb(r, e2s2, R)
 	
 	## --------------------------------------------------------------------	
 	
 	srtind = np.argsort(A)
 	A = A[srtind]
-	LQ = np.abs( R - LQ[srtind]	)
-	LC = np.abs( R - LC[srtind]	)
-	LS = np.abs( R - LS[srtind]	)
+	LQ = ( LQ[srtind] )
+	LC = ( LC[srtind] )
+	LS = ( LS[srtind] )
 	
 	## --------------------------------------------------------------------	
 	
@@ -145,6 +152,7 @@ def plot_limb_a(histdir, noshow=False):
 		
 	plotfile = histdir+"/LIMB_a.jpg"
 	fig.savefig(plotfile)
+	print me+"Plot saved to",plotfile
 	
 	if not noshow:	plt.show()
 

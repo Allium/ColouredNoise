@@ -101,7 +101,7 @@ def plot_file(histfile, nosave, vb):
 	ax.set_xlabel("$"+ord+"$",fontsize=fsa)
 	ax.set_ylabel("Rescaled variable",fontsize=fsa)
 	ax.grid()
-	ax.legend(loc="upper left",fontsize=fsl+2)
+	ax.legend(loc="upper right",fontsize=fsl)
 	fig.suptitle(r"Bulk Constant. $\alpha = "+str(pars["a"])+"$.",fontsize=fst)
 	
 	## SAVE
@@ -133,8 +133,8 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	for i,histfile in enumerate(filelist):
 		
 		t0 = time.time()
-		[x, Hx, e2E, BC, p, pars] = bulk_const(histfile)
-		if vb: print me+"File %i of %i: BC calculation %.2g seconds"%(i+1,numfiles,time.time()-t0)
+		x, Hx, e2E, BC, p, pars = bulk_const(histfile)
+		if vb: print me+"a=%.1f:\tBC calculation %.2g seconds"%(pars["a"],time.time()-t0)
 		A[i] = pars["a"]
 		P[i] = p
 		
@@ -147,9 +147,10 @@ def plot_dir(histdir, nosave, searchstr, vb):
 			C[i] = BC[:widx].mean()"""
 			
 		if geo == "CIR":
-			fpars = [pars["R"],pars["S"],pars["lam"],pars["nu"]]
-			Rind, Sind = np.abs(x-fpars[0]).argmin(), np.abs(x-fpars[1]).argmin()
-			C[i] = BC[Sind+10:Rind-10].mean() if Rind!=Sind else BC[max(0,Sind-5):Rind+5].mean()  ##MESS
+			R, S = pars["R"], pars["S"]
+			fpars = [R,S,pars["lam"],pars["nu"]]
+			Rind, Sind = np.abs(x-R).argmin(), np.abs(x-S).argmin()
+			C[i] = BC[Sind+10:Rind-10].mean() if Rind!=Sind else BC[max(0,Sind-1):Rind+1].mean()  ##MESS
 			
 	## SORT BY ALPHA
 	srtidx = A.argsort()
@@ -172,7 +173,7 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	fitBC = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(A*C), p0=[+1.0,-1.0])[0]
 	## FIT -- P_int
 	fitP = sp.optimize.curve_fit(fitfunc, np.log(1+A), np.log(P), p0=[+1.0,-1.0])[0]
-	if vb:	print me+": nu_BC = ",fitBC.round(3)[1],"\t nu_Int = ",fitP.round(3)[1]
+	if vb:	print me+"nu_BC = ",fitBC.round(3)[1],"\t nu_Int = ",fitP.round(3)[1]
 	
 	## PLOT DATA AND FIT
 	fig = plt.figure(); ax = fig.gca()
@@ -186,12 +187,11 @@ def plot_dir(histdir, nosave, searchstr, vb):
 			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitBC[0]),fitBC[1]))
 	
 	## Prediction for R=S
-	if fpars[0] == fpars[1]:
-		R = fpars[0]
+	if R == S:
 		Pout = 1/(4*np.pi*(1+A)*(1/(1+A)*np.exp(-0.5*(1+A)*R*R)+\
 							+np.sqrt(np.pi/(2*(1+A)))*R*(sp.special.erf(np.sqrt((0.5*(1+A))*R)+1))))
 		ax.plot(1+A, Pout/P_WN, ":", label = r"Predicted $P_{\rm out}$")
-		if R <= 2*np.sqrt(np.log(10)):
+		if (S>0.0 and R <= 2*np.sqrt(np.log(10))):
 			ax.plot(1+A, Pout/P_WN * (1-np.exp(-0.5*(1+A)*R*R)), ":", label = r"Predicted $P_{\rm in}$")
 	
 	## ACCOUTREMENTS
