@@ -44,21 +44,22 @@ def main():
 	plotall = opt.plotall
 	searchstr = opt.searchstr
 	nosave = opt.nosave
-	verbose = opt.verbose
+	vb = opt.verbose
 		
 	if os.path.isfile(args[0]):
-		plot_pdfs(args[0], nosave, verbose)
+		plot_pdfs(args[0], nosave, vb)
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False
 		filelist = np.sort(glob.glob(args[0]+"/BHIS_*"+searchstr+"*.npy"))
-		assert len(filelist)>1, me+"Check directory."
-		if verbose: print me+"Found",len(filelist),"files."
+		if vb: print me+"Found",len(filelist),"files."
 		for histfile in filelist:
-			plot_pdfs(histfile, nosave, verbose)
+			plot_pdfs(histfile, nosave, vb)
 			plt.close()
+	elif os.path.isdir(args[0]):
+		plot_fitpars(args[0], searchstr, nosave, vb)
 	else: raise IOError, me+"Check input."
 	
-	if verbose: print me+"Total execution time",round(time.time()-t0,1),"seconds."
+	if vb: print me+"Total execution time",round(time.time()-t0,1),"seconds."
 	if showfig:	plt.show()
 	
 	return
@@ -69,7 +70,6 @@ def plot_pdfs(histfile, nosave, vb):
 	"""
 	Calculate Q(r) and q(eta) from file and plot.
 	"""
-	
 	me = me0+".plot_pdfs: "
 	
 	## Get pars from filename
@@ -87,6 +87,8 @@ def plot_pdfs(histfile, nosave, vb):
 	## Wall indices
 	Rind, Sind = np.abs(r-R).argmin(), np.abs(r-S).argmin()
 	
+	##-------------------------------------------------------------------------
+	
 	## Histogram
 	H = np.load(histfile)
 	try: H = H.sum(axis=2)
@@ -99,10 +101,20 @@ def plot_pdfs(histfile, nosave, vb):
 	q = H.sum(axis=0)*(r[1]-r[0]) / (2*np.pi*eta)
 		
 	##-------------------------------------------------------------------------
+	## Fit
+	gauss = lambda x, m, s2:\
+				1/(2*np.pi*(s2*np.exp(-0.5*m**2/s2)+\
+				+np.abs(m)*np.sqrt(np.pi*s2/2)*(1+sp.special.erf(np.abs(m)/(np.sqrt(2*s2))))))*\
+				np.exp(-0.5*(x-m)**2/s2)
+	
+	if R==S: fitQ = sp.optimize.curve_fit(gauss, r, Q, p0=[R,1/np.sqrt(1+a)])[0]
+	fitq = sp.optimize.curve_fit(gauss, eta, q, p0=[0,1/a])[0]
+	
+	##-------------------------------------------------------------------------
 	
 	fig, axs = plt.subplots(2,1)
 	
-	## Spatial density
+	## Spatial density plot
 	ax = axs[0]
 	
 	## Data
@@ -110,10 +122,7 @@ def plot_pdfs(histfile, nosave, vb):
 	
 	## Gaussian
 	if R==S:
-		## Can't be bothered with normalisation
-		gr = np.exp(-0.5*(a+1)*(r-R)**2.0)
-		gr /= np.trapz(2*np.pi*r * gr, r)
-		ax.plot(r, gr, label=r"$G\left(R, \frac{1}{\alpha+1}\right)$")
+		ax.plot(r, gauss(r,fitQ[0],1/np.sqrt(1+a)), label=r"$G\left(\mu, \frac{1}{\alpha+1}\right)$")
 	
 	## Potential
 	if "_DL_" in histfile:
@@ -123,17 +132,17 @@ def plot_pdfs(histfile, nosave, vb):
 	ax.set_ylabel(r"$Q(r)$", fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="upper right", fontsize=fsl).get_frame().set_alpha(0.5)
-	
+		
 	##-------------------------------------------------------------------------
 	
-	## Force density
+	## Force density plot
 	ax = axs[1]
 	
 	## Data
 	ax.plot(eta, q, label=r"Simulation")
 	
 	## Gaussian
-	ax.plot(eta, a/(2*np.pi)*np.exp(-0.5*a*eta**2.0), label=r"$G\left(0, \frac{1}{\alpha}\right)$")
+	ax.plot(eta, gauss(eta,*fitq), label=r"$G\left(0, \frac{1}{\alpha}\right)$")
 	
 	ax.set_xlabel(r"$\eta$", fontsize=fsa)
 	ax.set_ylabel(r"$q(\eta)$", fontsize=fsa)
@@ -143,6 +152,8 @@ def plot_pdfs(histfile, nosave, vb):
 	##-------------------------------------------------------------------------
 	
 	fig.tight_layout()
+	fig.subplots_adjust(top=0.9)
+	fig.suptitle(r"PDFs in $r$ and $\eta$. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S), fontsize=fst)
 	
 	if not nosave:
 		plotfile = os.path.dirname(histfile)+"/PDFre"+os.path.basename(histfile)[4:-4]+".jpg"
@@ -152,6 +163,99 @@ def plot_pdfs(histfile, nosave, vb):
 	return
 	
 	
+##=============================================================================
+def plot_fitpars(histdir, searchstr, nosave, vb):
+	"""
+	For each file in directory, plot offset of Q(r) peak from R.
+	"""
+	me = me0+".plot_fitpars: "
+	
+	##-------------------------------------------------------------------------
+	## Fit function
+	gauss = lambda x, m, s2:\
+				1/(2*np.pi*(s2*np.exp(-0.5*m**2/s2)+\
+				+m*np.sqrt(np.pi*s2/2)*(1+sp.special.erf(m/(np.sqrt(2*s2))))))*\
+				np.exp(-0.5*(x-m)**2/s2)
+	##-------------------------------------------------------------------------
+	
+	filelist = np.sort(glob.glob(histdir+"/BHIS_*"+searchstr+"*.npy"))
+	numfiles = filelist.size
+	assert numfiles>1, me+"Check directory."
+	if vb: print me+"Found",numfiles,"files."
+	
+	A, M, S2 = np.zeros((3,numfiles))
+	
+	for i, histfile in enumerate(filelist):
+	
+		## Get pars from filename
+		A[i] = filename_par(histfile, "_a")
+		R = filename_par(histfile, "_R")
+		S = filename_par(histfile, "_S")
+		
+		## Space
+		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+		rbins = bins["rbins"]
+		ebins = bins["erbins"]
+		r = 0.5*(rbins[1:]+rbins[:-1])
+		eta = 0.5*(ebins[1:]+ebins[:-1])
+	
+		## Histogram
+		H = np.load(histfile)
+		try: H = H.sum(axis=2)
+		except ValueError: pass
+	
+		## Spatial density
+		Q = H.sum(axis=1)*(eta[1]-eta[0]) / (2*np.pi*r) / np.trapz(np.trapz(H,eta,axis=1),r,axis=0)
+		M[i], S2[i] = sp.optimize.curve_fit(gauss, r, Q, p0=[R,1/(1+A[i])])[0]
+	
+	srtidx = A.argsort()
+	A = A[srtidx]
+	M = M[srtidx]
+	S2 = S2[srtidx]
+	S1 = np.sqrt(S2)
+		
+	##-------------------------------------------------------------------------
+	## Fit
+	
+	linear = lambda x, m, c: m*x + c
+	
+	fitS = sp.optimize.curve_fit(linear, np.log(1+A), np.log(S1), p0=[-0.5,0.0])[0]
+	
+	##-------------------------------------------------------------------------
+	
+	fig, ax = plt.subplots(1,1)
+	
+	## Plot data -- sigma
+	lineS = ax.plot(1+A, S1, "o", label=r"$\sigma$ (data)")
+	## Plot fit
+	ax.plot(1+A, np.exp(linear(np.log(1+A), *fitS)), lineS[0].get_color()+"--",\
+									label=r"$%.1g(1+\alpha)^{%.2g}$"%(np.exp(fitS[1]),fitS[0]))
+	## Plot prediction
+#	ax.plot(1+A, np.exp(linear(np.log(1+A), -0.5, 0.0)), lineS[0].get_color()+":", label=r"$(1+\alpha)^{-1/2}$")
+	
+	## Plot data -- mean
+	lineM = ax.plot(1+A, M-R, "o-", label=r"$\mu-R$ (data)")
+		
+	ax.set_xlim(1.0, 1.0+A[-1])
+	ax.set_xscale("log")
+	ax.set_yscale("log")
+		
+	ax.set_xlabel(r"$1+\alpha$", fontsize=fsa)
+	ax.set_ylabel(r"Parameter", fontsize=fsa)
+	ax.set_title(r"Gaussian fit parameters. $R=%.1f, S=%.1f$"%(R,S), fontsize=fst)
+	ax.grid()
+	ax.legend(loc="best", fontsize=fsl).get_frame().set_alpha(0.5)
+	
+	if not nosave:
+		plotfile = histdir+"/PDFparsa_R%.1f_S%.1f.jpg"%(R,S)
+		fig.savefig(plotfile)
+		fig.savefig(plotfile)
+		if vb:	print me+"Figure saved to",plotfile
+	
+	##-------------------------------------------------------------------------
+	
+	return
+
 ##=============================================================================
 ##=============================================================================
 if __name__ == "__main__":

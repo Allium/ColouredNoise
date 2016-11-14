@@ -14,11 +14,11 @@ if "SSH_TTY" in os.environ:
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from LE_Utils import save_data, filename_pars
+from LE_Utils import save_data, filename_pars, fs
 from LE_SBS import force_const, force_lin, force_dcon, force_dlin,\
 					force_tan, force_dtan, force_nu, force_dnu
 
-
+## Ignore warnings
 warnings.filterwarnings("ignore",
 	"No labelled objects found. Use label='...' kwarg on individual plots.",
 	UserWarning)
@@ -30,7 +30,6 @@ warnings.filterwarnings("ignore",
 	RuntimeWarning)
 
 ## Global variables
-from LE_Utils import fs
 fsa,fsl,fst = fs
 
 def main():
@@ -68,6 +67,8 @@ def main():
 		dest="nosave", default=False, action="store_true")
 	parser.add_option("-a","--plotall",
 		dest="plotall", default=False, action="store_true")
+	parser.add_option('--str',
+		dest="searchstr", default="", type="str")
 	parser.add_option("-h","--help",
 		dest="help", default=False, action="store_true")		
 	opt, args = parser.parse_args()
@@ -78,15 +79,16 @@ def main():
 	logplot	= opt.logplot
 	nosave	= opt.nosave
 	plotall = opt.plotall
+	srchstr = opt.searchstr
 	
 	if plotall and os.path.isdir(args[0]):
 		showfig = False
-		allfiles(args[0],plotP,verbose)
+		allfiles(args[0],plotP,srchstr,verbose)
 		
 	elif os.path.isfile(args[0]):
 		pressure_pdf_file(args[0],plotP,verbose)
 	elif os.path.isdir(args[0]):
-		pressure_dir(args[0],logplot,nosave,verbose)
+		pressure_dir(args[0],logplot,nosave,srchstr,verbose)
 	else:
 		raise IOError, me+"You gave me rubbish. Abort."
 	
@@ -218,14 +220,14 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	return
 	
 ##=============================================================================
-def allfiles(dirpath, plotP, verbose):
-	for filepath in np.sort(glob.glob(dirpath+"/BHIS_CIR_*a*.npy")):
+def allfiles(dirpath, plotP, srchstr, verbose):
+	for filepath in np.sort(glob.glob(dirpath+"/BHIS_CIR_*"+srchstr+"*.npy")):
 		pressure_pdf_file(filepath, plotP, verbose)
 		plt.close()
 	return
 
 ##=============================================================================
-def pressure_dir(dirpath, logplot, nosave, verbose):
+def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 	"""
 	Plot pressure at "infinity" against alpha for all files in directory.
 	"""
@@ -237,7 +239,7 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 	ftype, geo = dirpars["ftype"], dirpars["geo"]
 	
 	## File discovery
-	histfiles = np.sort(glob.glob(dirpath+"/BHIS_CIR_*.npy"))
+	histfiles = np.sort(glob.glob(dirpath+"/BHIS_CIR_*"+srchstr+"*.npy"))
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
 
@@ -439,7 +441,7 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 	## ------------------------------------------------
 	## PLOTS
 	
-	fig, ax = plt.subplots(1,1)
+	fig, ax = plt.subplots(1,1, figsize=(10,10))
 	
 	## Default labels etc.
 	PP /= PP_WN + 1*(PP_WN==0.0)
@@ -448,10 +450,8 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 	plotfile = dirpath+"/PAR.jpg"
 	ylabel = "Pressure (normalised)"
 	if ftype == "lin" or ftype == "lico" or ftype == "dlin":
-		#xlabel = "$\\alpha=k\\tau/\\zeta$"
 		xlabel = "$\\alpha$"
 	else:
-		#xlabel = "$\\alpha=f_0^2\\tau/T\\zeta$"
 		xlabel = "$\\alpha$"
 	xlim = (AA[0],AA[-1])
 	DPplot = False
@@ -471,55 +471,50 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 	
 	## Annulus; finite; [S,R,A]
 	elif (ftype[0] == "d" and ftype[-3:] != "tan" and ftype[-2:] != "nu"):
-		## Holding R fixed
+		## Holding R fixed; plot against ALPHA
 		if RR.size == 1:
 			title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 			for i in range(SS.size):
 				ax.plot(1+AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
-				ax.plot(1+AA,QQ[i,0,:], "o--", color=ax.lines[-1].get_color())
+				ax.plot(1+AA,QQ[i,0,:], "v--", color=ax.lines[-1].get_color())
 			Aarr = np.linspace(AA[0],AA[-1],100); ax.plot(1+Aarr,1/(1+Aarr)**0.5, "k:",label="$(1+\\alpha)^{-1/2}$")
 		## Constant interval
 		elif np.unique(RR-SS).size == 1:
 			QQ, QQ_WN = np.nan_to_num(QQ), np.nan_to_num(QQ_WN)
-			if 0:
-				## Plot individually
+			if 1:
+				## Plot Pout and Pin individually against R
 				title = "Pressures $P_R,P_S$ (normalised); $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				plotfile = dirpath+"/PQRA.jpg"
 				xlabel = "$R\\;(=S+"+str((RR-SS)[0])+")$"; xlim = (RR[0],RR[-1])
-				for i in range(0,AA.size,1):	## To plot against R
+				for i in range(0,AA.size,2):	## To plot against R
 					ax.plot(RR,np.diagonal(PP).T[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$") 
-					ax.plot(RR[1:],np.diagonal(QQ).T[1:,i], "o--", color=ax.lines[-1].get_color())
-					## Prediction for individual pressure. See notes 22/06/2016
-					# fun = lambda aa, rr: np.exp(-0.5*(aa+1)*rr*rr)+np.sqrt(np.pi*0.5*(aa+1))*rr*(sp.special.erf(rr/np.sqrt(2)+1))
-					# ax.plot(RR,fun(0,RR)/fun(AA[i],RR),":",color=ax.lines[-1].get_color())
-					# ax.plot(RR,(1-np.exp(-0.5*RR*RR))*fun(0,RR)/fun(AA[i],RR),":",color=ax.lines[-1].get_color())
-			else:
-				## Plot difference
+					ax.plot(RR[1:],np.diagonal(QQ).T[1:,i], "v--", color=ax.lines[-1].get_color())
+			elif 0:
+				## Plot difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
 				title = "Pressure difference, $P_R-P_S$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference"
-				##
-				"""
 				plotfile = dirpath+"/DPAS.jpg"
-				for i in range(SS.size):		## To plot against alpha
+				for i in range(SS.size):
 					ax.plot(AA,np.diagonal((PP-QQ)).T[i,:], "o-", label="$S = "+str(SS[i])+"$")
 					ax.plot(AA,np.diagonal(PP_WN-QQ_WN).T[i,:], "--", color=ax.lines[-1].get_color())
-				"""##
+			elif 1:
+				## Plot difference Pout-Pin against R
+				DPplot = True
+				PP *= PP_WN; QQ *= QQ_WN
+				title = "Pressure difference, $P_R-P_S$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
+				ylabel = "Pressure Difference"
 				plotfile = dirpath+"/DPRA.jpg"
 				xlabel = "$R\\;(=S+"+str((RR-SS)[0])+")$"; xlim = (RR[0],RR[-1])
 				for i in range(0,AA.size,1):	## To plot against R
 					ax.plot(RR,np.diagonal((PP-QQ)).T[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$")
-					# ax.plot(RR,(2*np.pi)**(-1.5)/np.sqrt(1+AA[i])*np.exp(-0.5*(1+AA[i])*RR*RR)/RR,"k:",lw=3)
-					
-					# func = lambda x, A, b: A*(2*np.pi)**(-1.5)/np.sqrt(1+AA[i])*np.exp(-0.5*b*(1+AA[i])*x*x)/x
-					# fit = sp.optimize.curve_fit(func, RR[:4], np.diagonal((PP-QQ)).T[:4,i], p0=[1.0,0.1])[0]
-					# print AA[i], fit
-					# RRth = np.linspace(RR[0],RR[-1],200)
-					# ax.plot(RRth,func(RRth, *fit),"--",color=ax.lines[-1].get_color(),lw=1)
 				if logplot:
 					ax.plot(RR,0.1/(RR),"k:",lw=3,label="$R^{-1}, R^{-2}$")
 					ax.plot(RR,0.1/(RR*RR),"k:",lw=3)
+			else:
+				print me+"Warning: no plot."
+					
 	
 	## Single circus; TAN
 	elif ftype == "tan":
@@ -652,8 +647,8 @@ def pressure_dir(dirpath, logplot, nosave, verbose):
 	ax.set_ylabel(ylabel,fontsize=fsa)
 	
 	ax.grid()
-	ax.legend(loc="best",fontsize=fsl)
-	plt.suptitle(title,fontsize=fst)
+	ax.legend(loc="best",fontsize=fsl).get_frame().set_alpha(0.5)
+	ax.set_title(title,fontsize=fst)
 	
 	#plt.tight_layout();	plt.subplots_adjust(top=0.9)
 	if not nosave:
