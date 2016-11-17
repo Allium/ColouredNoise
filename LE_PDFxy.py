@@ -9,6 +9,7 @@ if "SSH_TTY" in os.environ:
 	print me0+": Using Agg backend."
 	import matplotlib as mpl
 	mpl.use("Agg")
+from matplotlib import cm
 from matplotlib import pyplot as plt
 
 from LE_Utils import filename_par
@@ -59,6 +60,7 @@ def main():
 		for histfile in filelist:
 			plot_pdf1d(histfile, nosave, vb)
 			plot_pdf2d(histfile, nosave, vb)
+			plt.close()
 	## Plot directory
 	elif os.path.isdir(args[0]):
 		plot_fitpars(args[0], searchstr, nosave, vb)
@@ -83,6 +85,8 @@ def plot_pdf1d(histfile, nosave, vb):
 	a = filename_par(histfile, "_a")
 	R = filename_par(histfile, "_R")
 	S = filename_par(histfile, "_S")
+	
+	doQfit = (R==S and "_DL_" in histfile)
 		
 	## Space
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -112,7 +116,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	## Fit
 	gauss = lambda x, m, s2: 1/np.sqrt(2*np.pi*s2)*np.exp(-0.5*(x-m)**2/s2)
 	
-	if R==S: fitQx = sp.optimize.curve_fit(gauss, x, Qx, p0=[R,1/np.sqrt(1+a)])[0]
+	if doQfit: fitQx = sp.optimize.curve_fit(gauss, x, Qx, p0=[R,1/np.sqrt(1+a)])[0]
 	
 	##-------------------------------------------------------------------------
 	
@@ -126,7 +130,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	ax.plot(x, Qx, label=r"Simulation")
 	
 	## Gaussian
-	if R==S:
+	if doQfit:
 		ax.plot(x, gauss(x,fitQx[0],1/(1+a)), "c-", label=r"$G\left(\mu, \frac{1}{\alpha+1}\right)$")
 	
 	## Potential and WN
@@ -209,8 +213,8 @@ def plot_pdf2d(histfile, nosave, vb):
 	H = np.load(histfile)
 	rho = H / (H.sum() * (x[1]-x[0])*(etax[1]-etax[0])*(etay[1]-etay[0]))
 	
-	## Prediction for when R=S
-	pred = True#int(R==S)
+	## Prediction for when R=S and potential is quadratic
+	pred = int(R==S and "_DL_" in histfile)
 	if pred:
 		Xc = 0.5*(R+S)	## To centre the prediction
 		rhoP = a*(a+1)/(2*np.sqrt(2)*np.pi**1.5)*\
@@ -236,9 +240,13 @@ def plot_pdf2d(histfile, nosave, vb):
 	fig, axs = plt.subplots(3,1+pred, sharey=True, figsize=(10,10))
 	fig.canvas.set_window_title("2D PDFs")
 	
+	plt.rcParams["image.cmap"] = "Greys"#"coolwarm"
+	
+	## ------------------------------------------------------------------------
+	
 	## x-etax
 	
-	ax = axs[0][0]
+	ax = axs[0][0] if pred else axs[0]
 	ax.contourf(x,etax,rhoxex.T)
 	ax.axvline(R,c="k"); ax.axvline(S,c="k")
 	
@@ -256,7 +264,7 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	## x-etay
 	
-	ax = axs[1][0]
+	ax = axs[1][0] if pred else axs[1]
 	ax.contourf(x,etay,rhoxey.T)
 	ax.axvline(R,c="k"); ax.axvline(S,c="k")
 	
@@ -274,7 +282,7 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	## etax-etay
 	
-	ax = axs[2][0]
+	ax = axs[2][0] if pred else axs[2]
 	ax.contourf(etax,etay,rhoexey.T)
 	
 	ax.set_xlabel(r"$\eta_x$", fontsize=fsa)
@@ -288,6 +296,7 @@ def plot_pdf2d(histfile, nosave, vb):
 		ax.set_xlabel(r"$\eta_x$", fontsize=fsa)
 		ax.set_title(r"$\rho(\eta_x,\eta_y)$ prediction ($R=S$)", fontsize=fsa)
 	
+	## ------------------------------------------------------------------------
 	
 	fig.suptitle(r"PDF projections. $\alpha=%0.1f,R=%0.1f,S=%0.1f$"%(a,R,S), fontsize=fst)
 	fig.tight_layout()
