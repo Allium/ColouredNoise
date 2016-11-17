@@ -220,8 +220,8 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 
 	## Filename; directory and file existence; readme
 	hisdir = "Pressure/"+str(datetime.now().strftime("%y%m%d"))+\
-			"_CIR_"+fstr+"_dt"+str(dt)+intmeth+pstr+"/"
-	hisfile = "BHIS_CIR_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)+intmeth
+			"_POL_"+fstr+"_dt"+str(dt)+intmeth+pstr+"/"
+	hisfile = "BHIS_POL_"+fstr+"_a"+str(a)+"_R"+str(R)+fparstr+"_dt"+str(dt)+intmeth
 	binfile = "BHISBIN"+hisfile[4:]
 	filepath = hisdir+hisfile
 	check_path(filepath, vb)
@@ -338,11 +338,6 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 	## -----------------===================-----------------
 			
 	if ephi:
-#		fig,axs=plt.subplots(3,1,sharex=True)
-#		axs[0].hist(np.arctan2(xy[:,1],xy[:,0]),50, normed=True)
-#		axs[1].hist(np.arctan2(exy[:,1],exy[:,0]),50, normed=True)
-#		axs[2].hist(np.arctan2(exy[:,1],exy[:,0])-np.arctan2(xy[:,1],xy[:,0]),50, normed=True)
-#		plt.show(); exit()
 		epcoord = np.arctan2(exy[:,1],exy[:,0]) - np.arctan2(xy[:,1],xy[:,0])
 		return [rcoord, ercoord, epcoord]
 	else:

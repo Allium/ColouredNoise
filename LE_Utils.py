@@ -167,20 +167,19 @@ def filename_pars(filename):
 	except ValueError:
 		nu = None
 	## force type
-	if filename.find("_C_") > 0:	ftype = "const"
-	elif filename.find("_L_") > 0: 	ftype = "lin"
-	elif filename.find("_LC_") > 0: ftype = "lico"
-	elif filename.find("_DC_") > 0: ftype = "dcon"
-	elif filename.find("_DL_") > 0: ftype = "dlin"
-	elif filename.find("_T_") > 0:	ftype = "tan"
-	elif filename.find("_DT_") > 0: ftype = "dtan"
-	elif filename.find("_N_") > 0: ftype = "nu"
-	elif filename.find("_DN_") > 0: ftype = "dnu"
+	if "_C_" in filename:	ftype = "const"
+	elif "_L_" in filename: 	ftype = "lin"
+	elif "_LC_" in filename: ftype = "lico"
+	elif "_DC_" in filename: ftype = "dcon"
+	elif "_DL_" in filename: ftype = "dlin"
+	elif "_T_" in filename:	ftype = "tan"
+	elif "_N_" in filename: ftype = "nu"
+	elif "_DN_" in filename: ftype = "dnu"
 	else: raise ValueError, me+"Unsupported potential."
 	## Geometry
-	if filename.find("_CIR_") > 0: geo = "CIR"
-	elif filename.find("_1D_") > 0: geo = "1D"
-	elif filename.find("_2D_") > 0: geo = "2D"
+	if ("_CIR_" in filename or "_POL_" in filename): geo = "POL"
+	elif "_1D_" in filename: geo = "1D"
+	elif "_2D_" in filename: geo = "2D"
 	## Collect into lists
 	pars  = [a,X,D,dt,R,S,lam,nu,ftype,geo]
 	names = ["a","X","D","dt","R","S","lam","nu","ftype","geo"]
