@@ -254,9 +254,11 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 	P_WN = np.zeros(numfiles)
 	Q_WN = np.zeros(numfiles)
 		
+	
+	t0 = time()
 	## Loop over files
 	for i,histfile in enumerate(histfiles):
-	
+		
 		## Get pars from filename
 		pars = filename_pars(histfile)
 		[A[i],R[i],S[i],L[i],N[i]] = [pars[key] for key in ["a","R","S","lam","nu"]]
@@ -289,6 +291,8 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 			## Inner pressure
 			Q[i] 	= -calc_pressure(r[:bidx],rho[:bidx],ftype,fpars)
 			Q_WN[i] = -calc_pressure(r[:bidx],rho_WN[:bidx],ftype,fpars)
+			
+	if verbose: print me+"Pressure calculations %.1f seconds."%(time()-t0)
 		
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
@@ -441,6 +445,8 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 	## ------------------------------------------------
 	## PLOTS
 	
+	t0 = time()
+	
 	fig, ax = plt.subplots(1,1, figsize=(10,10))
 	
 	## Default labels etc.
@@ -449,10 +455,7 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 	title = "Pressure normalised by WN; ftype = "+ftype
 	plotfile = dirpath+"/PAR.jpg"
 	ylabel = "Pressure (normalised)"
-	if ftype == "lin" or ftype == "lico" or ftype == "dlin":
-		xlabel = "$\\alpha$"
-	else:
-		xlabel = "$\\alpha$"
+	xlabel = "$\\alpha$"
 	xlim = (AA[0],AA[-1])
 	DPplot = False
 	
@@ -469,18 +472,60 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 		for i in range(RR.size):
 			ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$")
 	
+	## ------------------------------------------------
+	## THE FOLLOWING BLOCK IS DUPLICATION. TRY TO MAKE IT MORE ELEGANT.
+	
 	## Annulus; finite; [S,R,A]
 	elif (ftype[0] == "d" and ftype[-3:] != "tan" and ftype[-2:] != "nu"):
-		## Holding R fixed; plot against ALPHA
+		QQ, QQ_WN = np.nan_to_num(QQ), np.nan_to_num(QQ_WN)
+		
+		## Holding R fixed
 		if RR.size == 1:
-			title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
-			for i in range(SS.size):
-				ax.plot(1+AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
-				ax.plot(1+AA,QQ[i,0,:], "v--", color=ax.lines[-1].get_color())
-			Aarr = np.linspace(AA[0],AA[-1],100); ax.plot(1+Aarr,1/(1+Aarr)**0.5, "k:",label="$(1+\\alpha)^{-1/2}$")
+			if 0:
+				## Plot normalised Pout and Pin individually against ALPHA
+				title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
+				plotfile = dirpath+"/PQAS.jpg"
+				xlabel = r"$1+\alpha$"
+				xlim = (1.0,1+AA[-1])
+				for i in range(SS.size):
+					ax.plot(1+AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
+					ax.plot(1+AA,QQ[i,0,:], "v--", color=ax.lines[-1].get_color())
+				Aarr = np.linspace(AA[0],1+AA[-1],100); ax.plot(1+Aarr,1/(1+Aarr)**0.5, "k:",label=r"$(1+\alpha)^{-1/2}$")
+			elif 0:
+				## Plot normalised Pout and Pin individually against S, for multiple ALPHA
+				title = "Pressures $P_R,P_S$ (normalised); $R = "+str(RR[0])+"$; ftype = "+ftype
+				plotfile = dirpath+"/PQSA.jpg"
+				xlabel = r"$S$"
+				xlim = (SS[0],SS[-1])
+				for i in range(0,AA.size,2):
+					ax.plot(SS,PP[:,0,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
+					ax.plot(SS,QQ[:,0,i], "v--", color=ax.lines[-1].get_color())
+			elif 0:
+				## Plot raw difference Pout-Pin against ALPHA, for multiple S
+				DPplot = True
+				PP *= PP_WN; QQ *= QQ_WN
+				title = "Pressure difference, $P_R-P_S$; $R = "+str(RR[0])+"$; ftype = "+ftype
+				xlabel = r"$1+\alpha$"
+				ylabel = "Pressure Difference"
+				xlim = (1.0,1+AA[-1])
+				plotfile = dirpath+"/DPAS.jpg"
+				for i in range(SS.size):
+					ax.plot(1+AA,(PP-QQ)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
+					ax.plot(1+AA,(PP_WN-QQ_WN)[i,0,:], "--", color=ax.lines[-1].get_color())
+			elif 1:
+				## Plot raw difference Pout-Pin against R
+				DPplot = True
+				PP *= PP_WN; QQ *= QQ_WN
+				xlim = (SS[0],SS[-1])
+				title = "Pressure difference, $P_R-P_S$; $R = "+str(RR[0])+"$; ftype = "+ftype
+				plotfile = dirpath+"/DPSA.jpg"
+				xlabel = r"$S$"; xlim = (SS[0],SS[-1])
+				ylabel = "Pressure Difference"
+				for i in range(0,AA.size,1):
+					ax.plot(SS,(PP-QQ)[:,0,i], "o-", label=r"$\alpha = "+str(AA[i])+"$")
+					
 		## Constant interval
 		elif np.unique(RR-SS).size == 1:
-			QQ, QQ_WN = np.nan_to_num(QQ), np.nan_to_num(QQ_WN)
 			if 1:
 				## Plot Pout and Pin individually against R
 				title = "Pressures $P_R,P_S$ (normalised); $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
@@ -515,6 +560,7 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 			else:
 				print me+"Warning: no plot."
 					
+	## ------------------------------------------------
 	
 	## Single circus; TAN
 	elif ftype == "tan":
@@ -636,8 +682,7 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 	
 	if logplot:
 		ax.set_xscale("log"); ax.set_yscale("log")
-		ax.set_xlim(right=xlim[1])
-		ax.set_ylim(top=1e0)
+		ax.set_xlim(xlim)
 		plotfile = plotfile[:-4]+"_loglog.jpg"
 	if not (logplot or DPplot):
 		ax.set_xlim(xlim)
@@ -654,6 +699,8 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 	if not nosave:
 		fig.savefig(plotfile)
 		if verbose: print me+"plot saved to",plotfile
+	
+	if verbose: print me+"Plotting %.2f seconds."%(time()-t0)
 		
 	return
 
