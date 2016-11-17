@@ -76,6 +76,7 @@ def plot_pdfs(histfile, nosave, vb):
 	a = filename_par(histfile, "_a")
 	R = filename_par(histfile, "_R")
 	S = filename_par(histfile, "_S")
+	assert R==S, me+"Functionality only for zero bulk."
 		
 	## Space
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -122,7 +123,7 @@ def plot_pdfs(histfile, nosave, vb):
 	
 	## Gaussian
 	if R==S:
-		ax.plot(r, gauss(r,fitQ[0],1/np.sqrt(1+a)), label=r"$G\left(\mu, \frac{1}{\alpha+1}\right)$")
+		ax.plot(r, gauss(r,fitQ[0],1/(1+a)), label=r"$G\left(\mu, \frac{1}{\alpha+1}\right)$")
 	
 	## Potential
 	if "_DL_" in histfile:
@@ -142,7 +143,7 @@ def plot_pdfs(histfile, nosave, vb):
 	ax.plot(eta, q, label=r"Simulation")
 	
 	## Gaussian
-	ax.plot(eta, gauss(eta,*fitq), label=r"$G\left(0, \frac{1}{\alpha}\right)$")
+	ax.plot(eta, gauss(eta,0,1/a), label=r"$G\left(0, \frac{1}{\alpha}\right)$")
 	
 	ax.set_xlabel(r"$\eta$", fontsize=fsa)
 	ax.set_ylabel(r"$q(\eta)$", fontsize=fsa)
@@ -191,6 +192,7 @@ def plot_fitpars(histdir, searchstr, nosave, vb):
 		A[i] = filename_par(histfile, "_a")
 		R = filename_par(histfile, "_R")
 		S = filename_par(histfile, "_S")
+		assert R==S, me+"Functionality only for zero bulk."
 		
 		## Space
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")

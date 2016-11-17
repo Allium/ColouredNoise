@@ -57,8 +57,8 @@ def main():
 		filelist = np.sort(glob.glob(args[0]+"/BHIS_*"+searchstr+"*.npy"))
 		if vb: print me+"Found",len(filelist),"files."
 		for histfile in filelist:
-			plot_pdfs(histfile, nosave, vb)
-			plt.close()
+			plot_pdf1d(histfile, nosave, vb)
+			plot_pdf2d(histfile, nosave, vb)
 	## Plot directory
 	elif os.path.isdir(args[0]):
 		plot_fitpars(args[0], searchstr, nosave, vb)
@@ -76,6 +76,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	Calculate Q(r) and q(eta) from file and plot.
 	"""
 	me = me0+".plot_pdf1d: "
+	t0 = time.time()
 	
 	## Get pars from filename
 	assert "_CAR_" in histfile, me+"Functional only for Cartesian geometry."
@@ -115,7 +116,8 @@ def plot_pdf1d(histfile, nosave, vb):
 	
 	##-------------------------------------------------------------------------
 	
-	fig, axs = plt.subplots(2,1)
+	fig, axs = plt.subplots(2,1, figsize=(10,10))
+	fig.canvas.set_window_title("1D PDFs")
 	
 	## Spatial density plot
 	ax = axs[0]
@@ -125,12 +127,13 @@ def plot_pdf1d(histfile, nosave, vb):
 	
 	## Gaussian
 	if R==S:
-		ax.plot(x, gauss(x,fitQx[0],1/(1+a)), label=r"$G\left(\mu, \frac{1}{\alpha+1}\right)$")
+		ax.plot(x, gauss(x,fitQx[0],1/(1+a)), "c-", label=r"$G\left(\mu, \frac{1}{\alpha+1}\right)$")
 	
-	## Potential
+	## Potential and WN
 	if "_DL_" in histfile:
-		Ufn = lambda Dr: 0.5*Dr**2
+		Ufn = lambda Dx: 0.5*Dx**2
 		U = np.hstack([Ufn(S-x[:Sind]),np.zeros(Rind-Sind),Ufn(x[Rind:]-R)])
+		ax.plot(x,np.exp(-U)/np.trapz(np.exp(-U),x),"r-", label="WN")
 		ax.plot(x,U/U.max()*ax.get_ylim()[1],"k--",label="Potential")
 	
 	ax.set_xlim(left=x[0],right=x[-1])
@@ -149,7 +152,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	ax.plot(etay, qy, label=r"Simulation $y$")
 	
 	## Gaussian
-	ax.plot(etax, gauss(etax,0.0,1/a), label=r"$G\left(0, \frac{1}{\alpha}\right)$")
+	ax.plot(etax, gauss(etax,0.0,1/a), "c-", label=r"$G\left(0, \frac{1}{\alpha}\right)$")
 	
 	ax.set_xlabel(r"$\eta$", fontsize=fsa)
 	ax.set_ylabel(r"$q(\eta)$", fontsize=fsa)
@@ -166,6 +169,8 @@ def plot_pdf1d(histfile, nosave, vb):
 		plotfile = os.path.dirname(histfile)+"/PDFxy1d"+os.path.basename(histfile)[4:-4]+".jpg"
 		fig.savefig(plotfile)
 		if vb:	print me+"Figure saved to",plotfile
+		
+	if vb: print me+"Execution time %.1f seconds."%(time.time()-t0)
 	
 	return
 	
@@ -175,7 +180,8 @@ def plot_pdf2d(histfile, nosave, vb):
 	"""
 	Read in data for a single file and plot 3D PDF.
 	"""
-	me = me0+"plot_pdf2D: "
+	me = me0+".plot_pdf2D: "
+	t0 = time.time()
 
 	## Get pars from filename
 	assert "_CAR_" in histfile, me+"Functional only for Cartesian geometry."
@@ -203,9 +209,12 @@ def plot_pdf2d(histfile, nosave, vb):
 	H = np.load(histfile)
 	rho = H / (H.sum() * (x[1]-x[0])*(etax[1]-etax[0])*(etay[1]-etay[0]))
 	
-	## Prediction
-	rhoP = a*(a+1)/(2*np.sqrt(2)*np.pi**1.5)*\
-			np.exp(-0.5*(a+1)**2*(X-R)*(X-R)-0.5*a*(a+1)*EX*EX+a*(a+1)*(X-R)*EX-0.5*a*EY*EY)
+	## Prediction for when R=S
+	pred = True#int(R==S)
+	if pred:
+		Xc = 0.5*(R+S)	## To centre the prediction
+		rhoP = a*(a+1)/(2*np.sqrt(2)*np.pi**1.5)*\
+				np.exp(-0.5*(a+1)**2*(X-Xc)*(X-Xc)-0.5*a*(a+1)*EX*EX+a*(a+1)*(X-Xc)*EX-0.5*a*EY*EY)
 		
 	## ------------------------------------------------------------------------
 	
@@ -215,45 +224,53 @@ def plot_pdf2d(histfile, nosave, vb):
 	rhoxey = rho.sum(axis=1)
 	rhoexey = rho.sum(axis=0)
 	
-	rhoPxex = rhoP.sum(axis=2)
-	rhoPxey = rhoP.sum(axis=1)
-	rhoPexey = rhoP.sum(axis=0)
+	if pred:
+		rhoPxex = rhoP.sum(axis=2)
+		rhoPxey = rhoP.sum(axis=1)
+		rhoPexey = rhoP.sum(axis=0)
 	
 	## ------------------------------------------------------------------------
 	
 	## Plotting
 	
-	fig, axs = plt.subplots(3,2, sharey=True, figsize=(10,10))
+	fig, axs = plt.subplots(3,1+pred, sharey=True, figsize=(10,10))
+	fig.canvas.set_window_title("2D PDFs")
 	
 	## x-etax
 	
 	ax = axs[0][0]
 	ax.contourf(x,etax,rhoxex.T)
+	ax.axvline(R,c="k"); ax.axvline(S,c="k")
 	
 	ax.set_xlabel(r"$x$", fontsize=fsa)
 	ax.set_ylabel(r"$\eta_x$", fontsize=fsa)
 	ax.set_title(r"$\rho(x,\eta_x)$ data", fontsize=fsa)
 	
-	ax = axs[0][1]
-	ax.contourf(x,etax,rhoPxex.T)
+	if pred:
+		ax = axs[0][1]
+		ax.contourf(x,etax,rhoPxex.T)
+		ax.axvline(Xc,c="k")
 	
-	ax.set_xlabel(r"$x$", fontsize=fsa)
-	ax.set_title(r"$\rho(x,\eta_x)$ prediction", fontsize=fsa)
+		ax.set_xlabel(r"$x$", fontsize=fsa)
+		ax.set_title(r"$\rho(x,\eta_x)$ prediction ($R=S$)", fontsize=fsa)
 	
 	## x-etay
 	
 	ax = axs[1][0]
 	ax.contourf(x,etay,rhoxey.T)
+	ax.axvline(R,c="k"); ax.axvline(S,c="k")
 	
 	ax.set_xlabel(r"$x$", fontsize=fsa)
 	ax.set_ylabel(r"$\eta_y$", fontsize=fsa)
 	ax.set_title(r"$\rho(x,\eta_y)$ data", fontsize=fsa)
 	
-	ax = axs[1][1]
-	ax.contourf(x,etay,rhoPxey.T)
+	if pred:
+		ax = axs[1][1]
+		ax.contourf(x,etay,rhoPxey.T)
+		ax.axvline(Xc,c="k")
 	
-	ax.set_xlabel(r"$x$", fontsize=fsa)
-	ax.set_title(r"$\rho(x,\eta_y)$ prediction", fontsize=fsa)
+		ax.set_xlabel(r"$x$", fontsize=fsa)
+		ax.set_title(r"$\rho(x,\eta_y)$ prediction ($R=S$)", fontsize=fsa)
 	
 	## etax-etay
 	
@@ -264,21 +281,26 @@ def plot_pdf2d(histfile, nosave, vb):
 	ax.set_ylabel(r"$\eta_y$", fontsize=fsa)
 	ax.set_title(r"$\rho(\eta_x,\eta_y)$ data", fontsize=fsa)
 	
-	ax = axs[2][1]
-	ax.contourf(etax,etay,rhoPexey.T)
+	if pred:
+		ax = axs[2][1]
+		ax.contourf(etax,etay,rhoPexey.T)
 	
-	ax.set_xlabel(r"$\eta_x$", fontsize=fsa)
-	ax.set_title(r"$\rho(\eta_x,\eta_y)$ prediction", fontsize=fsa)
+		ax.set_xlabel(r"$\eta_x$", fontsize=fsa)
+		ax.set_title(r"$\rho(\eta_x,\eta_y)$ prediction ($R=S$)", fontsize=fsa)
 	
 	
+	fig.suptitle(r"PDF projections. $\alpha=%0.1f,R=%0.1f,S=%0.1f$"%(a,R,S), fontsize=fst)
 	fig.tight_layout()
+	fig.subplots_adjust(top=0.9)
 	
 	## ------------------------------------------------------------------------
 	
 	if not nosave:
 		plotfile = os.path.dirname(histfile)+"/PDFxy2d"+os.path.basename(histfile)[4:-4]+".jpg"
 		fig.savefig(plotfile)
-		if vb:	print me+": Figure saved to",plotfile
+		if vb:	print me+"Figure saved to",plotfile
+		
+	if vb: print me+"Execution time %.1f seconds."%(time.time()-t0)
 
 	return
 	
