@@ -88,7 +88,7 @@ def plot_file(histfile, nosave, vb):
 	## PLOT
 	fig = plt.figure(figsize=(12,8)); ax = fig.gca()
 	
-	f = force_dlin(r,r,R,S)
+	"""f = force_dlin(r,r,R,S)
 	ax.plot(r, e2c2Q)
 	ax.plot(r, f*f*Q)
 	ax.plot(r, e2c2Q-f*f*Q)
@@ -100,7 +100,7 @@ def plot_file(histfile, nosave, vb):
 	ax.set_ylim(ylims)
 	ax.axvline(r[inds[0]]); ax.axvline(r[inds[1]])
 	plt.show()
-	exit()
+	exit()"""
 	
 	## Data
 #	ax.plot(r, Q/Q.max(), label=r"$Q(r)$")
@@ -132,7 +132,7 @@ def plot_file(histfile, nosave, vb):
 	
 	## ATTRIBUTES
 	
-	ax.set_xlim(left=0.0,right=r[-1])
+	ax.set_xlim(left=r[0],right=r[-1])
 
 	ax.set_xlabel("$r$",fontsize=fsa)
 	ax.set_ylabel("Rescaled variable",fontsize=fsa)
@@ -258,7 +258,7 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	ax.set_xscale("log")
 	ax.set_yscale("log")
 	ax.set_xlim(1,1+A[-1])
-#	ax.set_ylim(1e-1,1e1)
+	ax.set_ylim(top=1e1)
 	
 	ax.set_xlabel(r"$1+\alpha$",fontsize=fsa)
 	ax.set_ylabel(r"$P$",fontsize=fsa)
