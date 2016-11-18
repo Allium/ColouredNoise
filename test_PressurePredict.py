@@ -15,7 +15,7 @@ from LE_Utils import filename_pars, filename_par
 from LE_Utils import fs
 fsa,fsl,fst = fs
 from LE_SPressure import calc_pressure, pdf_WN, plot_wall
-from LE_SBS import force_dlin
+from LE_SSim import force_dlin
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)

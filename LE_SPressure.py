@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from LE_Utils import save_data, filename_pars, fs
-from LE_SBS import force_const, force_lin, force_dcon, force_dlin,\
+from LE_SSim import force_const, force_lin, force_dcon, force_dlin,\
 					force_tan, force_dtan, force_nu, force_dnu
 
 ## Ignore warnings

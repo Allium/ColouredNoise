@@ -13,7 +13,7 @@ if "SSH_TTY" in os.environ:
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable as mplmal
 
-from LE_SBS import force_const, force_lin, force_dcon, force_dlin,\
+from LE_SSim import force_const, force_lin, force_dcon, force_dlin,\
 					force_tan, force_dtan, force_nu, force_dnu
 from LE_Utils import filename_par
 from LE_Utils import fs;	fsa, fsl, fst = fs

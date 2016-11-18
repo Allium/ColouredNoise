@@ -1,3 +1,5 @@
+me0 = "LE_SSim"
+
 import numpy as np
 from scipy.signal import fftconvolve
 from matplotlib import pyplot as plt
@@ -33,7 +35,7 @@ def input():
 		Consistent passing r2 or r to force functions
 		Calculate and save r as we go rather than duplicating effort
 	"""	
-	me = "LE_SBS.input: "
+	me = me0+".input: "
 	t0 = time.time()
 	
 	## ----------------------------------------------------------------
@@ -98,7 +100,7 @@ def input():
 def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	"""
 	"""
-	me = "LE_SBS.main: "
+	me = me0+".main: "
 	t0 = time.time()
 	
 	## ----------------------------------------------------------------
@@ -286,7 +288,7 @@ def boundary_sim(xyini, exyini, a, xy_step, dt, tmax, expmt, ephi, vb):
 	"""
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
 	"""
-	me = "LE_SBS.boundary_sim: "
+	me = me0+".boundary_sim: "
 		
 	## Initialisation
 	x0,y0 = xyini

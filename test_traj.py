@@ -6,7 +6,7 @@ import optparse, os, time
 from datetime import datetime
 
 from LE_LightBoundarySim import sim_eta
-from LE_SBS import force_lin, force_dlin, eul
+from LE_SSim import force_lin, force_dlin, eul
 from LE_RunPlot import plot_traj
 from LE_SPressure import plot_wall
 
