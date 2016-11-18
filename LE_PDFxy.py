@@ -12,10 +12,10 @@ if "SSH_TTY" in os.environ:
 from matplotlib import cm
 from matplotlib import pyplot as plt
 
+from LE_CSim import force_dlin, force_clin
 from LE_Utils import filename_par
 from LE_Utils import fs
 fsa,fsl,fst = fs
-from LE_SPressure import plot_wall
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
@@ -80,13 +80,21 @@ def plot_pdf1d(histfile, nosave, vb):
 	me = me0+".plot_pdf1d: "
 	t0 = time.time()
 	
-	## Get pars from filename
+	##-------------------------------------------------------------------------
+	
+	## Filename pars
+	
 	assert "_CAR_" in histfile, me+"Functional only for Cartesian geometry."
+	Casimir = "_CL_" in histfile
+	
 	a = filename_par(histfile, "_a")
 	R = filename_par(histfile, "_R")
 	S = filename_par(histfile, "_S")
+	if Casimir: T = filename_par(histfile, "_T")
 	
 	doQfit = (R==S and "_DL_" in histfile)
+	
+	##-------------------------------------------------------------------------
 		
 	## Space
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -129,16 +137,19 @@ def plot_pdf1d(histfile, nosave, vb):
 	## Data
 	ax.plot(x, Qx, label=r"Simulation")
 	
-	## Gaussian
+	## Gaussian for spatial density
 	if doQfit:
 		ax.plot(x, gauss(x,fitQx[0],1/(1+a)), "c-", label=r"$G\left(\mu, \frac{1}{\alpha+1}\right)$")
 	
 	## Potential and WN
 	if "_DL_" in histfile:
-		Ufn = lambda Dx: 0.5*Dx**2
-		U = np.hstack([Ufn(S-x[:Sind]),np.zeros(Rind-Sind),Ufn(x[Rind:]-R)])
-		ax.plot(x,np.exp(-U)/np.trapz(np.exp(-U),x),"r-", label="WN")
-		ax.plot(x,U/U.max()*ax.get_ylim()[1],"k--",label="Potential")
+		U = -sp.integrate.cumtrapz(force_dlin([x,x],R,S)[0], x, initial=0.0)
+	elif "_CL_" in histfile:
+		U = -sp.integrate.cumtrapz(force_clin([x,x],R,S,T)[0], x, initial=0.0)
+		ax.axvline(T,c="k"); ax.axvspan(0,T,color="y",alpha=0.1)
+	ax.plot(x, np.exp(-U)/np.trapz(np.exp(-U),x), "r-", label="WN")
+	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--",label="Potential")
+	ax.axvline(S,c="k"); ax.axvline(R,c="k"); ax.axvspan(S,R,color="y",alpha=0.1)
 	
 	ax.set_xlim(left=x[0],right=x[-1])
 	ax.set_xlabel(r"$x$", fontsize=fsa)
@@ -166,8 +177,10 @@ def plot_pdf1d(histfile, nosave, vb):
 	##-------------------------------------------------------------------------
 	
 	fig.tight_layout()
-	fig.subplots_adjust(top=0.9)
-	fig.suptitle(r"PDFs in $r$ and $\eta$. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S), fontsize=fst)
+	fig.subplots_adjust(top=0.95)
+	title = r"PDFs in $r$ and $\eta$. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S) if not Casimir\
+			else r"PDFs in $r$ and $\eta$. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
+	fig.suptitle(title, fontsize=fst)
 	
 	if not nosave:
 		plotfile = os.path.dirname(histfile)+"/PDFxy1d"+os.path.basename(histfile)[4:-4]+".jpg"
@@ -187,11 +200,19 @@ def plot_pdf2d(histfile, nosave, vb):
 	me = me0+".plot_pdf2D: "
 	t0 = time.time()
 
+	##-------------------------------------------------------------------------
+	
 	## Get pars from filename
+	
 	assert "_CAR_" in histfile, me+"Functional only for Cartesian geometry."
+	Casimir = "_CL_" in histfile
+	
 	a = filename_par(histfile, "_a")
 	R = filename_par(histfile, "_R")
 	S = filename_par(histfile, "_S")
+	if Casimir: T = filename_par(histfile, "_T")
+	
+	##-------------------------------------------------------------------------
 		
 	## Space
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -260,7 +281,7 @@ def plot_pdf2d(histfile, nosave, vb):
 		ax.axvline(Xc,c="k")
 	
 		ax.set_xlabel(r"$x$", fontsize=fsa)
-		ax.set_title(r"$\rho(x,\eta_x)$ prediction ($R=S$)", fontsize=fsa)
+		ax.set_title(r"$\rho(x,\eta_x)$ prediction", fontsize=fsa)
 	
 	## x-etay
 	
@@ -278,7 +299,7 @@ def plot_pdf2d(histfile, nosave, vb):
 		ax.axvline(Xc,c="k")
 	
 		ax.set_xlabel(r"$x$", fontsize=fsa)
-		ax.set_title(r"$\rho(x,\eta_y)$ prediction ($R=S$)", fontsize=fsa)
+		ax.set_title(r"$\rho(x,\eta_y)$ prediction", fontsize=fsa)
 	
 	## etax-etay
 	
@@ -294,11 +315,13 @@ def plot_pdf2d(histfile, nosave, vb):
 		ax.contourf(etax,etay,rhoPexey.T)
 	
 		ax.set_xlabel(r"$\eta_x$", fontsize=fsa)
-		ax.set_title(r"$\rho(\eta_x,\eta_y)$ prediction ($R=S$)", fontsize=fsa)
+		ax.set_title(r"$\rho(\eta_x,\eta_y)$ prediction", fontsize=fsa)
 	
 	## ------------------------------------------------------------------------
 	
-	fig.suptitle(r"PDF projections. $\alpha=%0.1f,R=%0.1f,S=%0.1f$"%(a,R,S), fontsize=fst)
+	title = r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S) if not Casimir\
+			else r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
+	fig.suptitle(title, fontsize=fst)
 	fig.tight_layout()
 	fig.subplots_adjust(top=0.9)
 	

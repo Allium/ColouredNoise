@@ -12,7 +12,7 @@ if "SSH_TTY" in os.environ:
 from matplotlib import cm
 from matplotlib import pyplot as plt
 
-from LE_CBS import force_dlin, force_clin
+from LE_CSim import force_dlin, force_clin
 from LE_Utils import filename_par
 from LE_Utils import fs
 fsa,fsl,fst = fs
@@ -120,8 +120,17 @@ def plot_pressure_file(histfile, nosave, vb):
 			
 	##-------------------------------------------------------------------------
 	
-	## Potential
-	U = -sp.integrate.cumtrapz(fx, x, initial=0.0)
+	## Potential and WN
+	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+	Qx_WN = np.exp(-U)/np.trapz(np.exp(-U),x)
+	
+	# PR_WN = -sp.integrate.cumtrapz(fx[Rind:]*Qx_WN[Rind:], x[Rind:], initial=0.0)
+	# PS_WN = -sp.integrate.cumtrapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind], initial=0.0); PS -= PS[-1]
+	# if Casimir:
+		# PT_WN = -sp.integrate.cumtrapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind], initial=0.0)
+	
+	# PR_WN += 0.01*(PR_WN==0); PS_WN += 0.01*(PS_WN==0); PT_WN += 0.01*(PT_WN==0)
+	# PR /= PR_WN; PS /= PS_WN; PT /= PT_WN
 	
 	##-------------------------------------------------------------------------
 	
@@ -131,7 +140,7 @@ def plot_pressure_file(histfile, nosave, vb):
 	
 	ax = axs[0]
 	ax.plot(x, Qx, label=r"CN")
-	ax.plot(x, np.exp(-U)/np.trapz(np.exp(-U),x), "r-", label="WN")
+	ax.plot(x, Qx_WN, "r-", label="WN")
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
 	
 	ax.set_ylim(bottom=0.0)	
@@ -143,7 +152,8 @@ def plot_pressure_file(histfile, nosave, vb):
 	ax = axs[1]
 	ax.plot(x[Rind:],      PR, label=r"$P_R$")
 	ax.plot(x[STind:Sind], PS, label=r"$P_S$")
-	ax.plot(x[Tind:STind], PT, label=r"$P_T$")	
+	if Casimir:
+		ax.plot(x[Tind:STind], PT, label=r"$P_T$")	
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
 	
 	ax.set_ylim(bottom=0.0)	
@@ -242,14 +252,15 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 	
 	ax.plot(A, PR, "o-", label=r"$P_R$")
 	ax.plot(A, PS, "o-", label=r"$P_S$")
-	ax.plot(A, PT, "o-", label=r"$P_T$")	
+	if Casimir:
+		ax.plot(A, PT, "o-", label=r"$P_T$")	
 	
 	ax.set_xlabel(r"$\alpha$", fontsize=fsa)
 	ax.set_ylabel(r"$P(\alpha)$", fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="upper right", fontsize=fsl).get_frame().set_alpha(0.5)
 	
-	ax.set_title(r"Pressure as a function of $\alpha$ for $R=%.1f,S=%.1f,T=%.1f$"%(R,S,T))
+	ax.set_title(r"Pressure as a function of $\alpha$ for $R=%.1f,S=%.1f,T=%.1f$"%(R,S,T), fontsize=fst)
 	
 	if not nosave:
 		plotfile = histdir+"/PA_R%.1f_S%.1f_T%.1f.jpg"%(R,S,T) if Casimir\
