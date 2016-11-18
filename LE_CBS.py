@@ -1,6 +1,7 @@
 me0 = "LE_CBS"
 
 import numpy as np
+import scipy as sp
 from scipy.signal import fftconvolve
 from matplotlib import pyplot as plt
 import optparse, os, time
@@ -101,8 +102,8 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 		fstr = "DL"
 		filepar = ""
 		## Simulation limits
-		xmax = R+4.0*max(1.0,round(np.sqrt(a),0))
-		xmin = S-4.0*max(1.0,round(np.sqrt(a),0))
+		xmax = R+4.0
+		xmin = S-4.0
 		
 	elif ftype=="clin":
 		## Force
@@ -111,7 +112,7 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 		fstr = "CL"
 		filepar = "_T%.1f"%(T)
 		## Simulation limits
-		xmax = R+4.0*max(1.0,round(np.sqrt(a),0))
+		xmax = R+4.0
 		xmin = 0.0
 		
 	else:
@@ -123,8 +124,15 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	## Simulation time
 	tmax = 5e2*timefac
 	
+	## Particles	
+	Nparticles = 50
+	
 	## Injection coordinate
-	xini = 0.5*(R+S)
+	# xini = 0.5*(R+S)
+	x = np.linspace(xmin,xmax,1000)
+	rhoWN = np.exp(sp.integrate.cumtrapz(fxy([x,0])[0], x, initial=0.0))
+	rhoWN /= rhoWN.sum()
+	xini = np.random.choice(x, size=Nparticles, p=rhoWN)
 	
 	## ------------
 	## Bin edges: x, etax, etay
@@ -140,9 +148,6 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	bins = [xbins, exbins, eybins]
 	
 	## ------------
-	
-	## Particles	
-	Nparticles = 50
 		
 	## Initial noise drawn from Gaussian
 	if a == 0.0:
@@ -192,7 +197,7 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	for i in range(Nparticles):
 		## Perform run in Cartesian coordinates
 		if vb: print me+"Run",i,"of",Nparticles
-		coords = simulate_trajectory([xini,0.0], eIC[i], a, xy_step, dt, tmax, expmt, vb)
+		coords = simulate_trajectory([xini[i],0.0], eIC[i], a, xy_step, dt, tmax, expmt, vb)
 		if ftype[0]=="c": coords[0] = np.abs(coords[0])	## Reflect BC
 		H += np.histogramdd(coords,bins=bins,normed=False)[0]
 	## Divide by bin area and number of particles
@@ -261,12 +266,20 @@ def force_dlin(xy,R,S):
 def force_clin(xy,R,S,T):
 	"""
 	Casimir setup. Symmetric about x=0. Linear force.
-	Reflecting is twice as fast as calculating twice...
+	Reflecting is twice as fast as calculating twice.
+	A little faster than using np.piecewise.	
 	xy.size = 2
 	"""
+#	x = np.abs(xy[0])
+#	fx = (T-x)*(T<x)*(x<0.5*(T+S))+\
+#			+(x-S)*(0.5*(T+S)<x)*(x<S)+\
+#			+(R-x)*(R<x)
+#	fx *= np.sign(xy[0])
+#	fy = 0.0
+#	return np.array([fx,fy])
 	x = np.abs(xy[0])
 	fx = (T-x)*(T<x)*(x<0.5*(T+S))+\
-			+(x-S)*(0.5*(T+S)<x)*(x<S)+\
+			+(S-x)*(0.5*(T+S)<x)*(x<S)+\
 			+(R-x)*(R<x)
 	fx *= np.sign(xy[0])
 	fy = 0.0
