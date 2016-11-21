@@ -95,6 +95,7 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	## ----------------------------------------------------------------
 	## CHOOSE FORCE, FILENAME, SPACE
 	
+	## Double quadratic potential
 	if ftype=="dlin":
 		## Force
 		fxy = lambda xy: force_dlin(xy,R,S)
@@ -104,7 +105,8 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 		## Simulation limits
 		xmax = R+4.0
 		xmin = S-4.0
-		
+	
+	## Casimir quadratic potential. Symmetric about x=0.
 	elif ftype=="clin":
 		## Force
 		fxy = lambda xy: force_clin(xy,R,S,T)
@@ -114,6 +116,17 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 		## Simulation limits
 		xmax = R+4.0
 		xmin = 0.0
+		
+	## Single central wall.
+	elif ftype=="mlin":
+		## Force
+		fxy = lambda xy: force_mlin(xy,R,S,T)
+		## Filename
+		fstr = "ML"
+		filepar = "_T%.1f"%(T)
+		## Simulation limits
+		xmax = +R+4.0
+		xmin = -R-4.0
 		
 	else:
 		raise IOError, me+"check ftype."
@@ -128,11 +141,13 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	Nparticles = 50
 	
 	## Injection coordinate
-	# xini = 0.5*(R+S)
-	x = np.linspace(xmin,xmax,1000)
-	rhoWN = np.exp(sp.integrate.cumtrapz(fxy([x,0])[0], x, initial=0.0))
-	rhoWN /= rhoWN.sum()
-	xini = np.random.choice(x, size=Nparticles, p=rhoWN)
+	if ftype=="dlin":
+		xini = 0.5*(R+S)
+	elif (ftype=="clin" or ftype=="mlin"):
+		x = np.linspace(xmin,xmax,1000)
+		rhoWN = np.exp(sp.integrate.cumtrapz(fxy(np.array([x,0]))[0], x, initial=0.0))
+		rhoWN /= rhoWN.sum()
+		xini = np.random.choice(x, size=Nparticles, p=rhoWN)
 	
 	## ------------
 	## Bin edges: x, etax, etay
@@ -270,20 +285,24 @@ def force_clin(xy,R,S,T):
 	A little faster than using np.piecewise.	
 	xy.size = 2
 	"""
-#	x = np.abs(xy[0])
-#	fx = (T-x)*(T<x)*(x<0.5*(T+S))+\
-#			+(x-S)*(0.5*(T+S)<x)*(x<S)+\
-#			+(R-x)*(R<x)
-#	fx *= np.sign(xy[0])
-#	fy = 0.0
-#	return np.array([fx,fy])
 	x = np.abs(xy[0])
 	fx = (T-x)*(T<x)*(x<0.5*(T+S))+\
 			+(S-x)*(0.5*(T+S)<x)*(x<S)+\
 			+(R-x)*(R<x)
 	fx *= np.sign(xy[0])
-	fy = 0.0
-	return np.array([fx,fy])
+	return np.array([fx,0.0])
+	
+def force_mlin(xy,R,S,T):
+	"""
+	Casimir setup with single wall. Linear force.
+	Confining walls at +/-R. Central wall between T and S.
+	"""
+	x = np.array([xy[0]]).flatten() if len(xy)==2 else xy[0]
+	fx = np.piecewise(x,
+		[x<=-R, (T<=x)&(x<0.5*(T+S)), (0.5*(T+S)<=x)&(x<S), R<=x],
+		[lambda y: -R-y, lambda y: T-y, lambda y: S-y, lambda y: R-y])
+	return np.array([fx,0.0])
+	
 	
 def force_dsinx(xy,R,S,A,Y):
 	"""

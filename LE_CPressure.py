@@ -12,7 +12,7 @@ if "SSH_TTY" in os.environ:
 from matplotlib import cm
 from matplotlib import pyplot as plt
 
-from LE_CSim import force_dlin, force_clin
+from LE_CSim import force_dlin, force_clin, force_mlin
 from LE_Utils import filename_par
 from LE_Utils import fs
 fsa,fsl,fst = fs
@@ -73,6 +73,7 @@ def main():
 ##=============================================================================
 def plot_pressure_file(histfile, nosave, vb):
 	"""
+	Plot spatial PDF Q(x) and spatially-varying pressure P(x).
 	"""
 	me = me0+".plot_pressure_file: "
 	
@@ -80,7 +81,7 @@ def plot_pressure_file(histfile, nosave, vb):
 	
 	## Dir pars
 	assert "_CAR_" in histfile, me+"Functional only for Cartesian geometry."
-	Casimir = "_CL_" in histfile
+	Casimir = "_CL_" in histfile or "_ML_" in histfile
 
 	##-------------------------------------------------------------------------
 	
@@ -111,6 +112,7 @@ def plot_pressure_file(histfile, nosave, vb):
 	## Choose force
 	if   "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
 	elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
+	elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
 	
 	## Calculate integral pressure
 	PR = -sp.integrate.cumtrapz(fx[Rind:]*Qx[Rind:], x[Rind:], initial=0.0)
@@ -122,7 +124,7 @@ def plot_pressure_file(histfile, nosave, vb):
 	
 	## Potential and WN
 	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
-	Qx_WN = np.exp(-U)/np.trapz(np.exp(-U),x)
+	Qx_WN = np.exp(-U) / np.trapz(np.exp(-U), x)
 	
 	# PR_WN = -sp.integrate.cumtrapz(fx[Rind:]*Qx_WN[Rind:], x[Rind:], initial=0.0)
 	# PS_WN = -sp.integrate.cumtrapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind], initial=0.0); PS -= PS[-1]
@@ -188,11 +190,12 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 	
 	## Dir pars
 	assert "_CAR_" in histdir, me+"Functional only for Cartesian geometry."
-	Casimir = "_CL_" in histdir
+	Casimir = "_CL_" in histdir or "_ML_" in histdir
 	
 	## File discovery
 	filelist = np.sort(glob.glob(histdir+"/BHIS_CAR_*"+srchstr+"*.npy"))
 	numfiles = len(filelist)
+	assert numfiles>1, me+"Check input directory."
 	if vb: print me+"found",numfiles,"files"
 
 	##-------------------------------------------------------------------------
@@ -231,6 +234,7 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 		## Choose force
 		if   "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
 		elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
+		elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
 		
 		## Calculate integral pressure
 		PR[i] = -sp.integrate.trapz(fx[Rind:]*Qx[Rind:], x[Rind:])
@@ -246,6 +250,23 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 	
 	##-------------------------------------------------------------------------
 	
+	## Potential and WN normalisation
+	
+	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+	Qx_WN = np.exp(-U) / np.trapz(np.exp(-U), x)
+	
+	PR_WN = -sp.integrate.trapz(fx[Rind:]*Qx_WN[Rind:], x[Rind:])
+	PS_WN = +sp.integrate.trapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind])
+	if Casimir:
+	 PT_WN = -sp.integrate.trapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind])
+
+	PR /= PR_WN + (PR_WN==0)
+	PS /= PS_WN + (PS_WN==0)
+	if Casimir:
+		PT /= PT_WN + (PT_WN==0)
+	
+	##-------------------------------------------------------------------------
+	
 	## PLOTTING
 	
 	fig, ax = plt.subplots(1,1, figsize=(10,10))
@@ -253,14 +274,18 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 	ax.plot(A, PR, "o-", label=r"$P_R$")
 	ax.plot(A, PS, "o-", label=r"$P_S$")
 	if Casimir:
-		ax.plot(A, PT, "o-", label=r"$P_T$")	
+		ax.plot(A, PT, "o-", label=r"$P_T$")
+		
+#	ax.set_xscale("log"); ax.set_yscale("log")
+	ax.set_ylim(top=max(ax.get_ylim()[1],1.0))
 	
 	ax.set_xlabel(r"$\alpha$", fontsize=fsa)
 	ax.set_ylabel(r"$P(\alpha)$", fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="upper right", fontsize=fsl).get_frame().set_alpha(0.5)
-	
-	ax.set_title(r"Pressure as a function of $\alpha$ for $R=%.1f,S=%.1f,T=%.1f$"%(R,S,T), fontsize=fst)
+	title = r"Pressure as a function of $\alpha$ for $R=%.1f,S=%.1f,T=%.1f$"%(R,S,T) if Casimir\
+			else r"Pressure as a function of $\alpha$ for $R=%.1f,S=%.1f$"%(R,S)
+	ax.set_title(title, fontsize=fst)
 	
 	if not nosave:
 		plotfile = histdir+"/PA_R%.1f_S%.1f_T%.1f.jpg"%(R,S,T) if Casimir\

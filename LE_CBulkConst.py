@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 from LE_Utils import filename_pars, filename_par
 from LE_Utils import fs
 fsa,fsl,fst = fs
-from LE_CSim import force_dlin, force_clin
+from LE_CSim import force_dlin, force_clin, force_mlin
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
@@ -93,6 +93,7 @@ def plot_file(histfile, nosave, vb):
 	## Potential
 	if   "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
 	elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
+	elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
 	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
 #	Qx_WN = np.exp(-U)/np.trapz(np.exp(-U),x)
 	
@@ -189,6 +190,7 @@ def plot_dir(histdir, nosave, srchstr, vb):
 		## Choose force
 		if   "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
 		elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
+		elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
 	
 		## Calculate integral pressure
 		PR[i] = -sp.integrate.trapz(fx[Rind:]*Qx[Rind:], x[Rind:])
@@ -212,45 +214,41 @@ def plot_dir(histdir, nosave, srchstr, vb):
 	PT_WN = -sp.integrate.trapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind])
 	
 	## Normalise
-	pR /= PR_WN
-	PR /= PR_WN
+	pR /= PR_WN; pS /= PS_WN; pT /= PT_WN
+	PR /= PR_WN; PS /= PS_WN; PT /= PT_WN
 	
-	##-------------------------------------------------------------------------
-	
-	## FIT -- fit in log coordinates
-	fitfunc = lambda x, B, nu: B + nu*x
-		
 	##-------------------------------------------------------------------------
 	
 	## PLOT DATA
 	
 	fig, ax = plt.subplots(1,1, figsize=(10,10))
 	
-	lpR = ax.plot(1+A, pR, "o-", label=r"BC pR")
-	lpS = ax.plot(1+A, pS, "o-", label=r"BC pS")
-	lpT = ax.plot(1+A, pT, "o-", label=r"BC pT")
+	lpR = ax.plot(A, pR, "o-", label=r"BC pR")
+	lpS = ax.plot(A, pS, "o-", label=r"BC pS")
+	lpT = ax.plot(A, pT, "o-", label=r"BC pT")
 	
-	lPR = ax.plot(1+A, pR, lpR[0].get_color()+"v--", lw=2, label=r"Int PR")
-	lPS = ax.plot(1+A, pS, lpS[0].get_color()+"v--", lw=2, label=r"Int PS")
-	lPT = ax.plot(1+A, pT, lpT[0].get_color()+"v--", lw=2, label=r"Int PT")
+	lPR = ax.plot(A, pR, lpR[0].get_color()+"v--", lw=2, label=r"Int PR")
+	lPS = ax.plot(A, pS, lpS[0].get_color()+"v--", lw=2, label=r"Int PS")
+	lPT = ax.plot(A, pT, lpT[0].get_color()+"v--", lw=2, label=r"Int PT")
 		
-	## PLOT FIT
-	
 	##-------------------------------------------------------------------------
 	
 	## ACCOUTREMENTS
 #	ax.set_xscale("log")
 #	ax.set_yscale("log")
-	ax.set_xlim(1,1+A[-1])
+	ax.set_xlim(0,A[-1])
 	
-	ax.set_xlabel(r"$1+\alpha$",fontsize=fsa)
+	ax.set_xlabel(r"$\alpha$",fontsize=fsa)
 	ax.set_ylabel(r"$P$",fontsize=fsa)
 	ax.grid()
 	ax.legend(loc="best", fontsize=fsl).get_frame().set_alpha(0.5)
-	ax.set_title("Pressure normalised by WN result. $R=%.2g, S=%.2g.$"%(R,S),fontsize=fst)
+	title = "Pressure normalised by WN result. $R=%.1f, S=%.1f, T=%.1f.$"%(R,S,T) if Casimir\
+			else "Pressure normalised by WN result. $R=%.1f, S=%.1f.$"%(R,S)
+	ax.set_title(title,fontsize=fst)
 	
 	## SAVING
-	plotfile = histdir+"/QEe2_Pa_R%.1f_S%.1f.jpg"%(R,S)
+	plotfile = histdir+"/QEe2_Pa_R%.1f_S%.1f_T%.1f.jpg"%(R,S,T) if Casimir\
+				else histdir+"/QEe2_Pa_R%.1f_S%.1f.jpg"%(R,S)
 	if not nosave:
 		fig.savefig(plotfile)
 		if vb: print me+"Figure saved to",plotfile
