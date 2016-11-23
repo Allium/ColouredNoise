@@ -15,10 +15,12 @@ from matplotlib import pyplot as plt
 from LE_CSim import force_dlin, force_clin, force_mlin
 from LE_Utils import filename_par
 from LE_Utils import fs
-fsa,fsl,fst = fs
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
+
+mpl.rcParams['xtick.labelsize'] = fs["fsn"]
+mpl.rcParams['ytick.labelsize'] = fs["fsn"]
 
 ## ============================================================================
 
@@ -126,51 +128,61 @@ def plot_pressure_file(histfile, nosave, vb):
 	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
 	Qx_WN = np.exp(-U) / np.trapz(np.exp(-U), x)
 	
-	# PR_WN = -sp.integrate.cumtrapz(fx[Rind:]*Qx_WN[Rind:], x[Rind:], initial=0.0)
-	# PS_WN = -sp.integrate.cumtrapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind], initial=0.0); PS -= PS[-1]
-	# if Casimir:
-		# PT_WN = -sp.integrate.cumtrapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind], initial=0.0)
-	
-	# PR_WN += 0.01*(PR_WN==0); PS_WN += 0.01*(PS_WN==0); PT_WN += 0.01*(PT_WN==0)
-	# PR /= PR_WN; PS /= PS_WN; PT /= PT_WN
+	## WN pressure
+	PR_WN = -sp.integrate.cumtrapz(fx[Rind:]*Qx_WN[Rind:], x[Rind:], initial=0.0)
+	PS_WN = -sp.integrate.cumtrapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind], initial=0.0); PS_WN -= PS_WN[-1]
+	if Casimir:
+		PT_WN = -sp.integrate.cumtrapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind], initial=0.0)
 	
 	##-------------------------------------------------------------------------
 	
 	## PLOTTING
 	
-	fig, axs = plt.subplots(2,1, sharex=True, figsize=(10,10))
+	fig, axs = plt.subplots(2,1, sharex=True, figsize=fs["figsize"])
 	
+	if "_CL_" in histfile:		legloc = "upper right"
+	elif "_ML_" in histfile:	legloc = "upper left"
+	else:						legloc = "best"
+	
+	## Plot PDF
 	ax = axs[0]
 	ax.plot(x, Qx, label=r"CN")
 	ax.plot(x, Qx_WN, "r-", label="WN")
+	## Potential
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
 	
 	ax.set_ylim(bottom=0.0)	
-	ax.set_ylabel(r"$Q(x)$", fontsize=fsa)
+	ax.set_ylabel(r"$Q(x)$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="upper right", fontsize=fsl).get_frame().set_alpha(0.5)
+	ax.legend(loc=legloc, fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	
-	
+	## Plot pressure
 	ax = axs[1]
-	ax.plot(x[Rind:],      PR, label=r"$P_R$")
-	ax.plot(x[STind:Sind], PS, label=r"$P_S$")
+	lPR = ax.plot(x[Rind:], PR, label=r"$P_R$")
+	lPS = ax.plot(x[STind:Sind], PS, label=r"$P_S$")
 	if Casimir:
-		ax.plot(x[Tind:STind], PT, label=r"$P_T$")	
+		lPT = ax.plot(x[Tind:STind], PT, label=r"$P_T$")
+	## WN result
+	ax.plot(x[Rind:], PR_WN, lPR[0].get_color()+":")
+	ax.plot(x[STind:Sind], PS_WN, lPS[0].get_color()+":")
+	if Casimir:
+		ax.plot(x[Tind:STind], PT_WN, lPT[0].get_color()+":")
+	## Potential
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
 	
 	ax.set_ylim(bottom=0.0)	
-	ax.set_xlabel(r"$x$", fontsize=fsa)
-	ax.set_ylabel(r"$P(x)$", fontsize=fsa)
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$P(x)$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="lower right", fontsize=fsl).get_frame().set_alpha(0.5)
+	ax.legend(loc=legloc, fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 
 	##-------------------------------------------------------------------------
 	
 	fig.tight_layout()
-	fig.subplots_adjust(top=0.95)	
+	fig.subplots_adjust(top=0.90)
 	title = r"Spatial PDF and Pressure. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T) if Casimir\
 			else r"Spatial PDF and Pressure. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S)
-	fig.suptitle(title, fontsize=fst)
+	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
 		plotfile = os.path.dirname(histfile)+"/PDFP"+os.path.basename(histfile)[4:-4]+".jpg"
@@ -269,7 +281,7 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 	
 	## PLOTTING
 	
-	fig, ax = plt.subplots(1,1, figsize=(10,10))
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	
 	ax.plot(A, PR, "o-", label=r"$P_R$")
 	ax.plot(A, PS, "o-", label=r"$P_S$")
@@ -277,15 +289,16 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 		ax.plot(A, PT, "o-", label=r"$P_T$")
 		
 #	ax.set_xscale("log"); ax.set_yscale("log")
+#	ax.set_xlim(right=5.0)
 	ax.set_ylim(top=max(ax.get_ylim()[1],1.0))
 	
-	ax.set_xlabel(r"$\alpha$", fontsize=fsa)
-	ax.set_ylabel(r"$P(\alpha)$", fontsize=fsa)
+	ax.set_xlabel(r"$\alpha$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$P(\alpha)$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="upper right", fontsize=fsl).get_frame().set_alpha(0.5)
+	ax.legend(loc="upper right", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	title = r"Pressure as a function of $\alpha$ for $R=%.1f,S=%.1f,T=%.1f$"%(R,S,T) if Casimir\
 			else r"Pressure as a function of $\alpha$ for $R=%.1f,S=%.1f$"%(R,S)
-	ax.set_title(title, fontsize=fst)
+	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
 		plotfile = histdir+"/PA_R%.1f_S%.1f_T%.1f.jpg"%(R,S,T) if Casimir\

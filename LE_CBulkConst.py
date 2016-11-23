@@ -13,11 +13,13 @@ from matplotlib import pyplot as plt
 
 from LE_Utils import filename_pars, filename_par
 from LE_Utils import fs
-fsa,fsl,fst = fs
 from LE_CSim import force_dlin, force_clin, force_mlin
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
+
+mpl.rcParams['xtick.labelsize'] = fs["fsn"]
+mpl.rcParams['ytick.labelsize'] = fs["fsn"]
 
 ## ============================================================================
 
@@ -100,7 +102,7 @@ def plot_file(histfile, nosave, vb):
 	##-------------------------------------------------------------------------
 	
 	## PLOT
-	fig, ax = plt.subplots(1,1, figsize=(10,10))
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	
 	## Data
 	ax.plot(x, Q/Q.max(),   label=r"$Q(x)$")
@@ -122,11 +124,11 @@ def plot_file(histfile, nosave, vb):
 	
 	ax.set_xlim(left=x[0],right=x[-1])
 
-	ax.set_xlabel("$x$",fontsize=fsa)
-	ax.set_ylabel("Rescaled variable",fontsize=fsa)
+	ax.set_xlabel("$x$",fontsize=fs["fsa"])
+	ax.set_ylabel("Rescaled variable",fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="best",fontsize=fsl).get_frame().set_alpha(0.5)
-	ax.set_title(r"Bulk Constant. $\alpha=%.1f, R=%.1f, S=%.1f$."%(a,R,S),fontsize=fst)
+	ax.legend(loc="best",fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	ax.set_title(r"Bulk Constant. $\alpha=%.1f, R=%.1f, S=%.1f$."%(a,R,S),fontsize=fs["fst"])
 	
 	## SAVE
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".jpg"
@@ -221,7 +223,7 @@ def plot_dir(histdir, nosave, srchstr, vb):
 	
 	## PLOT DATA
 	
-	fig, ax = plt.subplots(1,1, figsize=(10,10))
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	
 	lpR = ax.plot(A, pR, "o-", label=r"BC pR")
 	lpS = ax.plot(A, pS, "o-", label=r"BC pS")
@@ -238,13 +240,13 @@ def plot_dir(histdir, nosave, srchstr, vb):
 #	ax.set_yscale("log")
 	ax.set_xlim(0,A[-1])
 	
-	ax.set_xlabel(r"$\alpha$",fontsize=fsa)
-	ax.set_ylabel(r"$P$",fontsize=fsa)
+	ax.set_xlabel(r"$\alpha$",fontsize=fs["fsa"])
+	ax.set_ylabel(r"$P$",fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="best", fontsize=fsl).get_frame().set_alpha(0.5)
+	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	title = "Pressure normalised by WN result. $R=%.1f, S=%.1f, T=%.1f.$"%(R,S,T) if Casimir\
 			else "Pressure normalised by WN result. $R=%.1f, S=%.1f.$"%(R,S)
-	ax.set_title(title,fontsize=fst)
+	ax.set_title(title,fontsize=fs["fst"])
 	
 	## SAVING
 	plotfile = histdir+"/QEe2_Pa_R%.1f_S%.1f_T%.1f.jpg"%(R,S,T) if Casimir\

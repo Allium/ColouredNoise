@@ -82,14 +82,9 @@ def Px_WBratio(Px,x,X):
 	return round(avspke/avbulk,2)
 	
 
-def plot_fontsizes():
-	"""
-	Axes, legend, title
-	"""
-	return 20,12,16
-	#return 26,16,20
-
-fs = [20,16,18]
+fs = {"fsa":30,"fsl":26,"fst":20,"fsn":26,"figsize":(10,10)}
+# fs = [14,12,14]
+# figsize = (4,4)
 
 	
 ##==========================================

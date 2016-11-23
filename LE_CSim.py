@@ -3,7 +3,6 @@ me0 = "LE_CSim"
 import numpy as np
 import scipy as sp
 from scipy.signal import fftconvolve
-from matplotlib import pyplot as plt
 import optparse, os, time
 from datetime import datetime
 
@@ -18,6 +17,10 @@ from LE_LightBoundarySim import sim_eta
 
 import warnings
 warnings.filterwarnings("error")
+
+
+##=============================================================================
+##=============================================================================
 
 def input():
 	"""
@@ -128,6 +131,17 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 		xmax = +R+4.0
 		xmin = -R-4.0
 		
+	## Single central wall, centred at S with zero bulk.
+	elif ftype=="nlin":
+		## Force
+		fxy = lambda xy: force_nlin(xy,R,S)
+		## Filename
+		fstr = "NL"
+		filepar = ""
+		## Simulation limits
+		xmax = +R+4.0
+		xmin = -R-4.0
+		
 	else:
 		raise IOError, me+"check ftype."
 	
@@ -140,14 +154,11 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	## Particles	
 	Nparticles = 50
 	
-	## Injection coordinate
-	if ftype=="dlin":
-		xini = 0.5*(R+S)
-	elif (ftype=="clin" or ftype=="mlin"):
-		x = np.linspace(xmin,xmax,1000)
-		rhoWN = np.exp(sp.integrate.cumtrapz(fxy(np.array([x,0]))[0], x, initial=0.0))
-		rhoWN /= rhoWN.sum()
-		xini = np.random.choice(x, size=Nparticles, p=rhoWN)
+	## Injection coordinate: random sample from WN distribution
+	x = np.linspace(xmin,xmax,1000)
+	rhoWN = np.exp(sp.integrate.cumtrapz([fxy([xi,0])[0] for xi in x], x, initial=0.0))
+	rhoWN /= rhoWN.sum()
+	xini = np.random.choice(x, size=Nparticles, p=rhoWN)
 	
 	## ------------
 	## Bin edges: x, etax, etay
@@ -296,11 +307,23 @@ def force_mlin(xy,R,S,T):
 	"""
 	Casimir setup with single wall. Linear force.
 	Confining walls at +/-R. Central wall between T and S.
+	m for middle. Should have been i for interior but here we are.
 	"""
 	x = np.array([xy[0]]).flatten() if len(xy)==2 else xy[0]
 	fx = np.piecewise(x,
 		[x<=-R, (T<=x)&(x<0.5*(T+S)), (0.5*(T+S)<=x)&(x<S), R<=x],
 		[lambda y: -R-y, lambda y: T-y, lambda y: S-y, lambda y: R-y])
+	return np.array([fx,0.0])
+	
+def force_nlin(xy,R,S):
+	"""
+	Casimir setup with single wall. Linear force.
+	Zero bulk, asymmetric quadratic potential.
+	Confining walls at +/-R. Central wall centread at S.
+	Doesn't work for arrays.
+	"""
+	x = xy[0]
+	fx = -x-R if x<=S else -x+R
 	return np.array([fx,0.0])
 	
 	
