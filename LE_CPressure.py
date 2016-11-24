@@ -5,14 +5,14 @@ import scipy as sp
 from scipy.optimize import curve_fit
 import os, optparse, glob, time
 
+import matplotlib as mpl
 if "SSH_TTY" in os.environ:
 	print me0+": Using Agg backend."
-	import matplotlib as mpl
 	mpl.use("Agg")
 from matplotlib import cm
 from matplotlib import pyplot as plt
 
-from LE_CSim import force_dlin, force_clin, force_mlin
+from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 from LE_Utils import filename_par
 from LE_Utils import fs
 
@@ -91,7 +91,8 @@ def plot_pressure_file(histfile, nosave, vb):
 	a = filename_par(histfile, "_a")
 	R = filename_par(histfile, "_R")
 	S = filename_par(histfile, "_S")
-	T = filename_par(histfile, "_T") if Casimir else -S
+	try: T = filename_par(histfile, "_T")
+	except ValueError: T = -S
 			
 	## Space
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -115,12 +116,18 @@ def plot_pressure_file(histfile, nosave, vb):
 	if   "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
 	elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
 	elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
+	elif "_NL_" in histfile:	fx = force_nlin([x,0],R,S)[0]
+	else: raise IOError, me+"Force not recognised."
 	
 	## Calculate integral pressure
 	PR = -sp.integrate.cumtrapz(fx[Rind:]*Qx[Rind:], x[Rind:], initial=0.0)
 	PS = -sp.integrate.cumtrapz(fx[STind:Sind]*Qx[STind:Sind], x[STind:Sind], initial=0.0); PS -= PS[-1]
 	if Casimir:
 		PT = -sp.integrate.cumtrapz(fx[Tind:STind]*Qx[Tind:STind], x[Tind:STind], initial=0.0)
+	
+	if x[0]<0:
+		R2ind = x.size-Rind
+		PR2 = -sp.integrate.cumtrapz(fx[:R2ind]*Qx[:R2ind], x[:R2ind], initial=0.0); PR2 -= PR2[-1]
 			
 	##-------------------------------------------------------------------------
 	
@@ -142,6 +149,7 @@ def plot_pressure_file(histfile, nosave, vb):
 	
 	if "_CL_" in histfile:		legloc = "upper right"
 	elif "_ML_" in histfile:	legloc = "upper left"
+	elif "_NL_" in histfile:	legloc = "lower left"
 	else:						legloc = "best"
 	
 	## Plot PDF
@@ -151,6 +159,7 @@ def plot_pressure_file(histfile, nosave, vb):
 	## Potential
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
 	
+	ax.set_xlim((x[0],x[-1]))	
 	ax.set_ylim(bottom=0.0)	
 	ax.set_ylabel(r"$Q(x)$", fontsize=fs["fsa"])
 	ax.grid()
@@ -162,14 +171,19 @@ def plot_pressure_file(histfile, nosave, vb):
 	lPS = ax.plot(x[STind:Sind], PS, label=r"$P_S$")
 	if Casimir:
 		lPT = ax.plot(x[Tind:STind], PT, label=r"$P_T$")
+	if x[0]<0:
+		ax.plot(x[:R2ind], PR2, lPR[0].get_color()+"-")
 	## WN result
 	ax.plot(x[Rind:], PR_WN, lPR[0].get_color()+":")
 	ax.plot(x[STind:Sind], PS_WN, lPS[0].get_color()+":")
 	if Casimir:
 		ax.plot(x[Tind:STind], PT_WN, lPT[0].get_color()+":")
+	if x[0]<0:
+		ax.plot(x[:R2ind], PR_WN[::-1], lPR[0].get_color()+":")
 	## Potential
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
 	
+	ax.set_xlim((x[0],x[-1]))	
 	ax.set_ylim(bottom=0.0)	
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$P(x)$", fontsize=fs["fsa"])
@@ -247,6 +261,8 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 		if   "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
 		elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
 		elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
+		elif "_NL_" in histfile:	fx = force_nlin([x,0],R,S)[0]
+		else: raise IOError, me+"Force not recognised."
 		
 		## Calculate integral pressure
 		PR[i] = -sp.integrate.trapz(fx[Rind:]*Qx[Rind:], x[Rind:])
@@ -270,7 +286,7 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 	PR_WN = -sp.integrate.trapz(fx[Rind:]*Qx_WN[Rind:], x[Rind:])
 	PS_WN = +sp.integrate.trapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind])
 	if Casimir:
-	 PT_WN = -sp.integrate.trapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind])
+		PT_WN = -sp.integrate.trapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind])
 
 	PR /= PR_WN + (PR_WN==0)
 	PS /= PS_WN + (PS_WN==0)
@@ -296,8 +312,8 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 	ax.set_ylabel(r"$P(\alpha)$", fontsize=fs["fsa"])
 	ax.grid()
 	ax.legend(loc="upper right", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
-	title = r"Pressure as a function of $\alpha$ for $R=%.1f,S=%.1f,T=%.1f$"%(R,S,T) if Casimir\
-			else r"Pressure as a function of $\alpha$ for $R=%.1f,S=%.1f$"%(R,S)
+	title = r"Pressure as a function of $\alpha$ for $R=%.1g,S=%.1g,T=%.1g$"%(R,S,T) if Casimir\
+			else r"Pressure as a function of $\alpha$ for $R=%.1g,S=%.1g$"%(R,S)
 	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:

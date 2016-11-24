@@ -156,14 +156,14 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	
 	## Injection coordinate: random sample from WN distribution
 	x = np.linspace(xmin,xmax,1000)
-	rhoWN = np.exp(sp.integrate.cumtrapz([fxy([xi,0])[0] for xi in x], x, initial=0.0))
+	rhoWN = np.exp(sp.integrate.cumtrapz(fxy([x,0])[0], x, initial=0.0))
 	rhoWN /= rhoWN.sum()
 	xini = np.random.choice(x, size=Nparticles, p=rhoWN)
 	
 	## ------------
 	## Bin edges: x, etax, etay
 	
-	Nxbin = int(100 * (xmax-xmin))
+	Nxbin = int(200 * (xmax-xmin))
 	xbins = np.linspace(xmin,xmax,Nxbin+1)
 	
 	emax = 4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)
@@ -308,22 +308,34 @@ def force_mlin(xy,R,S,T):
 	Casimir setup with single wall. Linear force.
 	Confining walls at +/-R. Central wall between T and S.
 	m for middle. Should have been i for interior but here we are.
+	The try is in case passed xy=[x,y]. It is slow, but much faster than
+		creating the piecewise for a single xy-point.
 	"""
-	x = np.array([xy[0]]).flatten() if len(xy)==2 else xy[0]
-	fx = np.piecewise(x,
-		[x<=-R, (T<=x)&(x<0.5*(T+S)), (0.5*(T+S)<=x)&(x<S), R<=x],
-		[lambda y: -R-y, lambda y: T-y, lambda y: S-y, lambda y: R-y])
-	return np.array([fx,0.0])
+	x = xy[0]
+	try:
+		if x<=-R:				fx = -x-R
+		elif T<=x<0.5*(T+S):	fx = -x+T
+		elif 0.5*(T+S)<=x<S:	fx = -x+S
+		elif R<=x:				fx = -x+R
+		else:					fx = 0.0
+	except ValueError:
+#		x = np.array([xy[0]]).flatten()# if len(xy)==2 else xy[0]
+		fx = np.piecewise(x,
+			[x<=-R, (T<=x)&(x<0.5*(T+S)), (0.5*(T+S)<=x)&(x<S), R<=x],
+			[lambda y: -R-y, lambda y: T-y, lambda y: S-y, lambda y: R-y])
+	return [fx,0.0]
 	
 def force_nlin(xy,R,S):
 	"""
 	Casimir setup with single wall. Linear force.
 	Zero bulk, asymmetric quadratic potential.
 	Confining walls at +/-R. Central wall centread at S.
-	Doesn't work for arrays.
 	"""
 	x = xy[0]
-	fx = -x-R if x<=S else -x+R
+	try:
+		fx = -x-R if x<=S else -x+R
+	except ValueError:	## If array
+		fx = (-x-R)*(x<=S) + (-x+R)*(S<x)
 	return np.array([fx,0.0])
 	
 	
