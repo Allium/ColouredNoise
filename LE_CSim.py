@@ -163,7 +163,7 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	## ------------
 	## Bin edges: x, etax, etay
 	
-	Nxbin = int(200 * (xmax-xmin))
+	Nxbin = int(100 * (xmax-xmin))
 	xbins = np.linspace(xmin,xmax,Nxbin+1)
 	
 	emax = 4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)
@@ -306,7 +306,8 @@ def force_clin(xy,R,S,T):
 def force_mlin(xy,R,S,T):
 	"""
 	Casimir setup with single wall. Linear force.
-	Confining walls at +/-R. Central wall between T and S.
+	Nonzero bulk.
+	Confining walls at +/-R. Central wall symmetric between T and S.
 	m for middle. Should have been i for interior but here we are.
 	The try is in case passed xy=[x,y]. It is slow, but much faster than
 		creating the piecewise for a single xy-point.
@@ -318,8 +319,7 @@ def force_mlin(xy,R,S,T):
 		elif 0.5*(T+S)<=x<S:	fx = -x+S
 		elif R<=x:				fx = -x+R
 		else:					fx = 0.0
-	except ValueError:
-#		x = np.array([xy[0]]).flatten()# if len(xy)==2 else xy[0]
+	except ValueError:	## If array
 		fx = np.piecewise(x,
 			[x<=-R, (T<=x)&(x<0.5*(T+S)), (0.5*(T+S)<=x)&(x<S), R<=x],
 			[lambda y: -R-y, lambda y: T-y, lambda y: S-y, lambda y: R-y])
@@ -328,7 +328,7 @@ def force_mlin(xy,R,S,T):
 def force_nlin(xy,R,S):
 	"""
 	Casimir setup with single wall. Linear force.
-	Zero bulk, asymmetric quadratic potential.
+	Zero bulk.
 	Confining walls at +/-R. Central wall centread at S.
 	"""
 	x = xy[0]
@@ -339,7 +339,7 @@ def force_nlin(xy,R,S):
 	return np.array([fx,0.0])
 	
 	
-def force_dsinx(xy,R,S,A,Y):
+def force_ulin(xy,R,S,A,Y):
 	"""
 	0<y<Y/2
 	"""
