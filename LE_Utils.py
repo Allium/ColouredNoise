@@ -86,6 +86,18 @@ fs = {"fsa":30,"fsl":26,"fst":20,"fsn":26,"figsize":(10,10)}
 # fs = [14,12,14]
 # figsize = (4,4)
 
+def set_mplrc(fs):
+	"""
+	Set MPL defaults
+	"""
+	import matplotlib as mpl
+	mpl.rcParams['xtick.labelsize'] = fs["fsn"]
+	mpl.rcParams['ytick.labelsize'] = fs["fsn"]
+	mpl.rc("lines", linewidth=2, markersize=8)
+	mpl.rc("legend", fontsize=fs["fsl"], framealpha=0.5, fancybox=True)
+	mpl.rc("savefig", dpi=200, format="pdf")
+	return
+
 	
 ##==========================================
 ## INPUT / OUTPUT
