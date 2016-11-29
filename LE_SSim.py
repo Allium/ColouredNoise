@@ -400,6 +400,8 @@ def fxy_infpot(xy,r,force,wob,wib,dt):
 	
 ## ----------------------------------------------------------------------------
 
+## Finite potential
+
 def force_const(xy,r,R):
 	return -xy/(r+0.0001*(r==0.0)) * (r>R)
 
@@ -412,7 +414,7 @@ def force_dcon(xy,r,R,S):
 def force_dlin(xy,r,R,S):
 	return force_lin(xy,r,R) + force_lin(xy,-r,-S)
 
-## Finite-distance
+## Infinite potential
 	
 def force_tan(xy,r,R,lam):
 	return -0.5*np.pi*np.tan(0.5*np.pi*(r-R)/lam)*xy/r * (r>R)
