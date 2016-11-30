@@ -90,12 +90,34 @@ def set_mplrc(fs):
 	"""
 	Set MPL defaults
 	"""
+	
 	import matplotlib as mpl
-	mpl.rcParams['xtick.labelsize'] = fs["fsn"]
-	mpl.rcParams['ytick.labelsize'] = fs["fsn"]
+	from cycler import cycler
+	# from matplotlib.ticker import MaxNLocator 
+	
+	## Number format
+	mpl.rc("axes.formatter", limits=(-3,3))
+	
+	## Lines
 	mpl.rc("lines", linewidth=2, markersize=8)
+#	mpl.rc("axes", prop_cycle=cycler('color',["348ABD","7A68A6","A60628","467821","CF4457","188487","E24A33"])) ## Not working
+
+	## Labels and legend
+	mpl.rcParams["xtick.labelsize"] = fs["fsn"]
+	mpl.rcParams["ytick.labelsize"] = fs["fsn"]
+	mpl.rc("axes", labelsize=fs["fsa"])
 	mpl.rc("legend", fontsize=fs["fsl"], framealpha=0.5, fancybox=True)
+	
+	## Font
+	mpl.rcParams['font.family'] = 'serif'  
+	mpl.rcParams['font.serif'] = ['Computer Modern Roman']  
+	mpl.rcParams['text.usetex'] = True
+	
+	## Figure properties
+	mpl.rc("figure", figsize=fs["figsize"])
 	mpl.rc("savefig", dpi=200, format="pdf")
+	# ax.yaxis.set_major_locator(MaxNLocator(6)) ## Maximum number of ticks 
+	
 	return
 
 	

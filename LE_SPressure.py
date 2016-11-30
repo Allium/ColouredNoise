@@ -7,14 +7,14 @@ import os, glob, optparse
 import warnings
 from time import time
 
+import matplotlib as mpl
 if "SSH_TTY" in os.environ:
 	print me0+": Using Agg backend."
-	import matplotlib as mpl
 	mpl.use("Agg")
 from matplotlib import pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from LE_Utils import save_data, filename_pars, fs
+from LE_Utils import save_data, filename_pars, fs, set_mplrc
 from LE_SSim import force_const, force_lin, force_dcon, force_dlin,\
 					force_tan, force_dtan, force_nu, force_dnu
 
@@ -29,9 +29,12 @@ warnings.filterwarnings("ignore",
 	"invalid value encountered in power",
 	RuntimeWarning)
 
-## Global variables
-fsa,fsl,fst = fs
+## MPL defaults
+set_mplrc(fs)
 
+
+##=============================================================================
+##=============================================================================
 def main():
 	"""
 	NAME
@@ -161,22 +164,42 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	if ftype[-3:] == "tan": figtit += r", $\lambda="+str(lam)+"$"
 	if ftype[-2:] == "nu":  figtit += r", $\lambda="+str(lam)+"$, $\nu="+str(nu)+"$"
 	xlim = [S-2*lam,R+2*lam] if (ftype[-3:]=="tan" or ftype[-2:]=="nu") else [S-4.0,R+4.0]
+	xlim[0] = max(xlim[0],0.0)
 		
+		
+	##---------------------------------------------------------------	
+	
+	## Calculate force array
+	if ftype == "const":	force = force_const(r,r,R)
+	elif ftype == "lin":	force = force_lin(r,r,R)
+	elif ftype == "lico":	force = force_lico(r,r,R)
+	elif ftype == "dcon":	force = force_dcon(r,r,R,S)
+	elif ftype == "dlin":	force = force_dlin(r,r,R,S)
+	elif ftype == "tan":	force = force_tan(r,r,R,lam)
+	elif ftype == "dtan":	force = force_dtan(r,r,R,S,lam)
+	elif ftype == "nu":		force = force_nu(r,r,R,lam,nu)
+	elif ftype == "dnu":	force = force_dnu(r,r,R,S,lam,nu)
+	else: raise ValueError, me+"ftype not recognised."
+	U = -sp.integrate.cumtrapz(force, r, initial=0.0); U -= U.min()
+	
 	##---------------------------------------------------------------	
 	## PDF PLOT
 	
-	## Wall
-	plot_wall(ax, ftype, fpars, r)
 	## PDF and WN PDF
 	ax.plot(r,rho,   "b-", label="CN simulation")
 	ax.plot(r_WN,rho_WN,"r-", label="WN theory")
+	## Wall
+	ax.plot(r, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
+#	plot_wall(ax, ftype, fpars, r)
 	
 	## Accoutrements
 	ax.set_xlim(xlim)
 	ax.set_ylim(bottom=0.0, top=min(20,1.2*max(rho.max(),rho_WN.max())))
-	if not plotpress: ax.set_xlabel("$r$", fontsize=fsa)
-	ax.set_ylabel(r"$\rho(r,\phi)$", fontsize=fsa)
+	if not plotpress: ax.set_xlabel("$r$", fontsize=fs["fsa"])
+#	ax.set_ylabel(r"$\rho(r,\phi)$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$Q(r)$", fontsize=fs["fsa"])
 	ax.grid()
+	ax.legend(loc="upper left")
 	
 	
 	##---------------------------------------------------------------
@@ -196,22 +219,23 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 		##-----------------------------------------------------------
 		## PRESSURE PLOT
 		ax = axs[1]
-		## Wall
-		plot_wall(ax, ftype, fpars, r)
 		## Pressure and WN pressure
 		ax.plot(r,p,"b-",label="CN simulation")
 		ax.plot(r_WN,p_WN,"r-",label="WN theory")
+		## Wall
+		ax.plot(r, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
+#		plot_wall(ax, ftype, fpars, r)
 		## Accoutrements
 		# ax.set_ylim(bottom=0.0, top=round(max(p.max(),p_WN.max())+0.05,1))
 		ax.set_ylim(bottom=0.0, top=min(20,float(1.2*max(p.max(),p_WN.max()))))
-		ax.set_xlabel("$r$", fontsize=fsa)
-		ax.set_ylabel("$P(r)$", fontsize=fsa)
+		ax.set_xlabel("$r$", fontsize=fs["fsa"])
+		ax.set_ylabel("$P(r)$", fontsize=fs["fsa"])
 		ax.grid()
 	
 	##---------------------------------------------------------------
 	
 	## Tidy figure
-	fig.suptitle(figtit,fontsize=fst)
+	fig.suptitle(figtit,fontsize=fs["fst"])
 	fig.tight_layout();	plt.subplots_adjust(top=0.9)	
 		
 	fig.savefig(plotfile)
@@ -221,7 +245,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	
 ##=============================================================================
 def allfiles(dirpath, plotP, srchstr, verbose):
-	for filepath in np.sort(glob.glob(dirpath+"/BHIS_CIR_*"+srchstr+"*.npy")):
+	for filepath in np.sort(glob.glob(dirpath+"/BHIS_POL_*"+srchstr+"*.npy")):
 		pressure_pdf_file(filepath, plotP, verbose)
 		plt.close()
 	return
@@ -447,7 +471,7 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 	
 	t0 = time()
 	
-	fig, ax = plt.subplots(1,1, figsize=(10,10))
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	
 	## Default labels etc.
 	PP /= PP_WN + 1*(PP_WN==0.0)
@@ -473,7 +497,7 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 			ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$")
 	
 	## ------------------------------------------------
-	## THE FOLLOWING BLOCK IS DUPLICATION. TRY TO MAKE IT MORE ELEGANT.
+	## THE FOLLOWING BLOCK contains DUPLICATION. TRY TO MAKE IT MORE ELEGANT.
 	
 	## Annulus; finite; [S,R,A]
 	elif (ftype[0] == "d" and ftype[-3:] != "tan" and ftype[-2:] != "nu"):
@@ -481,16 +505,16 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 		
 		## Holding R fixed
 		if RR.size == 1:
-			if 0:
+			if 1:
 				## Plot normalised Pout and Pin individually against ALPHA
 				title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 				plotfile = dirpath+"/PQAS.jpg"
-				xlabel = r"$1+\alpha$"
-				xlim = (1.0,1+AA[-1])
+				xlabel = r"$\alpha$"
+				xlim = (0.0,AA[-1])
 				for i in range(SS.size):
-					ax.plot(1+AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
-					ax.plot(1+AA,QQ[i,0,:], "v--", color=ax.lines[-1].get_color())
-				Aarr = np.linspace(AA[0],1+AA[-1],100); ax.plot(1+Aarr,1/(1+Aarr)**0.5, "k:",label=r"$(1+\alpha)^{-1/2}$")
+					ax.plot(AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
+					ax.plot(AA,QQ[i,0,:], "v--", color=ax.lines[-1].get_color())
+#				Aarr = np.linspace(AA[0],1+AA[-1],100); ax.plot(1+Aarr,1/(1+Aarr)**0.5, "k:",label=r"$(1+\alpha)^{-1/2}$")
 			elif 0:
 				## Plot normalised Pout and Pin individually against S, for multiple ALPHA
 				title = "Pressures $P_R,P_S$ (normalised); $R = "+str(RR[0])+"$; ftype = "+ftype
@@ -500,18 +524,18 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 				for i in range(0,AA.size,2):
 					ax.plot(SS,PP[:,0,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
 					ax.plot(SS,QQ[:,0,i], "v--", color=ax.lines[-1].get_color())
-			elif 0:
+			elif 1:
 				## Plot raw difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
 				title = "Pressure difference, $P_R-P_S$; $R = "+str(RR[0])+"$; ftype = "+ftype
-				xlabel = r"$1+\alpha$"
 				ylabel = "Pressure Difference"
-				xlim = (1.0,1+AA[-1])
+				xlabel = r"$\alpha$"
+				xlim = (0.0,AA[-1])
 				plotfile = dirpath+"/DPAS.jpg"
 				for i in range(SS.size):
-					ax.plot(1+AA,(PP-QQ)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
-					ax.plot(1+AA,(PP_WN-QQ_WN)[i,0,:], "--", color=ax.lines[-1].get_color())
+					ax.plot(AA,(PP-QQ)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
+#					ax.plot(1+AA,(PP_WN-QQ_WN)[i,0,:], "--", color=ax.lines[-1].get_color())
 			elif 1:
 				## Plot raw difference Pout-Pin against R
 				DPplot = True
@@ -680,20 +704,20 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 	## ------------------------------------------------
 	## Accoutrements
 	
+	ax.set_xlim(xlim)
 	if logplot:
+		ax.set_xlim(left=(xlim[0] if xlim[0]!=0.0 else 1.0), right=xlim[1])
 		ax.set_xscale("log"); ax.set_yscale("log")
-		ax.set_xlim(xlim)
 		plotfile = plotfile[:-4]+"_loglog.jpg"
 	if not (logplot or DPplot):
-		ax.set_xlim(xlim)
 		ax.set_ylim(bottom=0.0, top=max(ax.get_ylim()[1],1.0))
 	
-	ax.set_xlabel(xlabel,fontsize=fsa)
-	ax.set_ylabel(ylabel,fontsize=fsa)
+	ax.set_xlabel(xlabel,fontsize=fs["fsa"])
+	ax.set_ylabel(ylabel,fontsize=fs["fsa"])
 	
 	ax.grid()
-	ax.legend(loc="best",fontsize=fsl).get_frame().set_alpha(0.5)
-	ax.set_title(title,fontsize=fst)
+	ax.legend(loc="best",fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	fig.suptitle(title,fontsize=fs["fst"])
 	
 	#plt.tight_layout();	plt.subplots_adjust(top=0.9)
 	if not nosave:
