@@ -47,13 +47,15 @@ def main():
 	vb = opt.verbose
 		
 	if os.path.isfile(args[0]):
-		plot_pdfs(args[0], nosave, vb)
+		plot_pdf1d(args[0], nosave, vb)
+		plot_pdf2d(args[0], nosave, vb)
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False
 		filelist = np.sort(glob.glob(args[0]+"/BHIS_*"+searchstr+"*.npy"))
 		if vb: print me+"Found",len(filelist),"files."
 		for histfile in filelist:
-			plot_pdfs(histfile, nosave, vb)
+			plot_pdf1d(histfile, nosave, vb)
+			plot_pdf2d(histfile, nosave, vb)
 			plt.close()
 	elif os.path.isdir(args[0]):
 		plot_fitpars(args[0], searchstr, nosave, vb)
@@ -66,17 +68,16 @@ def main():
 
 
 ##=============================================================================
-def plot_pdfs(histfile, nosave, vb):
+def plot_pdf1d(histfile, nosave, vb):
 	"""
 	Calculate Q(r) and q(eta) from file and plot.
 	"""
-	me = me0+".plot_pdfs: "
+	me = me0+".plot_pdf1d: "
 	
 	## Get pars from filename
 	a = filename_par(histfile, "_a")
 	R = filename_par(histfile, "_R")
 	S = filename_par(histfile, "_S")
-	assert R==S, me+"Functionality only for zero bulk."
 		
 	## Space
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -114,6 +115,7 @@ def plot_pdfs(histfile, nosave, vb):
 	##-------------------------------------------------------------------------
 	
 	fig, axs = plt.subplots(2,1)
+	fig.canvas.set_window_title("1D PDFs")
 	
 	## Spatial density plot
 	ax = axs[0]
@@ -157,12 +159,114 @@ def plot_pdfs(histfile, nosave, vb):
 	fig.suptitle(r"PDFs in $r$ and $\eta$. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S), fontsize=fst)
 	
 	if not nosave:
-		plotfile = os.path.dirname(histfile)+"/PDFre"+os.path.basename(histfile)[4:-4]+".jpg"
+		plotfile = os.path.dirname(histfile)+"/PDFre1d"+os.path.basename(histfile)[4:-4]+".jpg"
 		fig.savefig(plotfile)
 		if vb:	print me+"Figure saved to",plotfile
 	
 	return
 	
+	
+##=============================================================================
+def plot_pdf2d(histfile, nosave, vb):
+	"""
+	Read in data for a single file and plot 3D PDF.
+	"""
+	me = me0+".plot_pdf2D: "
+	t0 = time.time()
+
+	##-------------------------------------------------------------------------
+	
+	## Get pars from filename
+	
+	assert ("_POL_" in histfile or "_CIR_" in histfile), me+"Functional only for Cartesian geometry."
+	
+	a = filename_par(histfile, "_a")
+	R = filename_par(histfile, "_R")
+	S = filename_par(histfile, "_S")
+	
+	##-------------------------------------------------------------------------
+	
+	## Space
+	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+	rbins = bins["rbins"]
+	ebins = bins["erbins"]
+	pbins = bins["epbins"]
+	r = 0.5*(rbins[1:]+rbins[:-1])
+	eta = 0.5*(ebins[1:]+ebins[:-1])
+	psi = 0.5*(pbins[1:]+pbins[:-1])
+	
+	## Wall indices
+	Rind, Sind = np.abs(r-R).argmin(), np.abs(r-S).argmin()
+		
+	##-------------------------------------------------------------------------
+	## Histogram / density
+	
+	H = np.load(histfile)
+	rho =  H / (H.sum() * (r[1]-r[0])*(eta[1]-eta[0])*(psi[1]-psi[0]))
+			
+	## ------------------------------------------------------------------------
+	## Projections
+	
+	rhore = rho.sum(axis=2)
+	rhorp = rho.sum(axis=1)
+	rhoep = rho.sum(axis=0)
+	
+	## ------------------------------------------------------------------------
+	## Plotting
+	
+	fig, axs = plt.subplots(3,1, sharey=True, figsize=(10,10))
+	fig.canvas.set_window_title("2D PDFs")
+	
+	plt.rcParams["image.cmap"] = "Greys"#"coolwarm"
+	
+	## ------------------------------------------------------------------------
+	
+	## r-eta
+	
+	ax = axs[0]
+	ax.contourf(r,eta,rhore.T)
+	ax.axvline(R,c="k"); ax.axvline(S,c="k")
+	
+	ax.set_xlabel(r"$r$", fontsize=fsa)
+	ax.set_ylabel(r"$\eta$", fontsize=fsa)
+	ax.set_title(r"$\rho(r,\eta)$ data", fontsize=fsa)
+	
+	## r-psi
+	
+	ax = axs[1]
+	ax.contourf(r,psi,rhorp.T)
+	ax.axvline(R,c="k"); ax.axvline(S,c="k")
+	
+	ax.set_xlabel(r"$r$", fontsize=fsa)
+	ax.set_ylabel(r"$\psi$", fontsize=fsa)
+	ax.set_title(r"$\rho(r,\psi)$ data", fontsize=fsa)
+	
+	## etax-etay
+	
+	ax = axs[2]
+	ax.contourf(eta,psi,rhoep.T)
+	
+	ax.set_xlabel(r"$\eta$", fontsize=fsa)
+	ax.set_ylabel(r"$\psi$", fontsize=fsa)
+	ax.set_title(r"$\rho(\eta,\psi)$ data", fontsize=fsa)
+	
+	## ------------------------------------------------------------------------
+	
+	title = r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S)
+	fig.suptitle(title, fontsize=fst)
+	fig.tight_layout()
+	fig.subplots_adjust(top=0.9)
+	
+	## ------------------------------------------------------------------------
+	
+	if not nosave:
+		plotfile = os.path.dirname(histfile)+"/PDFre2d"+os.path.basename(histfile)[4:-4]+".jpg"
+		fig.savefig(plotfile)
+		if vb:	print me+"Figure saved to",plotfile
+		
+	if vb: print me+"Execution time %.1f seconds."%(time.time()-t0)
+
+	return
 	
 ##=============================================================================
 def plot_fitpars(histdir, searchstr, nosave, vb):

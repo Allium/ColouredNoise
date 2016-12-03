@@ -112,6 +112,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	plotfile = os.path.dirname(histfile)+"/PDF"+os.path.basename(histfile)[4:-4]+".jpg"
 	
 	## Get pars from filename
+	assert "_POL_" in histfile, me+"Check input file."
 	pars = filename_pars(histfile)
 	[a,ftype,R,S,lam,nu] = [pars[key] for key in ["a","ftype","R","S","lam","nu"]]
 	assert (R is not None), me+"You are using the wrong program. R must be defined."
@@ -263,7 +264,7 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 	ftype, geo = dirpars["ftype"], dirpars["geo"]
 	
 	## File discovery
-	histfiles = np.sort(glob.glob(dirpath+"/BHIS_CIR_*"+srchstr+"*.npy"))
+	histfiles = np.sort(glob.glob(dirpath+"/BHIS_POL_*"+srchstr+"*.npy")+glob.glob(dirpath+"/BHIS_CIR_*"+srchstr+"*.npy"))
 	numfiles = len(histfiles)
 	if verbose: print me+"found",numfiles,"files"
 
@@ -459,12 +460,31 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 							## No value there
 							pass
 					
-		## Mask zeros
-		mask = (PP==0.0)+(PP==-1.0)
-		PP_WN = np.ma.array(PP_WN, mask=mask)
-		QQ_WN = np.ma.array(QQ_WN, mask=mask)
-		PP = np.ma.array(PP, mask=mask)
-		QQ = np.ma.array(QQ, mask=mask)
+	## Mask zeros
+	mask = (PP==0.0)+(PP==-1.0)
+	PP_WN = np.ma.array(PP_WN, mask=mask)
+	QQ_WN = np.ma.array(QQ_WN, mask=mask)
+	PP = np.ma.array(PP, mask=mask)
+	QQ = np.ma.array(QQ, mask=mask)
+	
+	"""
+	## SAVING
+	pressfile = dirpath+"/PRESS.npz"
+	np.savez(pressfile, PP=PP, QQ=QQ, AA=AA, RR=RR, SS=SS)
+	
+	return
+		
+
+##=============================================================================
+def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
+	"""
+	"""
+	me = me0+".plot_pressure_dir: "
+	
+	try:
+
+
+	"""
 
 	## ------------------------------------------------
 	## PLOTS
@@ -524,7 +544,7 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 				for i in range(0,AA.size,2):
 					ax.plot(SS,PP[:,0,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
 					ax.plot(SS,QQ[:,0,i], "v--", color=ax.lines[-1].get_color())
-			elif 1:
+			elif 0:
 				## Plot raw difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
@@ -550,13 +570,14 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 					
 		## Constant interval
 		elif np.unique(RR-SS).size == 1:
-			if 1:
+			if 0:
 				## Plot Pout and Pin individually against R
 				title = "Pressures $P_R,P_S$ (normalised); $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				plotfile = dirpath+"/PQRA.jpg"
-				xlabel = "$R\\;(=S+"+str((RR-SS)[0])+")$"; xlim = (RR[0],RR[-1])
+				xlabel = r"$R\;(=S+%.1f)$"%((RR-SS)[0]) if (RR-SS)[0]>0.0 else r"$R\;(=S)$"
+				xlim = (RR[0],RR[-1])
 				for i in range(0,AA.size,2):	## To plot against R
-					ax.plot(RR,np.diagonal(PP).T[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$") 
+					ax.plot(RR,np.diagonal(PP).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
 					ax.plot(RR[1:],np.diagonal(QQ).T[1:,i], "v--", color=ax.lines[-1].get_color())
 			elif 0:
 				## Plot difference Pout-Pin against ALPHA, for multiple S
@@ -567,7 +588,7 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 				plotfile = dirpath+"/DPAS.jpg"
 				for i in range(SS.size):
 					ax.plot(AA,np.diagonal((PP-QQ)).T[i,:], "o-", label="$S = "+str(SS[i])+"$")
-					ax.plot(AA,np.diagonal(PP_WN-QQ_WN).T[i,:], "--", color=ax.lines[-1].get_color())
+#					ax.plot(AA,np.diagonal(PP_WN-QQ_WN).T[i,:], "--", color=ax.lines[-1].get_color())
 			elif 1:
 				## Plot difference Pout-Pin against R
 				DPplot = True
@@ -575,9 +596,10 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 				title = "Pressure difference, $P_R-P_S$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference"
 				plotfile = dirpath+"/DPRA.jpg"
-				xlabel = "$R\\;(=S+"+str((RR-SS)[0])+")$"; xlim = (RR[0],RR[-1])
+				xlabel = r"$R\;(=S+%.1f)$"%((RR-SS)[0]) if (RR-SS)[0]>0.0 else r"$R\;(=S)$"
+				xlim = (RR[0],RR[-1])
 				for i in range(0,AA.size,1):	## To plot against R
-					ax.plot(RR,np.diagonal((PP-QQ)).T[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$")
+					ax.plot(RR,np.diagonal((PP-QQ)).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$")
 				if logplot:
 					ax.plot(RR,0.1/(RR),"k:",lw=3,label="$R^{-1}, R^{-2}$")
 					ax.plot(RR,0.1/(RR*RR),"k:",lw=3)

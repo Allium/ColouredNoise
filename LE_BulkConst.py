@@ -1,4 +1,4 @@
-me0 = "LE_BulkConst"
+me0 = "LE_SBulkConst"
 
 import numpy as np
 import scipy as sp
@@ -87,21 +87,7 @@ def plot_file(histfile, nosave, vb):
 	
 	## PLOT
 	fig = plt.figure(figsize=(12,8)); ax = fig.gca()
-	
-	"""f = force_dlin(r,r,R,S)
-	ax.plot(r, e2c2Q)
-	ax.plot(r, f*f*Q)
-	ax.plot(r, e2c2Q-f*f*Q)
-	ylims = ax.get_ylim()
-	fitfunc = lambda x, a, b, c: a*x*x + b*x + c
-	inds = (5,30)
-	fit = sp.optimize.curve_fit(fitfunc, r[inds[0]:inds[1]], e2c2Q[inds[0]:inds[1]])[0]
-	ax.plot(r, fitfunc(r, *fit)-f*f*Q)
-	ax.set_ylim(ylims)
-	ax.axvline(r[inds[0]]); ax.axvline(r[inds[1]])
-	plt.show()
-	exit()"""
-	
+		
 	## Data
 #	ax.plot(r, Q/Q.max(), label=r"$Q(r)$")
 #	ax.plot(r, BCout/np.abs(BCout).max(), label=r"Bulk constant (out)", lw=2)
@@ -265,7 +251,7 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	ax.grid()
 #	ax.legend(loc="best", fontsize=(fsl/2 if S>0.0 else fsl)).get_frame().set_alpha(0.5)
 	ax.legend(loc="best", fontsize=fsl).get_frame().set_alpha(0.5)
-	ax.set_title("Pressure normalised by WN result. $R=%.2g, S=%.2g.$"%(fpars[0],fpars[1]),fontsize=fst)
+	ax.set_title("Pressure normalised by WN result. $R=%.1f, S=%.1f.$"%(fpars[0],fpars[1]),fontsize=fst)
 	
 	## SAVING
 	plotfile = histdir+"/QEe2_Pa_R"+str(fpars[0])+"_S"+str(fpars[1])+".jpg"

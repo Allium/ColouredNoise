@@ -5,21 +5,20 @@ import scipy as sp
 from scipy.optimize import curve_fit
 import os, optparse, glob, time
 
+import matplotlib as mpl
 if "SSH_TTY" in os.environ:
 	print me0+": Using Agg backend."
-	import matplotlib as mpl
 	mpl.use("Agg")
 from matplotlib import pyplot as plt
 
-from LE_Utils import filename_pars, filename_par
-from LE_Utils import fs
-from LE_CSim import force_dlin, force_clin, force_mlin
+from LE_Utils import filename_par, fs, set_mplrc
+from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
 
-mpl.rcParams['xtick.labelsize'] = fs["fsn"]
-mpl.rcParams['ytick.labelsize'] = fs["fsn"]
+## Plot defaults
+set_mplrc(fs)
 
 ## ============================================================================
 
@@ -78,7 +77,7 @@ def plot_file(histfile, nosave, vb):
 	
 	## Dir pars
 	assert "_CAR_" in histfile, me+"Functional only for Cartesian geometry."
-	Casimir = "_CL_" in histfile
+	Casimir = "_CL_" in histfile or "_ML_" in histfile
 
 	## Get pars from filename
 	a = filename_par(histfile, "_a")
@@ -96,6 +95,7 @@ def plot_file(histfile, nosave, vb):
 	if   "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
 	elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
 	elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
+	elif "_NL_" in histfile:	fx = force_nlin([x,0],R,S)[0]
 	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
 #	Qx_WN = np.exp(-U)/np.trapz(np.exp(-U),x)
 	
@@ -106,17 +106,20 @@ def plot_file(histfile, nosave, vb):
 	
 	## Data
 	ax.plot(x, Q/Q.max(),   label=r"$Q(x)$")
-	ax.plot(x, BC/BC.max(), label=r"Bulk constant", lw=2)
-	ax.plot(x, ex2/ex2.max(), label=r"$\langle\eta_x^2\rangle Q$")
+	ax.plot(x, ex2/ex2.max(), label=r"$\langle\eta_x^2\rangle(x)$")
+	ax.plot(x, BC/BC.max(), label=r"$\langle\eta_x^2\rangle Q$", lw=2)
 	
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")	
 		
 	## Indicate bulk region
-	ax.axvspan(S,R, color="yellow",alpha=0.2)
-	ax.axvline(S, c="k",lw=2);	ax.axvline(R, c="k",lw=2)
-	if Casimir:
-		ax.axvspan(0.0,T, color="yellow",alpha=0.2)
-		ax.axvline(T, c="k",lw=2)
+	if "_DL_" in histfile:
+		ax.axvspan(S,R, color="yellow",alpha=0.2)
+		ax.axvline(S, c="k",lw=2);	ax.axvline(R, c="k",lw=2)
+	elif "_ML_" in histfile:
+		ax.axvspan(S,R, color="yellow",alpha=0.2)
+		ax.axvspan(-R,T, color="yellow",alpha=0.2)
+		ax.axvline(S, c="k",lw=2);	ax.axvline(R, c="k",lw=2)
+		ax.axvline(T, c="k",lw=2);	ax.axvline(-R, c="k",lw=2)
 		
 	##-------------------------------------------------------------------------
 	
@@ -127,11 +130,13 @@ def plot_file(histfile, nosave, vb):
 	ax.set_xlabel("$x$",fontsize=fs["fsa"])
 	ax.set_ylabel("Rescaled variable",fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="best",fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
-	ax.set_title(r"Bulk Constant. $\alpha=%.1f, R=%.1f, S=%.1f$."%(a,R,S),fontsize=fs["fst"])
+	ax.legend(loc="lower left",fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	title = r"Bulk Constant. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$."%(a,R,S,T) if T>=0.0\
+			else r"Bulk Constant. $\alpha=%.1f, R=%.1f, S=%.1f$."%(a,R,S)
+	fig.suptitle(title,fontsize=fs["fst"])
 	
 	## SAVE
-	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".jpg"
+	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+"."+fs["saveext"]
 	if not nosave:
 		fig.savefig(plotfile)
 		if vb: print me+"Figure saved to",plotfile
@@ -147,6 +152,7 @@ def plot_dir(histdir, nosave, srchstr, vb):
 	(where applicable) and plot against alpha.
 	"""
 	me = me0+".plot_dir: "
+	print me+"Not working for some reason."
 	
 	filelist = np.sort(glob.glob(histdir+"/BHIS_CAR_*"+srchstr+"*.npy"))
 	numfiles = filelist.size
@@ -158,7 +164,7 @@ def plot_dir(histdir, nosave, srchstr, vb):
 	## Retrieve data
 	for i, histfile in enumerate(filelist):
 	
-		Casimir = "_CL_" in histfile
+		Casimir = "_CL_" in histfile or "_ML_" in histfile or "_NL_" in histfile
 
 		## Get pars from filename
 		A[i] = filename_par(histfile, "_a")
@@ -176,15 +182,34 @@ def plot_dir(histdir, nosave, srchstr, vb):
 		##---------------------------------------------------------------------
 		## Calculate pressure from BC
 		
-		BCsr = BC[Sind:Rind+1].mean()
-		BCts = BC[STind]
-		if Casimir:
+		if   "_DL_" in histfile:	
+			BCsr = BC[Sind:Rind+1].mean()
+			pR[i] = A[i] * BCsr
+			pS[i] = A[i] * BCsr
+			
+		elif "_CL_" in histfile:
+			BCsr = BC[Sind:Rind+1].mean()
+			BCts = BC[STind]
 			BC0t = BC[0:Tind+1].mean()
-		
-		pR[i] = A[i] * BCsr
-		pS[i] = A[i] * (BCsr - BCts)
-		if Casimir:
+			pR[i] = A[i] * BCsr
+			pS[i] = A[i] * (BCsr - BCts)
 			pT[i] = A[i] * (BC0t - BCts)
+			
+		elif "_ML_" in histfile:
+			BCsr = BC[Sind:Rind+1].mean()
+			BCts = BC[STind]
+			BCrt = BC[x.size-Rind:Tind+1].mean()
+			pR[i] = A[i] * BCsr
+			pS[i] = A[i] * (BCsr - BCts)
+			pT[i] = A[i] * (BCrt - BCts)
+			
+		elif "_NL_" in histfile:
+			BCr = BC[Rind]
+			BCs = BC[Sind]
+			BCmr = BC[x.size-Rind]
+			pR[i] = A[i] * BCr
+			pS[i] = A[i] * (BCs - BCr)
+			pT[i] = A[i] * (BCs - BCmr)
 		
 		##---------------------------------------------------------------------
 		## Calculate pressure from integral
@@ -193,11 +218,14 @@ def plot_dir(histdir, nosave, srchstr, vb):
 		if   "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
 		elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
 		elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
+		elif "_NL_" in histfile:	fx = force_nlin([x,0],R,S)[0]
 	
 		## Calculate integral pressure
 		PR[i] = -sp.integrate.trapz(fx[Rind:]*Qx[Rind:], x[Rind:])
 		PS[i] = +sp.integrate.trapz(fx[STind:Sind]*Qx[STind:Sind], x[STind:Sind])
 		PT[i] = -sp.integrate.trapz(fx[Tind:STind]*Qx[Tind:STind], x[Tind:STind])
+		
+		##---------------------------------------------------------------------
 		
 			
 	## SORT BY ALPHA
@@ -208,15 +236,16 @@ def plot_dir(histdir, nosave, srchstr, vb):
 	
 	##-------------------------------------------------------------------------
 	
-	## Calculate white noise PDF and pressure
+	## Calculate white noise PDF and pressure -- assuming alpha is only varying parameter
 	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
-	Qx_WN = np.exp(-U)/np.trapz(np.exp(-U),x)
+	Qx_WN = np.exp(-U) / np.trapz(np.exp(-U),x)
+	
 	PR_WN = -sp.integrate.trapz(fx[Rind:]*Qx_WN[Rind:], x[Rind:])
 	PS_WN = +sp.integrate.trapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind])
 	PT_WN = -sp.integrate.trapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind])
 	
 	## Normalise
-	pR /= PR_WN; pS /= PS_WN; pT /= PT_WN
+#	pR /= PR_WN; pS /= PS_WN; pT /= PT_WN
 	PR /= PR_WN; PS /= PS_WN; PT /= PT_WN
 	
 	##-------------------------------------------------------------------------
@@ -227,30 +256,33 @@ def plot_dir(histdir, nosave, srchstr, vb):
 	
 	lpR = ax.plot(A, pR, "o-", label=r"BC pR")
 	lpS = ax.plot(A, pS, "o-", label=r"BC pS")
-	lpT = ax.plot(A, pT, "o-", label=r"BC pT")
+	if Casimir:	
+		lpT = ax.plot(A, pT, "o-", label=r"BC pT")
 	
-	lPR = ax.plot(A, pR, lpR[0].get_color()+"v--", lw=2, label=r"Int PR")
-	lPS = ax.plot(A, pS, lpS[0].get_color()+"v--", lw=2, label=r"Int PS")
-	lPT = ax.plot(A, pT, lpT[0].get_color()+"v--", lw=2, label=r"Int PT")
+	ax.plot(A, PR, lpR[0].get_color()+"v--", lw=2, label=r"Int PR")
+	ax.plot(A, PS, lpS[0].get_color()+"v--", lw=2, label=r"Int PS")
+	if Casimir:	
+		ax.plot(A, PT, lpT[0].get_color()+"v--", lw=2, label=r"Int PT")
 		
 	##-------------------------------------------------------------------------
 	
 	## ACCOUTREMENTS
 #	ax.set_xscale("log")
 #	ax.set_yscale("log")
-	ax.set_xlim(0,A[-1])
+	ax.set_xlim(0.0,A[-1])
 	
 	ax.set_xlabel(r"$\alpha$",fontsize=fs["fsa"])
 	ax.set_ylabel(r"$P$",fontsize=fs["fsa"])
 	ax.grid()
 	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
-	title = "Pressure normalised by WN result. $R=%.1f, S=%.1f, T=%.1f.$"%(R,S,T) if Casimir\
+	title = "Pressure normalised by WN result. $R=%.1f, S=%.1f, T=%.1f.$"%(R,S,T) if T>=0.0\
 			else "Pressure normalised by WN result. $R=%.1f, S=%.1f.$"%(R,S)
-	ax.set_title(title,fontsize=fs["fst"])
+	fig.suptitle(title,fontsize=fs["fst"])
 	
 	## SAVING
-	plotfile = histdir+"/QEe2_Pa_R%.1f_S%.1f_T%.1f.jpg"%(R,S,T) if Casimir\
+	plotfile = histdir+"/QEe2_Pa_R%.1f_S%.1f_T%.1f.jpg"%(R,S,T) if T>=0.0\
 				else histdir+"/QEe2_Pa_R%.1f_S%.1f.jpg"%(R,S)
+	plotfile += "."+fs["saveext"]
 	if not nosave:
 		fig.savefig(plotfile)
 		if vb: print me+"Figure saved to",plotfile
@@ -264,13 +296,7 @@ def bulk_const(histfile):
 	"""
 	Calculate various quantities pertaining to the moment-pressure calculation.
 	"""
-	me = me0+",bulk_const: "
-
-	Casimir = "_CL_" in histfile
-	a = filename_par(histfile, "_a")
-	R = filename_par(histfile, "_R")
-	S = filename_par(histfile, "_S")
-	T = filename_par(histfile, "_T") if Casimir else -S
+	me = me0+".bulk_const: "
 		
 	## Space and load histogram
 	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -280,20 +306,18 @@ def bulk_const(histfile):
 	x = 0.5*(xbins[1:]+xbins[:-1])
 	ex = 0.5*(exbins[1:]+exbins[:-1])
 	ey = 0.5*(eybins[1:]+eybins[:-1])
-	
-	## Wall indices
-	Rind, Sind, Tind = np.abs(x-R).argmin(), np.abs(x-S).argmin(), np.abs(x-S).argmin()
 
 	## --------------------------------------------------------------------
 	
 	## Load histogram
 	H = np.load(histfile)
 	rhoxex = H.sum(axis=2) / (H.sum()*(x[1]-x[0])*(ex[1]-ex[0])*(ey[1]-ey[0]))
+	
 	## Spatial density
 	Q = H.sum(axis=2).sum(axis=1) / (H.sum()*(x[1]-x[0]))
 	
-	## Bulk constant as a continuous integral. A function of x. 
-	BC = np.trapz(rhoxex*ex*ex, ex)
+	## Bulk constant as a function of x: <etax^2>Q
+	BC = np.trapz(rhoxex*ex*ex, ex, axis=1)
 				
 	return x, Q, BC
 	

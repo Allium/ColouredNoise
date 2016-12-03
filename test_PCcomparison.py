@@ -2,26 +2,30 @@
 import numpy as np
 import scipy as sp
 import os, optparse, glob, time
+from sys import argv
 
+import matplotlib as mpl
 if "SSH_TTY" in os.environ:
 	print me0+": Using Agg backend."
-	import matplotlib as mpl
 	mpl.use("Agg")
 from matplotlib import cm
 from matplotlib import pyplot as plt
 
 from LE_CSim import force_dlin, force_clin
-from LE_Utils import filename_par
-from LE_Utils import fs
-fsa,fsl,fst = fs
+from LE_Utils import filename_par, fs, set_mplrc
+
+set_mplrc(fs)
 
 """
 Plot Q(x) and Q(r) on top of one another for high R. They should match closely.
 """
 
-a = 10.0
-R = 100.0
-S = 100.0
+try:
+	a, R, S = [float(x) for x in argv[1:4]]
+except IndexError:
+	a = 10.0
+	R = 100.0
+	S = 90.0
 
 histdirP = "/home/users2/cs3006/Documents/Coloured_Noise/161119_POL_DL_dt0.01_psi--R100/"
 histdirC = "/home/users2/cs3006/Documents/Coloured_Noise/161116_CAR_DL_dt0.01--R100/"
@@ -43,21 +47,47 @@ QP /= np.trapz(2*np.pi*r*QP, r)
 QC = HC.sum(axis=2).sum(axis=1)
 QC /= np.trapz(QC, x)
 
+## Potential
+if   "_DL_" in histfileP:	fx = force_dlin([x,0],R,S)[0]
+elif "_CL_" in histfileP:	fx = force_clin([x,0],R,S,T)[0]
+elif "_ML_" in histfileP:	fx = force_mlin([x,0],R,S,T)[0]
+elif "_NL_" in histfileP:	fx = force_nlin([x,0],R,S)[0]
+else: raise IOError, me+"Force not recognised."
+U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+
+## ------------------------------------------------------------------------
 ## 1D
 if 1:
 
 	fig, axs = plt.subplots(1,1, figsize=(10,10))
 
-	ax = axs#[0]
-	ax.plot(r, QP/QP.max(), label=r"$Q(r)$")
-	ax.plot(x, QC/QC.max(), label=r"$Q(x)$")
-	ax.axvline(R,color="k"); ax.axvline(S,color="k")
+	ax = axs
+	ax.plot(r, QP/QP.max(), label=r"$Q_{\rm pol}$")
+	ax.plot(x, QC/QC.max(), label=r"$Q_{\rm car}$")
+	
+#	ax.plot(x, np.exp(-U)/np.trapz(np.exp(-U),x), "r-", label=r"$Q_{\rm wn}$")
+	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--",label=r"$U$")
+	
+	ax.axvline(R,color="k",lw=1); ax.axvline(S,color="k",lw=1)
 	ax.set_xlim((r[0],r[-1]))
-	ax.set_xlabel(r"$r$ or $x$", fontsize=fsa)
-	ax.set_ylabel(r"$Q$", fontsize=fsa)
-	ax.legend(fontsize=fsl)
+		
+	ax.set_xlabel(r"$r$ or $x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$Q$", fontsize=fs["fsa"])
+	ax.legend()
 	ax.grid()
-
-	#fig.tight_layout()
+	
+	title = r"Spatial PDFs (rescaled). $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S)				
+	fig.suptitle(title, fontsize=fs["fst"])
+	
+	plotfile = os.path.dirname(histfileP)+"/PChighR_a%.1f_R%.1f_S%.1f"%(a,R,S)
+	plotfile += "."+fs["saveext"]
+	fig.savefig(plotfile, format=fs["saveext"])
+	print "Figure saved to",plotfile
+	
+## ------------------------------------------------------------------------
+## 2D
+if 0:
+	pass	
+## ------------------------------------------------------------------------
 
 plt.show()

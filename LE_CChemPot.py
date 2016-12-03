@@ -13,13 +13,13 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 
 from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
-from LE_Utils import filename_par, fs
+from LE_Utils import filename_par, fs, set_mplrc
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
 
-mpl.rcParams['xtick.labelsize'] = fs["fsn"]
-mpl.rcParams['ytick.labelsize'] = fs["fsn"]
+## Plot defaults
+set_mplrc(fs)
 
 ## ============================================================================
 
@@ -85,8 +85,6 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 	
 	## Retrieve data
 	for i, histfile in enumerate(filelist):
-		
-		t0 = time.time()
 		
 		## Assume R, S, T are same for all files
 		A[i] = filename_par(histfile, "_a")
@@ -185,14 +183,14 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 	fig.subplots_adjust(top=0.90)
 	
 	## Plot potential as inset
-	left, bottom, width, height = [0.2, 0.3, 0.2, 0.15] if "_CL_" in histfile else [0.65, 0.6, 0.2, 0.15]
+	left, bottom, width, height = [0.2, 0.3, 0.2, 0.15] if "_CL_" in histfile else [0.7, 0.6, 0.2, 0.15]
 	axin = fig.add_axes([left, bottom, width, height])
 	axin.plot(x, U, "k-", lw=lw)
 	axin.axvspan(x[0],x[cuspind], color=lL[0].get_color(),alpha=0.2)
 	axin.axvspan(x[cuspind],x[-1], color=lR[0].get_color(),alpha=0.2)
 	xlimL = -R-2.0 if "_NL_" in histfile else x[0]
 	axin.set_xlim(left=xlimL, right=R+2.0)
-	axin.set_ylim(top=1.0)
+	axin.set_ylim(top=2*U[cuspind])
 	axin.xaxis.set_ticklabels([])
 	axin.yaxis.set_ticklabels([])
 	axin.set_xlabel(r"$x$", fontsize = fs["fsa"]-5)
@@ -204,8 +202,12 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
-		plotfile = histdir+"/MLR_R%.1f_S%.1f_T%.1f.jpg"%(R,S,T) if T>=0.0\
-					else histdir+"/MLR_R%.1f_S%.1f.jpg"%(R,S)
+		if   "_ML_" in histfile:	geo = "_ML_"
+		elif "_NL_" in histfile:	geo = "_NL_"
+		elif "_CL_" in histfile:	geo = "_CL_"
+		
+		plotfile = histdir+"/MLR_CAR_"+geo+"_R%.1g_S%.1g_T%.1g.jpg"%(R,S,T) if T>=0.0\
+					else histdir+"/MLR_CAR_"+geo+"_R%.1g_S%.1g.jpg"%(R,S)
 		fig.savefig(plotfile)
 		if vb:	print me+"Figure saved to",plotfile
 		

@@ -13,14 +13,13 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 
 from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
-from LE_Utils import filename_par
-from LE_Utils import fs
+from LE_Utils import filename_par, fs, set_mplrc
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
 
-mpl.rcParams['xtick.labelsize'] = fs["fsn"]
-mpl.rcParams['ytick.labelsize'] = fs["fsn"]
+## Plot defaults
+set_mplrc(fs)
 
 ## ============================================================================
 
@@ -39,6 +38,8 @@ def main():
 		dest="plotall", default=False, action="store_true")
 	parser.add_option('--str',
 		dest="srchstr", default="", type="str")
+	parser.add_option('--logplot',
+		dest="logplot", default=False, action="store_true")
 	parser.add_option('--nosave',
 		dest="nosave", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
@@ -47,6 +48,7 @@ def main():
 	showfig = opt.showfig
 	plotall = opt.plotall
 	srchstr = opt.srchstr
+	logplot = opt.logplot
 	nosave = opt.nosave
 	vb = opt.verbose
 	
@@ -63,7 +65,7 @@ def main():
 			plt.close()
 	## Plot directory
 	elif os.path.isdir(args[0]):
-		plot_pressure_dir(args[0], srchstr, nosave, vb)
+		plot_pressure_dir(args[0], srchstr, logplot, nosave, vb)
 	else: raise IOError, me+"Check input."
 	
 	if vb: print me+"Total execution time",round(time.time()-t0,1),"seconds."
@@ -83,7 +85,7 @@ def plot_pressure_file(histfile, nosave, vb):
 	
 	## Dir pars
 	assert "_CAR_" in histfile, me+"Functional only for Cartesian geometry."
-	Casimir = "_CL_" in histfile or "_ML_" in histfile
+	Casimir = "_CL_" in histfile or "_ML_" in histfile or "_NL_" in histfile
 
 	##-------------------------------------------------------------------------
 	
@@ -102,6 +104,11 @@ def plot_pressure_file(histfile, nosave, vb):
 	## Wall indices
 	Rind, Sind, Tind = np.abs(x-R).argmin(), np.abs(x-S).argmin(), np.abs(x-T).argmin()
 	STind = (Sind+Tind)/2
+	
+	if "_NL_" in histfile:
+		STind = Sind
+		Sind = Rind
+		Tind = x.size-Rind
 		
 	##-------------------------------------------------------------------------
 	
@@ -121,9 +128,9 @@ def plot_pressure_file(histfile, nosave, vb):
 	
 	## Calculate integral pressure
 	PR = -sp.integrate.cumtrapz(fx[Rind:]*Qx[Rind:], x[Rind:], initial=0.0)
-	PS = -sp.integrate.cumtrapz(fx[STind:Sind]*Qx[STind:Sind], x[STind:Sind], initial=0.0); PS -= PS[-1]
+	PS = -sp.integrate.cumtrapz(fx[STind:Sind+1]*Qx[STind:Sind+1], x[STind:Sind+1], initial=0.0); PS -= PS[-1]
 	if Casimir:
-		PT = -sp.integrate.cumtrapz(fx[Tind:STind]*Qx[Tind:STind], x[Tind:STind], initial=0.0)
+		PT = -sp.integrate.cumtrapz(fx[Tind:STind+1]*Qx[Tind:STind+1], x[Tind:STind+1], initial=0.0)
 	
 	if x[0]<0:
 		R2ind = x.size-Rind
@@ -137,9 +144,9 @@ def plot_pressure_file(histfile, nosave, vb):
 	
 	## WN pressure
 	PR_WN = -sp.integrate.cumtrapz(fx[Rind:]*Qx_WN[Rind:], x[Rind:], initial=0.0)
-	PS_WN = -sp.integrate.cumtrapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind], initial=0.0); PS_WN -= PS_WN[-1]
+	PS_WN = -sp.integrate.cumtrapz(fx[STind:Sind+1]*Qx_WN[STind:Sind+1], x[STind:Sind+1], initial=0.0); PS_WN -= PS_WN[-1]
 	if Casimir:
-		PT_WN = -sp.integrate.cumtrapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind], initial=0.0)
+		PT_WN = -sp.integrate.cumtrapz(fx[Tind:STind+1]*Qx_WN[Tind:STind+1], x[Tind:STind+1], initial=0.0)
 	
 	##-------------------------------------------------------------------------
 	
@@ -147,17 +154,18 @@ def plot_pressure_file(histfile, nosave, vb):
 	
 	fig, axs = plt.subplots(2,1, sharex=True, figsize=fs["figsize"])
 	
-	if "_CL_" in histfile:		legloc = "upper right"
+	if   "_DL_" in histfile:	legloc = "upper right"
+	elif "_CL_" in histfile:	legloc = "upper right"
 	elif "_ML_" in histfile:	legloc = "upper left"
 	elif "_NL_" in histfile:	legloc = "lower left"
 	else:						legloc = "best"
 	
 	## Plot PDF
 	ax = axs[0]
-	ax.plot(x, Qx, label=r"CN")
-	ax.plot(x, Qx_WN, "r-", label="WN")
+	lQ = ax.plot(x, Qx, lw=2, label=r"CN")
+	ax.plot(x, Qx_WN, lQ[0].get_color()+":", lw=2, label="WN")
 	## Potential
-	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
+	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", lw=2, label=r"$U(x)$")
 	
 	ax.set_xlim((x[0],x[-1]))	
 	ax.set_ylim(bottom=0.0)	
@@ -167,21 +175,21 @@ def plot_pressure_file(histfile, nosave, vb):
 	
 	## Plot pressure
 	ax = axs[1]
-	lPR = ax.plot(x[Rind:], PR, label=r"$P_R$")
-	lPS = ax.plot(x[STind:Sind], PS, label=r"$P_S$")
+	lPR = ax.plot(x[Rind:], PR, lw=2, label=r"$P_R$")
+	lPS = ax.plot(x[STind:Sind+1], PS, lw=2, label=r"$P_S$")
 	if Casimir:
-		lPT = ax.plot(x[Tind:STind], PT, label=r"$P_T$")
+		lPT = ax.plot(x[Tind:STind+1], PT, lw=2, label=r"$P_T$")
 	if x[0]<0:
-		ax.plot(x[:R2ind], PR2, lPR[0].get_color()+"-")
+		ax.plot(x[:R2ind], PR2, lPR[0].get_color()+"-", lw=2)
 	## WN result
-	ax.plot(x[Rind:], PR_WN, lPR[0].get_color()+":")
-	ax.plot(x[STind:Sind], PS_WN, lPS[0].get_color()+":")
+	ax.plot(x[Rind:], PR_WN, lPR[0].get_color()+":", lw=2)
+	ax.plot(x[STind:Sind+1], PS_WN, lPS[0].get_color()+":", lw=2)
 	if Casimir:
-		ax.plot(x[Tind:STind], PT_WN, lPT[0].get_color()+":")
+		ax.plot(x[Tind:STind+1], PT_WN, lPT[0].get_color()+":", lw=2)
 	if x[0]<0:
-		ax.plot(x[:R2ind], PR_WN[::-1], lPR[0].get_color()+":")
+		ax.plot(x[:R2ind], PR_WN[::-1], lPR[0].get_color()+":", lw=2)
 	## Potential
-	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
+	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", lw=2)#, label=r"$U(x)$")
 	
 	ax.set_xlim((x[0],x[-1]))	
 	ax.set_ylim(bottom=0.0)	
@@ -194,7 +202,7 @@ def plot_pressure_file(histfile, nosave, vb):
 	
 	fig.tight_layout()
 	fig.subplots_adjust(top=0.90)
-	title = r"Spatial PDF and Pressure. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T) if Casimir\
+	title = r"Spatial PDF and Pressure. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T) if T>=0.0\
 			else r"Spatial PDF and Pressure. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S)
 	fig.suptitle(title, fontsize=fs["fst"])
 	
@@ -206,7 +214,7 @@ def plot_pressure_file(histfile, nosave, vb):
 	return
 	
 ##=============================================================================
-def plot_pressure_dir(histdir, srchstr, nosave, vb):
+def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 	"""
 	"""
 	me = me0+".plot_pressure_dir: "
@@ -216,7 +224,7 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 	
 	## Dir pars
 	assert "_CAR_" in histdir, me+"Functional only for Cartesian geometry."
-	Casimir = "_CL_" in histdir or "_ML_" in histdir
+	Casimir = "_DL_" not in histdir
 	
 	## File discovery
 	filelist = np.sort(glob.glob(histdir+"/BHIS_CAR_*"+srchstr+"*.npy"))
@@ -231,13 +239,16 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 	## Retrieve data
 	for i, histfile in enumerate(filelist):
 		
-		t0 = time.time()
+		ti = time.time()
 		
 		## Assuming R, S, T are same for all files
 		A[i] = filename_par(histfile, "_a")
 		R = filename_par(histfile, "_R")
 		S = filename_par(histfile, "_S")
-		T = filename_par(histfile, "_T") if Casimir else -S
+		try: 
+			T = filename_par(histfile, "_T")
+		except ValueError:
+			T = -S
 			
 		## Space
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -269,7 +280,7 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 		PS[i] = +sp.integrate.trapz(fx[STind:Sind]*Qx[STind:Sind], x[STind:Sind])
 		PT[i] = -sp.integrate.trapz(fx[Tind:STind]*Qx[Tind:STind], x[Tind:STind])
 		
-		if vb: print me+"a=%.1f:\tPressure calculation %.2g seconds"%(A[i],time.time()-t0)
+		if vb: print me+"a=%.1f:\tPressure calculation %.2g seconds"%(A[i],time.time()-ti)
 			
 	## SORT BY ALPHA
 	srtidx = A.argsort()
@@ -297,6 +308,9 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 	
 	## PLOTTING
 	
+	plotfile = histdir+"/PA_R%.1f_S%.1f_T%.1f."%(R,S,T)+fs["saveext"] if T>=0.0\
+				else histdir+"/PA_R%.1f_S%.1f."%(R,S)+fs["saveext"]
+	
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	
 	ax.plot(A, PR, "o-", label=r"$P_R$")
@@ -304,21 +318,21 @@ def plot_pressure_dir(histdir, srchstr, nosave, vb):
 	if Casimir:
 		ax.plot(A, PT, "o-", label=r"$P_T$")
 		
-#	ax.set_xscale("log"); ax.set_yscale("log")
-#	ax.set_xlim(right=5.0)
-	ax.set_ylim(top=max(ax.get_ylim()[1],1.0))
+	if logplot:
+		ax.set_xscale("log"); ax.set_yscale("log")
+		plotfile += "_loglog"
+	else:
+		ax.set_ylim(bottom=0.0,top=max(ax.get_ylim()[1],1.0))
 	
 	ax.set_xlabel(r"$\alpha$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$P(\alpha)$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="upper right", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
-	title = r"Pressure as a function of $\alpha$ for $R=%.1g,S=%.1g,T=%.1g$"%(R,S,T) if Casimir\
+	ax.legend(loc="lower left", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	title = r"Pressure as a function of $\alpha$ for $R=%.1g,S=%.1g,T=%.1g$"%(R,S,T) if T>=0.0\
 			else r"Pressure as a function of $\alpha$ for $R=%.1g,S=%.1g$"%(R,S)
 	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
-		plotfile = histdir+"/PA_R%.1f_S%.1f_T%.1f.jpg"%(R,S,T) if Casimir\
-					else histdir+"/PA_R%.1f_S%.1f.jpg"%(R,S)
 		fig.savefig(plotfile)
 		if vb:	print me+"Figure saved to",plotfile
 		

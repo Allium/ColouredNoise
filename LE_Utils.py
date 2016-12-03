@@ -82,7 +82,7 @@ def Px_WBratio(Px,x,X):
 	return round(avspke/avbulk,2)
 	
 
-fs = {"fsa":30,"fsl":26,"fst":20,"fsn":26,"figsize":(10,10)}
+fs = {"fsa":30,"fsl":26,"fst":20,"fsn":26,"figsize":(10,10),"saveext":"jpg"}
 # fs = [14,12,14]
 # figsize = (4,4)
 
@@ -115,7 +115,7 @@ def set_mplrc(fs):
 	
 	## Figure properties
 	mpl.rc("figure", figsize=fs["figsize"])
-	mpl.rc("savefig", dpi=200, format="pdf")
+	mpl.rc("savefig", format="jpg", dpi=200)
 	# ax.yaxis.set_major_locator(MaxNLocator(6)) ## Maximum number of ticks 
 	
 	return
