@@ -48,7 +48,7 @@ def main():
 		dirpath 	path to directory containing histfiles
 		
 	FLAGS
-		-v	--verbose	False
+		-v	--vb	False
 		-s	--show		False
 			--nosave	False
 		-a	--plotall	False
@@ -78,7 +78,7 @@ def main():
 	if opt.help: print main.__doc__; return
 	showfig = opt.showfig
 	plotP	= opt.plotP
-	verbose = opt.verbose
+	vb = opt.verbose
 	logplot	= opt.logplot
 	nosave	= opt.nosave
 	plotall = opt.plotall
@@ -86,22 +86,22 @@ def main():
 	
 	if plotall and os.path.isdir(args[0]):
 		showfig = False
-		allfiles(args[0],plotP,srchstr,verbose)
+		allfiles(args[0],plotP,srchstr,vb)
 		
 	elif os.path.isfile(args[0]):
-		pressure_pdf_file(args[0],plotP,verbose)
+		pressure_pdf_file(args[0],plotP,vb)
 	elif os.path.isdir(args[0]):
-		pressure_dir(args[0],logplot,nosave,srchstr,verbose)
+		plot_pressure_dir(args[0],logplot,nosave,srchstr,vb)
 	else:
 		raise IOError, me+"You gave me rubbish. Abort."
 	
-	if verbose: print me+"execution time",round(time()-t0,2),"seconds"
+	if vb: print me+"execution time",round(time()-t0,2),"seconds"
 	if showfig: plt.show()
 	
 	return
 	
 ##=============================================================================
-def pressure_pdf_file(histfile, plotpress, verbose):
+def pressure_pdf_file(histfile, plotpress, vb):
 	"""
 	Make plot for a single file
 	"""
@@ -112,11 +112,11 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	plotfile = os.path.dirname(histfile)+"/PDF"+os.path.basename(histfile)[4:-4]+".jpg"
 	
 	## Get pars from filename
-	assert "_POL_" in histfile, me+"Check input file."
+	assert "_POL_" in histfile or "_CIR_" in histfile, me+"Check input file."
 	pars = filename_pars(histfile)
 	[a,ftype,R,S,lam,nu] = [pars[key] for key in ["a","ftype","R","S","lam","nu"]]
 	assert (R is not None), me+"You are using the wrong program. R must be defined."
-	if verbose: print me+"alpha =",a,"and R =",R
+	if vb: print me+"alpha =",a,"and R =",R
 	
 	if S is None: S = 0.0
 	fpars = [R,S,lam,nu]
@@ -142,7 +142,7 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 
 	## White noise result
 	r_WN = np.linspace(r[0],r[-1]*(1+0.5/r.size),r.size*5+1)
-	rho_WN = pdf_WN(r_WN,fpars,ftype,verbose)
+	rho_WN = pdf_WN(r_WN,fpars,ftype,vb)
 	
 	## If we want density = 1.0 in bulk HACKY
 	#rho /= rho[:np.argmin(np.abs(r-R))/2].mean()
@@ -240,23 +240,23 @@ def pressure_pdf_file(histfile, plotpress, verbose):
 	fig.tight_layout();	plt.subplots_adjust(top=0.9)	
 		
 	fig.savefig(plotfile)
-	if verbose: print me+"plot saved to",plotfile
+	if vb: print me+"plot saved to",plotfile
 	
 	return
 	
 ##=============================================================================
-def allfiles(dirpath, plotP, srchstr, verbose):
-	for filepath in np.sort(glob.glob(dirpath+"/BHIS_POL_*"+srchstr+"*.npy")):
-		pressure_pdf_file(filepath, plotP, verbose)
+def allfiles(dirpath, plotP, srchstr, vb):
+	for filepath in np.sort(glob.glob(dirpath+"/BHIS_POL_*"+srchstr+"*.npy") + glob.glob(dirpath+"/BHIS_CIR_*"+srchstr+"*.npy")):
+		pressure_pdf_file(filepath, plotP, vb)
 		plt.close()
 	return
 
 ##=============================================================================
-def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
+def calc_pressure_dir(dirpath, srchstr, vb):
 	"""
 	Plot pressure at "infinity" against alpha for all files in directory.
 	"""
-	me = me0+".pressure_dir: "
+	me = me0+".calc_pressure_dir: "
 	t0 = time()
 	
 	## Directory parameters
@@ -266,7 +266,7 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 	## File discovery
 	histfiles = np.sort(glob.glob(dirpath+"/BHIS_POL_*"+srchstr+"*.npy")+glob.glob(dirpath+"/BHIS_CIR_*"+srchstr+"*.npy"))
 	numfiles = len(histfiles)
-	if verbose: print me+"found",numfiles,"files"
+	if vb: print me+"found",numfiles,"files"
 
 	## Initialise
 	A = np.zeros(numfiles) 
@@ -317,7 +317,7 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 			Q[i] 	= -calc_pressure(r[:bidx],rho[:bidx],ftype,fpars)
 			Q_WN[i] = -calc_pressure(r[:bidx],rho_WN[:bidx],ftype,fpars)
 			
-	if verbose: print me+"Pressure calculations %.1f seconds."%(time()-t0)
+	if vb: print me+"Pressure calculations %.1f seconds."%(time()-t0)
 		
 	## ------------------------------------------------	
 	## Create 2D pressure array and 1D a,R coordinate arrays
@@ -460,31 +460,46 @@ def pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 							## No value there
 							pass
 					
-	## Mask zeros
-	mask = (PP==0.0)+(PP==-1.0)
-	PP_WN = np.ma.array(PP_WN, mask=mask)
-	QQ_WN = np.ma.array(QQ_WN, mask=mask)
-	PP = np.ma.array(PP, mask=mask)
-	QQ = np.ma.array(QQ, mask=mask)
+	# ## Mask zeros
+	# mask = (PP==0.0)+(PP==-1.0)
+	# PP_WN = np.ma.array(PP_WN, mask=mask)
+	# QQ_WN = np.ma.array(QQ_WN, mask=mask)
+	# PP = np.ma.array(PP, mask=mask)
+	# QQ = np.ma.array(QQ, mask=mask)
 	
-	"""
+	# """
 	## SAVING
 	pressfile = dirpath+"/PRESS.npz"
-	np.savez(pressfile, PP=PP, QQ=QQ, AA=AA, RR=RR, SS=SS)
+	np.savez(pressfile, PP=PP, QQ=QQ, PP_WN=PP_WN, QQ_WN=QQ_WN, AA=AA, RR=RR, SS=SS, LL=LL, NN=NN)
+	if vb:	print me+"Calculations saved to",pressfile
 	
-	return
+	return PP, QQ, PP_WN, QQ_WN, AA, RR, SS, LL, NN
 		
 
 ##=============================================================================
-def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
+def plot_pressure_dir(dirpath, logplot, nosave, srchstr, vb):
 	"""
 	"""
 	me = me0+".plot_pressure_dir: "
 	
 	try:
-
-
-	"""
+		pressdata = np.load(dirpath+"/PRESS.npz")
+		print me+"Pressure data file found:",dirpath+"/PRESS.npz"
+		PP = pressdata["PP"]
+		QQ = pressdata["QQ"]
+		PP_WN = pressdata["PP_WN"]
+		QQ_WN = pressdata["QQ_WN"]
+		AA = pressdata["AA"]
+		RR = pressdata["RR"]
+		SS = pressdata["SS"]
+		LL = pressdata["LL"]
+		NN = pressdata["NN"]
+		del pressdata
+	except IOError:
+		print me+"No pressure data found. Calculating from histfiles."
+		PP, QQ, PP_WN, QQ_WN, AA, RR, SS, LL, NN = calc_pressure_dir(dirpath, srchstr, vb)
+	ftype = filename_pars(dirpath)["ftype"]
+	# """
 
 	## ------------------------------------------------
 	## PLOTS
@@ -517,7 +532,7 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 			ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$")
 	
 	## ------------------------------------------------
-	## THE FOLLOWING BLOCK contains DUPLICATION. TRY TO MAKE IT MORE ELEGANT.
+	## 
 	
 	## Annulus; finite; [S,R,A]
 	elif (ftype[0] == "d" and ftype[-3:] != "tan" and ftype[-2:] != "nu"):
@@ -525,7 +540,7 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 		
 		## Holding R fixed
 		if RR.size == 1:
-			if 1:
+			if 0:
 				## Plot normalised Pout and Pin individually against ALPHA
 				title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 				plotfile = dirpath+"/PQAS.jpg"
@@ -550,11 +565,11 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 				PP *= PP_WN; QQ *= QQ_WN
 				title = "Pressure difference, $P_R-P_S$; $R = "+str(RR[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference"
-				xlabel = r"$\alpha$"
-				xlim = (0.0,AA[-1])
+				xlabel = r"$1+\alpha$"
+				xlim = (1+0.0,1+AA[-1])
 				plotfile = dirpath+"/DPAS.jpg"
 				for i in range(SS.size):
-					ax.plot(AA,(PP-QQ)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
+					ax.plot(1+AA,(PP-QQ)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
 #					ax.plot(1+AA,(PP_WN-QQ_WN)[i,0,:], "--", color=ax.lines[-1].get_color())
 			elif 1:
 				## Plot raw difference Pout-Pin against R
@@ -570,7 +585,7 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 					
 		## Constant interval
 		elif np.unique(RR-SS).size == 1:
-			if 0:
+			if 1:
 				## Plot Pout and Pin individually against R
 				title = "Pressures $P_R,P_S$ (normalised); $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				plotfile = dirpath+"/PQRA.jpg"
@@ -579,7 +594,7 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 				for i in range(0,AA.size,2):	## To plot against R
 					ax.plot(RR,np.diagonal(PP).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
 					ax.plot(RR[1:],np.diagonal(QQ).T[1:,i], "v--", color=ax.lines[-1].get_color())
-			elif 0:
+			elif 1:
 				## Plot difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
@@ -623,7 +638,7 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 		plotbool = [0,0,1,1]
 		## R,S fixed
 		if plotbool[0]:
-			if verbose:	print me+"Plotting P_R and P_S against alpha for different values of lambda. R and S fixed."
+			if vb:	print me+"Plotting P_R and P_S against alpha for different values of lambda. R and S fixed."
 			Ridx = 1
 			Sidx = np.where(SS==RR[Ridx]-1.0)[0][0]
 			plotfile = dirpath+"/PAL.jpg"
@@ -633,7 +648,7 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 				ax.plot(AA[1:],QQ[i,Ridx,Sidx,1:], "o--", color=ax.lines[-1].get_color())
 		## lam fixed; R-S fixed
 		elif plotbool[1]:
-			if verbose:	print me+"Plotting P_R and P_S against alpha for different values of R. lambda is fixed."
+			if vb:	print me+"Plotting P_R and P_S against alpha for different values of R. lambda is fixed."
 			Lidx = 0
 			plotfile = dirpath+"/PAR.jpg"
 			title = "Pressure normalised by WN, $\\lambda = "+str(LL[0])+"$; ftype = "+ftype
@@ -644,7 +659,7 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 		## Difference in pressure; R,S fixed
 		elif plotbool[2]:
 			DPplot = True
-			if verbose:	print me+"Plotting P_R-P_S against alpha for different values of lambda. R-S fixed."
+			if vb:	print me+"Plotting P_R-P_S against alpha for different values of lambda. R-S fixed."
 			PP *= PP_WN; QQ *= QQ_WN
 			DP = PP-QQ
 			## Find S indices corresponding to R-1.0
@@ -662,7 +677,7 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 		elif plotbool[3]:
 			print me+"ABORT"; exit()
 			DPplot = True
-			if verbose:	print me+"Plotting P_R-P_S against R for single value of lambda and several alpha. R-S fixed."
+			if vb:	print me+"Plotting P_R-P_S against R for single value of lambda and several alpha. R-S fixed."
 			DP = PP*PP_WN-QQ*QQ_WN
 			## Fix lambda index
 			Lidx = 1
@@ -744,9 +759,9 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, verbose):
 	#plt.tight_layout();	plt.subplots_adjust(top=0.9)
 	if not nosave:
 		fig.savefig(plotfile)
-		if verbose: print me+"plot saved to",plotfile
+		if vb: print me+"plot saved to",plotfile
 	
-	if verbose: print me+"Plotting %.2f seconds."%(time()-t0)
+	if vb: print me+"Plotting %.2f seconds."%(time()-t0)
 		
 	return
 
