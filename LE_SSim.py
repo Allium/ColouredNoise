@@ -63,7 +63,7 @@ def input():
 	parser.add_option("--intmeth",
 		dest="intmeth",default="euler",type="str")
 	parser.add_option("--ephi",
-		dest="ephi", default=False, action="store_true")
+		dest="ephi", default=True, action="store_false")
 	parser.add_option('-v','--verbose',
 		dest="vb",default=False,action="store_true")
 	parser.add_option('-h','--help',

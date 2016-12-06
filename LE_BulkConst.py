@@ -5,20 +5,20 @@ import scipy as sp
 from scipy.optimize import curve_fit
 import os, optparse, glob, time
 
+import matplotlib as mpl
 if "SSH_TTY" in os.environ:
 	print me0+": Using Agg backend."
-	import matplotlib as mpl
 	mpl.use("Agg")
 from matplotlib import pyplot as plt
 
-from LE_Utils import filename_pars, filename_par
-from LE_Utils import fs
-fsa,fsl,fst = fs
+from LE_Utils import filename_pars, filename_par, fs, set_mplrc
 from LE_SPressure import calc_pressure, pdf_WN, plot_wall
 from LE_SSim import force_dlin
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
+
+set_mplrc(fs)
 
 ## ============================================================================
 
@@ -86,23 +86,16 @@ def plot_file(histfile, nosave, vb):
 	##-------------------------------------------------------------------------
 	
 	## PLOT
-	fig = plt.figure(figsize=(12,8)); ax = fig.gca()
+	fig = plt.figure(figsize=fs["figsize"]); ax = fig.gca()
 		
 	## Data
-#	ax.plot(r, Q/Q.max(), label=r"$Q(r)$")
-#	ax.plot(r, BCout/np.abs(BCout).max(), label=r"Bulk constant (out)", lw=2)
-#	if S>0.0:
-#		ax.plot(r, BCin/np.abs(BCin).max(),label=r"Bulk constant (in)", lw=2)
-#	ax.plot(r, e2c2Q/e2c2Q.max(), label=r"$\langle\eta^2\cos^2\psi\rangle Q(r)$")
-#	ax.plot(r, e2s2Q/e2s2Q.max(), label=r"$\langle\eta^2\sin^2\psi\rangle Q(r)$")
-#	ax.plot(r, intgl/np.abs(intgl).max(), label=r"$\int_0^r\frac{1}{r^\prime}(\cdots)Q\,dr^\prime$")
 	ax.plot(r,Q, label=r"$Q(r)$")
-	ax.plot(r,BCout, label=r"Bulk constant (out)", lw=2)
+	ax.plot(r,BCout, label=r"BC (out)", lw=2)
 	if S>0.0:
-		ax.plot(r,BCin,label=r"Bulk constant (in)", lw=2)
-	ax.plot(r,e2c2Q, label=r"$\langle\eta^2\cos^2\psi\rangle Q(r)$")
-	ax.plot(r,e2s2Q, label=r"$\langle\eta^2\sin^2\psi\rangle Q(r)$")
-	ax.plot(r,intgl, label=r"$\int_0^r\frac{1}{r^\prime}(\cdots)Q\,dr^\prime$")
+		ax.plot(r,BCin,label=r"BC (in)", lw=2)
+#	ax.plot(r,e2c2Q, label=r"$\langle\eta^2\cos^2\psi\rangle Q(r)$")
+#	ax.plot(r,e2s2Q, label=r"$\langle\eta^2\sin^2\psi\rangle Q(r)$")
+#	ax.plot(r,intgl, label=r"$\int_0^r\frac{1}{r^\prime}(\cdots)Q\,dr^\prime$")
 	
 	## Potential
 	ymax = ax.get_ylim()[1]
@@ -120,11 +113,11 @@ def plot_file(histfile, nosave, vb):
 	
 	ax.set_xlim(left=r[0],right=r[-1])
 
-	ax.set_xlabel("$r$",fontsize=fsa)
-	ax.set_ylabel("Rescaled variable",fontsize=fsa)
+	ax.set_xlabel("$r$",fontsize=fs["fsa"])
+	ax.set_ylabel("Rescaled variable",fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="best",fontsize=fsl).get_frame().set_alpha(0.5)
-	ax.set_title(r"Bulk Constant. $\alpha=%.1f, R=%.1f, S=%.1f$."%(a,R,S),fontsize=fst)
+	ax.legend(loc="lower right",fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	fig.suptitle(r"Bulk Constant. $\alpha=%.1f, R=%.1f, S=%.1f$."%(a,R,S),fontsize=fs["fst"])
 	
 	## SAVE
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+".jpg"
@@ -208,7 +201,7 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	##-------------------------------------------------------------------------
 	
 	## PLOT DATA
-	fig = plt.figure(figsize=(10,10)); ax = fig.gca()
+	fig = plt.figure(figsize=fs["figsize"]); ax = fig.gca()
 	
 	linePo = ax.plot(1+A, Pout, "o", label=r"$-\int_{\rm bulk}^{\infty} fQ\,{\rm d}r$")
 	lineCo = ax.plot(1+A, A*Cout, "o", label=r"M-(1,1) (out)")
@@ -246,12 +239,12 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	ax.set_xlim(1,1+A[-1])
 	ax.set_ylim(top=1e1)
 	
-	ax.set_xlabel(r"$1+\alpha$",fontsize=fsa)
-	ax.set_ylabel(r"$P$",fontsize=fsa)
+	ax.set_xlabel(r"$1+\alpha$",fontsize=fs["fsa"])
+	ax.set_ylabel(r"$P$",fontsize=fs["fsa"])
 	ax.grid()
-#	ax.legend(loc="best", fontsize=(fsl/2 if S>0.0 else fsl)).get_frame().set_alpha(0.5)
-	ax.legend(loc="best", fontsize=fsl).get_frame().set_alpha(0.5)
-	ax.set_title("Pressure normalised by WN result. $R=%.1f, S=%.1f.$"%(fpars[0],fpars[1]),fontsize=fst)
+#	ax.legend(loc="best", fontsize=(fs["fsl"]/2 if S>0.0 else fs["fsl"])).get_frame().set_alpha(0.5)
+	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	ax.set_title("Pressure normalised by WN result. $R=%.1f, S=%.1f.$"%(fpars[0],fpars[1]),fontsize=fs["fst"])
 	
 	## SAVING
 	plotfile = histdir+"/QEe2_Pa_R"+str(fpars[0])+"_S"+str(fpars[1])+".jpg"
@@ -371,9 +364,9 @@ def plot_psi_diagnostics(rho,Q,r,eta,psi,rr,ee,pp,R,Rind,S,Sind,a,histfile,showf
 	lpdfp = ax.plot(psi, pdfp, label=r"$p(\psi)$")
 	lpdfp = ax.plot(psi, pdfp[::-1], label=r"$p(-\psi)$")
 	ax.vlines([-2*np.pi,-np.pi,0,+np.pi,+2*np.pi], *ax.get_ylim())
-	ax.set_xlabel(r"$\psi$", fontsize=fsa)
-	ax.set_ylabel(r"$p(\psi)$", fontsize=fsa)
-	ax.grid(); ax.legend(loc="upper left", fontsize=fsl)
+	ax.set_xlabel(r"$\psi$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$p(\psi)$", fontsize=fs["fsa"])
+	ax.grid(); ax.legend(loc="upper left", fontsize=fs["fsl"])
 	## --------------------------------------------------------------------
 	## Angles	
 	ax = axs[1]
@@ -382,9 +375,9 @@ def plot_psi_diagnostics(rho,Q,r,eta,psi,rr,ee,pp,R,Rind,S,Sind,a,histfile,showf
 	lEcp = ax.plot(r, Ecp, label=r"$\langle\cos\psi\rangle(r)$")
 	lEsp = ax.plot(r, Esp, label=r"$\langle\sin\psi\rangle(r)$")
 	ax.set_ylim(top=np.ceil(Ecp.max()))
-	ax.set_xlabel(r"$r$", fontsize=fsa)
-	ax.set_ylabel(r"Pointing", fontsize=fsa)
-	ax.grid(); ax.legend(loc="upper left", fontsize=fsl)
+	ax.set_xlabel(r"$r$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"Pointing", fontsize=fs["fsa"])
+	ax.grid(); ax.legend(loc="upper left", fontsize=fs["fsl"])
 	## --------------------------------------------------------------------
 	## Force (assume dlin)	
 	ax = axs[2]
@@ -395,11 +388,11 @@ def plot_psi_diagnostics(rho,Q,r,eta,psi,rr,ee,pp,R,Rind,S,Sind,a,histfile,showf
 	f = -np.hstack([np.linspace(r[0]-S,0.0,Sind),np.zeros(Rind-Sind),np.linspace(0,r[-1]-R,r.size-Rind)])	## Assume dlin
 	ax.plot(r, -f, "k--", label=r"$-f(r)$")
 	ax.set_ylim(top=np.ceil(Eecp.max()))
-	ax.set_xlabel(r"$r$", fontsize=fsa)
-	ax.set_ylabel(r"Force", fontsize=fsa)
-	ax.grid(); ax.legend(loc="upper left", fontsize=fsl)
+	ax.set_xlabel(r"$r$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"Force", fontsize=fs["fsa"])
+	ax.grid(); ax.legend(loc="upper left", fontsize=fs["fsl"])
 	## --------------------------------------------------------------------
-	fig.suptitle(r"$\psi$ diagnostics. $\alpha=%.1f$, $R=%.1f$, $S=%.1f$"%(a,R,S), fontsize=fst)
+	fig.suptitle(r"$\psi$ diagnostics. $\alpha=%.1f$, $R=%.1f$, $S=%.1f$"%(a,R,S), fontsize=fs["fst"])
 	fig.tight_layout()
 	fig.subplots_adjust(top=0.93)
 	plotfile = os.path.dirname(histfile)+"/PSI_a%.1f_R%.1f_S%.1f.jpg"%(a,R,S)
