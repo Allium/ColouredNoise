@@ -16,7 +16,7 @@ from LE_Utils import check_path, create_readme, save_data
 from LE_LightBoundarySim import sim_eta
 
 import warnings
-warnings.filterwarnings("error")
+# warnings.filterwarnings("error")
 
 
 ##=============================================================================
@@ -78,7 +78,7 @@ def input():
 	timefac = opts.timefac
 	vb		= opts.vb
 	
-	assert R>=S>=T, me+"Input must satisfy R>=S>=T."
+	if ftype[0] != "u":	assert R>=S>=T, me+"Input must satisfy R>=S>=T."
 	if ftype[0] == "c": assert T>=0.0, me+"For Casimir geometry, demand T>=0."
 		
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
@@ -97,6 +97,8 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	
 	## ----------------------------------------------------------------
 	## CHOOSE FORCE, FILENAME, SPACE
+	
+	xydata = False	## Only interested in x data -- symmetric in y
 	
 	## Double quadratic potential
 	if ftype=="dlin":
@@ -142,6 +144,23 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 		xmax = +R+4.0
 		xmin = -R-4.0
 		
+	## Undulating wall, one at R and the other at -R.
+	elif ftype=="ulin":
+		# raise NotImplementedError, me+"2D CSim code under construction."
+		assert S<=R, me+"Think about the geometry of what you're asking."
+		## Force
+		## R is position of right wall, S is amplitude, T is wavelength
+		fxy = lambda xy: force_ulin(xy,R,S,T)
+		## Filename
+		fstr = "UL"
+		filepar = "_T%.1f"%(T)
+		## Simulation limits
+		xmax = R+4.0
+		xmin = 0.0
+		ymax = T
+		ymin = 0.0
+		xydata = True
+		
 	else:
 		raise IOError, me+"check ftype."
 	
@@ -159,19 +178,22 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	rhoWN = np.exp(sp.integrate.cumtrapz(fxy([x,0])[0], x, initial=0.0))
 	rhoWN /= rhoWN.sum()
 	xini = np.random.choice(x, size=Nparticles, p=rhoWN)
+	yini = (ymax-ymin)*np.random.random(Nparticles)
 	
 	## ------------
 	## Bin edges: x, etax, etay
 	
 	Nxbin = int(100 * (xmax-xmin))
+	Nybin = int(100 * (ymax-ymin))
 	xbins = np.linspace(xmin,xmax,Nxbin+1)
+	ybins = np.linspace(ymin,ymax,Nybin+1)
 	
 	emax = 4/np.sqrt(a) if a!=0 else 4/np.sqrt(dt)
 	Nebin = 100
 	exbins = np.linspace(-emax,+emax,Nebin+1)
 	eybins = np.linspace(-emax,+emax,Nebin+1)
 	
-	bins = [xbins, exbins, eybins]
+	bins = [xbins, ybins] if xydata else [xbins, exbins, eybins]
 	
 	## ------------
 		
@@ -197,7 +219,7 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	create_readme(filepath, vb)
 	
 	## Save bins
-	np.savez(hisdir+binfile,xbins=xbins,exbins=exbins,eybins=eybins)
+	np.savez(hisdir+binfile,xbins=xbins,ybins=ybins,exbins=exbins,eybins=eybins)
 
 	## ----------------------------------------------------------------
 	## SIMULATION
@@ -223,9 +245,18 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	for i in range(Nparticles):
 		## Perform run in Cartesian coordinates
 		if vb: print me+"Run",i,"of",Nparticles
-		coords = simulate_trajectory([xini[i],0.0], eIC[i], a, xy_step, dt, tmax, expmt, vb)
-		if ftype[0]=="c": coords[0] = np.abs(coords[0])	## Reflect BC
-		H += np.histogramdd(coords,bins=bins,normed=False)[0]
+		coords = simulate_trajectory([xini[i],yini[i]], eIC[i], a, xy_step, dt, tmax, expmt, xydata, vb)
+		
+		## Apply BCs where appropriate
+		if ftype[0]=="c":
+			coords[0] = np.abs(coords[0])	## Reflecting BC at x=0
+		if ftype[0]=="u":
+			coords[:,coords[0]<0.0] *= -1
+			coords[1] %= T
+		
+		## Histogram
+		H += np.histogramdd([coords[0],coords[1]],bins=bins,normed=False)[0]
+		
 	## Divide by bin area and number of particles
 	binc = [np.diff(b) for b in bins]
  	H /= reduce(np.multiply, np.ix_(*binc))	
@@ -240,7 +271,7 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	
 ## ====================================================================
 
-def simulate_trajectory(xyini, exyini, a, xy_step, dt, tmax, expmt, vb):
+def simulate_trajectory(xyini, exyini, a, xy_step, dt, tmax, expmt, xydata, vb):
 	"""
 	Run the LE simulation from (x0,y0), stopping if x<xmin.
 	"""
@@ -264,8 +295,8 @@ def simulate_trajectory(xyini, exyini, a, xy_step, dt, tmax, expmt, vb):
 		xy[i+1] = xy[i] + xy_step(xy[i],exy[i])
 	
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
-		
-	return [xy[:,0], exy[:,0], exy[:,1]]
+	
+	return np.array([xy[:,0], xy[:,1]]) if xydata else np.array([xy[:,0], exy[:,0], exy[:,1]])
 	
 ## ====================================================================
 ## INTEGRATION
@@ -339,12 +370,27 @@ def force_nlin(xy,R,S):
 	return np.array([fx,0.0])
 	
 	
-def force_ulin(xy,R,S,A,Y):
+def force_ulin(xy,R,A,lam):
 	"""
-	0<y<Y/2
+	Undulating. No y-offset yet.
+	R is position of right-hand wall.
+	A is amplitude of undulation.
+	lam is wavelength.
 	"""
-	fx = R + A*np.cos(xy[1]/Y)
-	return r
+	x, y = xy
+	y = 2*np.pi*(y/lam)
+	bi = A*np.sin(y)	## Inner boundary
+	try:
+		if x<=-R+bi:	fxy = (-x-R+bi)*np.array([1.0,-2*np.pi*A/lam*np.cos(y)])
+		elif x>R+bi:	fxy = (-x+R+bi)*np.array([1.0,-2*np.pi*A/lam*np.cos(y)])
+		else:			fxy = np.array([0.0,0.0])
+	except ValueError:	## If array
+		# raise NotImplementedError
+		X, Y = np.meshgrid(x, y, indexing="ij")
+		bi = A*np.sin(Y)
+		vec = np.array([np.ones(X.shape),-2*np.pi/lam*A*np.cos(Y)])
+		fxy = np.outer(vec, (+X-R-bi)*(X>+R+bi)) + np.outer(vec, (-X-R+bi)*(X<-R+bi))
+	return fxy
 	
 ## ====================================================================
 ## ====================================================================
