@@ -53,62 +53,49 @@ elif 1:
 	fxy = np.array([force_ulin([xi,yi],R,A,l) for xi in x for yi in y]).reshape((x.size,y.size,2))
 	fxy = np.rollaxis(fxy,2,0)
 	f = np.sqrt((fxy*fxy).sum(axis=0))
-
-	### This isn't quite right
-	U = -sp.integrate.cumtrapz(fxy[0],x,axis=0,initial=0.0) -sp.integrate.cumtrapz(fxy[1],y,axis=1,initial=0.0)
-	U -= U.min()
+	
+	
+	##-------------------------------------------------------------------------
+	## Plotting
+	lvls = 15
+	plt.rcParams["image.cmap"] = "coolwarm"
 	
 	##-------------------------------------------------------------------------
 	## Plot potential
 	
-	# fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
-	# fig.canvas.set_window_title("Potential")
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	fig.canvas.set_window_title("Potential")
 	
-	# ax.contourf(x,y,U.T)
+	X, Y = np.meshgrid(x, y, indexing="ij")
+	U = 0.5*(X-R-A*np.sin(2*np.pi*Y/l))**2 * (X>R+A*np.sin(2*np.pi*Y/l)) +\
+		0.5*(X+R-A*np.sin(2*np.pi*Y/l))**2 * (X<-R+A*np.sin(2*np.pi*Y/l))
 	
-	# ## Wall boundary
-	# yfine = np.linspace(y[0],y[-1],1000)
-	# ax.scatter(R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
-	# ax.scatter(0+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
+	ax.contourf(x,y,U.T, lvls)
 
-	# ax.set_xlim((x[0],x[-1]))
-	# ax.set_ylim((y[0],y[-1]))
-	# ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-	# ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
-	
+	## Wall boundary
+	yfine = np.linspace(y[0],y[-1],1000)
+	ax.scatter(R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
+	ax.scatter(-R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
+
+	ax.set_xlim((x[0],x[-1]))
+	ax.set_ylim((y[0],y[-1]))
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
+		
 	##-------------------------------------------------------------------------
 	## Plot force
 	
-	fig, axs = plt.subplots(1,2, figsize=fs["figsize"], sharey=True)
+	fig, axs = plt.subplots(1,1, figsize=fs["figsize"], sharey=True)
 	fig.canvas.set_window_title("Force")
 
-	ax = axs[0]
+	ax = axs#[0]
 	
-	ax.contourf(x,y,f.T)
+	ax.contourf(x,y,f.T, lvls)
 	
-	# U, V = fxy
-	# stp = (2,2)
-	# ax.quiver(X[::stp[0],::stp[1]], Y[::stp[0],::stp[1]], U[::stp[0],::stp[1]], V[::stp[0],::stp[1]], units="width")
-	
-	## Wall boundary
-	yfine = np.linspace(y[0],y[-1],1000)
-	ax.scatter(R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
-	ax.scatter(-R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
-
-	ax.set_xlim((x[0],x[-1]))
-	ax.set_ylim((y[0],y[-1]))
-	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
-	ax.set_title(r"force_ulin")
-	
-	
-	## Check prediction 
-	ax = axs[1]
-	
-	X, Y = np.meshgrid(x, y)
-	fcalc = +(X-R-A*np.sin(2*np.pi*Y/l))*np.sqrt(1+(2*np.pi/l)**2*A*np.cos(2*np.pi*Y/l)**2)*(X>(R+A*np.sin(2*np.pi*Y/l))) +\
-			-(X+R-A*np.sin(2*np.pi*Y/l))*np.sqrt(1+(2*np.pi/l)**2*A*np.cos(2*np.pi*Y/l)**2)*(X<(-R+A*np.sin(2*np.pi*Y/l)))
-	ax.contourf(x,y,fcalc)
+#	U, V = fxy
+#	stp = (3,3)
+#	ax.quiver(X[::stp[0],::stp[1]], Y[::stp[0],::stp[1]], U[::stp[0],::stp[1]], V[::stp[0],::stp[1]],
+#			units="width")#, color='r', linewidths=(1,), edgecolors=('k'), headaxislength=5)
 	
 	## Wall boundary
 	yfine = np.linspace(y[0],y[-1],1000)
@@ -119,7 +106,27 @@ elif 1:
 	ax.set_ylim((y[0],y[-1]))
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
-	ax.set_title(r"calculation")
+#	ax.set_title(r"force_ulin")
+	
+	
+#	## Check prediction 
+#	ax = axs[1]
+#	
+#	X, Y = np.meshgrid(x, y)
+#	fcalc = +(X-R-A*np.sin(2*np.pi*Y/l))*np.sqrt(1+(2*np.pi/l)**2*A*np.cos(2*np.pi*Y/l)**2)*(X>(R+A*np.sin(2*np.pi*Y/l))) +\
+#			-(X+R-A*np.sin(2*np.pi*Y/l))*np.sqrt(1+(2*np.pi/l)**2*A*np.cos(2*np.pi*Y/l)**2)*(X<(-R+A*np.sin(2*np.pi*Y/l)))
+#	ax.contourf(x,y,fcalc)
+	
+#	## Wall boundary
+#	yfine = np.linspace(y[0],y[-1],1000)
+#	ax.scatter(R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
+#	ax.scatter(-R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
+
+#	ax.set_xlim((x[0],x[-1]))
+#	ax.set_ylim((y[0],y[-1]))
+#	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+#	ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
+#	ax.set_title(r"calculation")
 
 	##-------------------------------------------------------------------------
 
