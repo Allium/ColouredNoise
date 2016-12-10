@@ -37,32 +37,35 @@ def main():
 		dest="plotall", default=False, action="store_true")
 	parser.add_option('--str',
 		dest="srchstr", default="", type="str")
+	parser.add_option('--logplot',
+		dest="logplot", default=False, action="store_true")
 	parser.add_option('--nosave',
 		dest="nosave", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
-		dest="verbose", default=False, action="store_true")
+		dest="vb", default=False, action="store_true")
 	opt, args = parser.parse_args()
 	showfig = opt.showfig
 	plotall = opt.plotall
 	srchstr = opt.srchstr
+	logplot = opt.logplot
 	nosave = opt.nosave
-	verbose = opt.verbose
+	vb = opt.vb
 		
 	if os.path.isfile(args[0]):
-		plot_file(args[0], nosave, verbose)
+		plot_file(args[0], nosave, vb)
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False
 		filelist = np.sort(glob.glob(args[0]+"/BHIS_*"+srchstr+"*.npy"))
 		assert len(filelist)>1, me+"Check directory."
-		if verbose: print me+"Found",len(filelist),"files."
+		if vb: print me+"Found",len(filelist),"files."
 		for histfile in filelist:
-			plot_file(histfile, nosave, verbose)
+			plot_file(histfile, nosave, vb)
 			plt.close()
 	elif os.path.isdir(args[0]):
-		plot_dir(args[0], nosave, srchstr, verbose)
+		plot_dir(args[0], srchstr, logplot, nosave, vb)
 	else: raise IOError, me+"Check input."
 	
-	if verbose: print me+"Total execution time",round(time.time()-t0,1),"seconds."
+	if vb: print me+"Total execution time",round(time.time()-t0,1),"seconds."
 	if showfig:	plt.show()
 	
 	return
@@ -155,7 +158,7 @@ def plot_file(histfile, nosave, vb):
 	return plotfile
 	
 ##=============================================================================
-def plot_dir(histdir, nosave, srchstr, vb):
+def plot_dir(histdir, srchstr, logplot, nosave, vb):
 	"""
 	For each file in directory, calculate the pressure in both ways for all walls
 	(where applicable) and plot against alpha.
@@ -261,25 +264,34 @@ def plot_dir(histdir, nosave, srchstr, vb):
 	## PLOT DATA
 	
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	sty = ["-","--",":"]
 	
-	lpR = ax.plot(A, pR, "o-", label=r"BC pR")
-	lpS = ax.plot(A, pS, "o-", label=r"BC pS")
-	if Casimir:	
-		lpT = ax.plot(A, pT, "o-", label=r"BC pT")
+	A += int(logplot)
 	
-	ax.plot(A, PR, lpR[0].get_color()+"v--", lw=2, label=r"Int PR")
-	ax.plot(A, PS, lpS[0].get_color()+"v--", lw=2, label=r"Int PS")
+	lpR = ax.plot(A, pR, "o"+sty[0], label=r"BC pR")
+	lpS = ax.plot(A, pS, "o"+sty[1], c=ax.lines[-1].get_color(), label=r"BC pS")
 	if Casimir:	
-		ax.plot(A, PT, lpT[0].get_color()+"v--", lw=2, label=r"Int PT")
+		lpT = ax.plot(A, pT, "o"+sty[2], c=ax.lines[-1].get_color(), label=r"BC pT")
+	
+	ax.plot(A, PR, "v"+sty[0], label=r"Int PR")
+	ax.plot(A, PS, "v"+sty[1], c=ax.lines[-1].get_color(), label=r"Int PS")
+	if Casimir:	
+		ax.plot(A, PT, "v"+sty[2], c=ax.lines[-1].get_color(), label=r"Int PT")
 		
 	##-------------------------------------------------------------------------
 	
 	## ACCOUTREMENTS
-#	ax.set_xscale("log")
-#	ax.set_yscale("log")
-	ax.set_xlim(0.0,A[-1])
 	
-	ax.set_xlabel(r"$\alpha$",fontsize=fs["fsa"])
+	if logplot:
+		ax.set_xscale("log"); ax.set_yscale("log")
+		xlim = (ax.get_xlim()[0],A[-1])
+		xlabel = r"$1+\alpha$"
+	else:
+		xlim = (0.0,A[-1])
+		xlabel = r"$\alpha$"
+		
+	ax.set_xlim(xlim)
+	ax.set_xlabel(xlabel,fontsize=fs["fsa"])
 	ax.set_ylabel(r"$P(\alpha)$",fontsize=fs["fsa"])
 	ax.grid()
 	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)

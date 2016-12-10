@@ -370,16 +370,18 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	sty = ["-","--",":"]
 	
-	Au = np.unique(A)
+	Au = np.unique(A) + int(logplot)
+	
+	##-------------------------------------------------------------------------
 	
 	## Hold R & T fixed and vary S
-	if np.unique(R).size==1:# and (np.unique(T).size==1 or T.all()<0.0):
-
-		plotfile = histdir+"/PAR_R%.1f_T%.1f."%(R[0],T[0])+fs["saveext"] if T[0]>=0.0\
-					else histdir+"/PAR_R%.1f."%(R[0])+fs["saveext"]
+	if np.unique(R).size==1:
+		
+		plotfile = histdir+"/PAS_R%.1f_T%.1f."%(R[0],T[0])+fs["saveext"] if T[0]>=0.0\
+					else histdir+"/PAS_R%.1f."%(R[0])+fs["saveext"]
 		title = r"Pressure as a function of $\alpha$ for $R=%.1f,T=%.1f$"%(R[0],T[0]) if T[0]>=0.0\
 				else r"Pressure as a function of $\alpha$ for $R=%.2f$"%(R[0])
-				
+							
 		for Si in np.unique(S):
 			ax.plot(Au, PR[S==Si], "o"+sty[0], label=r"$S=%.1f$"%(Si))
 			ax.plot(Au, PS[S==Si], "o"+sty[1], c=ax.lines[-1].get_color())
@@ -392,16 +394,18 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 			
 	if logplot:
 		ax.set_xscale("log"); ax.set_yscale("log")
-		ax.set_xlim((ax.get_xlim()[0],A[-1]))
+		ax.set_xlim((ax.get_xlim()[0],A[-1]+1))
+		xlabel = r"$1+\alpha$"
 		plotfile = plotfile[:-4]+"_loglog."+fs["saveext"]
 	else:
 		ax.set_xlim((0.0,A[-1]))
 		ax.set_ylim(bottom=0.0,top=max(ax.get_ylim()[1],1.0))
+		xlabel = r"$\alpha$"
 	
-	ax.set_xlabel(r"$\alpha$", fontsize=fs["fsa"])
+	ax.set_xlabel(xlabel, fontsize=fs["fsa"])
 	ax.set_ylabel(r"$P(\alpha)$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="lower left", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
