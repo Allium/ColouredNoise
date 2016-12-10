@@ -11,6 +11,7 @@ if "SSH_TTY" in os.environ:
 	mpl.use("Agg")
 from matplotlib import cm
 from matplotlib import pyplot as plt
+from matplotlib.ticker import MaxNLocator
 
 from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 from LE_Utils import filename_par, fs, set_mplrc
@@ -133,6 +134,8 @@ def plot_pdf2d(histfile, nosave, vb):
 	ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
 	ax.set_title(r"$\rho(x,y)$ data", fontsize=fs["fsa"])
 	
+	ax.xaxis.set_major_locator(MaxNLocator(5))
+	
 	## ------------------------------------------------------------------------
 	
 	## Plot WN density
@@ -153,6 +156,8 @@ def plot_pdf2d(histfile, nosave, vb):
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	# ax.set_ylabel(r"$y", fontsize=fs["fsa"])
 	ax.set_title(r"$\rho(x,y)$ WN", fontsize=fs["fsa"])
+	
+	ax.xaxis.set_major_locator(MaxNLocator(5))
 		
 	## ------------------------------------------------------------------------
 	
