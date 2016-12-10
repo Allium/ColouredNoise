@@ -112,6 +112,11 @@ def set_mplrc(fs):
 	mpl.rcParams['font.family'] = 'serif'  
 	mpl.rcParams['font.serif'] = ['Computer Modern Roman']  
 	mpl.rcParams['text.usetex'] = True
+	## DFM
+	# rcParams["font.family"] = "sans-serif"
+	# rcParams["font.sans-serif"] = ["Computer Modern Sans"]
+	# rcParams["text.usetex"] = True
+	# rcParams["text.latex.preamble"] = r"\usepackage{cmbright}"
 	
 	## Figure properties
 	mpl.rc("figure", figsize=fs["figsize"])

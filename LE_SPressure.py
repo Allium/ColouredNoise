@@ -467,7 +467,6 @@ def calc_pressure_dir(dirpath, srchstr, vb):
 	# PP = np.ma.array(PP, mask=mask)
 	# QQ = np.ma.array(QQ, mask=mask)
 	
-	# """
 	## SAVING
 	pressfile = dirpath+"/PRESS.npz"
 	np.savez(pressfile, PP=PP, QQ=QQ, PP_WN=PP_WN, QQ_WN=QQ_WN, AA=AA, RR=RR, SS=SS, LL=LL, NN=NN)
@@ -479,6 +478,7 @@ def calc_pressure_dir(dirpath, srchstr, vb):
 ##=============================================================================
 def plot_pressure_dir(dirpath, logplot, nosave, srchstr, vb):
 	"""
+	Plot some slice of pressure array.
 	"""
 	me = me0+".plot_pressure_dir: "
 	
@@ -499,8 +499,16 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, vb):
 		print me+"No pressure data found. Calculating from histfiles."
 		PP, QQ, PP_WN, QQ_WN, AA, RR, SS, LL, NN = calc_pressure_dir(dirpath, srchstr, vb)
 	ftype = filename_pars(dirpath)["ftype"]
-	# """
 
+	## ------------------------------------------------
+	
+	## Mask zeros
+	mask = (PP==0.0)+(PP==-1.0)
+	PP_WN = np.ma.array(PP_WN, mask=mask)
+	QQ_WN = np.ma.array(QQ_WN, mask=mask)
+	PP = np.ma.array(PP, mask=mask)
+	QQ = np.ma.array(QQ, mask=mask)
+		
 	## ------------------------------------------------
 	## PLOTS
 	
@@ -556,20 +564,20 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, vb):
 				plotfile = dirpath+"/PQSA.jpg"
 				xlabel = r"$S$"
 				xlim = (SS[0],SS[-1])
-				for i in range(0,AA.size,2):
+				for i in range(0,AA.size,1):
 					ax.plot(SS,PP[:,0,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
 					ax.plot(SS,QQ[:,0,i], "v--", color=ax.lines[-1].get_color())
-			elif 0:
+			elif 1:
 				## Plot raw difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
 				title = "Pressure difference, $P_R-P_S$; $R = "+str(RR[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference"
-				xlabel = r"$1+\alpha$"
-				xlim = (1+0.0,1+AA[-1])
+				xlabel = r"$\alpha$"
+				xlim = (0.0,AA[-1])
 				plotfile = dirpath+"/DPAS.jpg"
 				for i in range(SS.size):
-					ax.plot(1+AA,(PP-QQ)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
+					ax.plot(AA,(PP-QQ)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
 #					ax.plot(1+AA,(PP_WN-QQ_WN)[i,0,:], "--", color=ax.lines[-1].get_color())
 			elif 1:
 				## Plot raw difference Pout-Pin against R

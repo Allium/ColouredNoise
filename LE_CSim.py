@@ -146,8 +146,6 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 		
 	## Undulating wall, one at R and the other at -R.
 	elif ftype=="ulin":
-		# raise NotImplementedError, me+"2D CSim code under construction."
-		assert S<=R, me+"Think about the geometry of what you're asking."
 		## Force
 		## R is position of right wall, S is amplitude, T is wavelength
 		fxy = lambda xy: force_ulin(xy,R,S,T)
@@ -385,7 +383,6 @@ def force_ulin(xy,R,A,lam):
 		elif x>R+bi:	fxy = (-x+R+bi)*np.array([1.0,-2*np.pi*A/lam*np.cos(y)])
 		else:			fxy = np.array([0.0,0.0])
 	except ValueError:	## If array
-		# raise NotImplementedError
 		X, Y = np.meshgrid(x, y, indexing="ij")
 		bi = A*np.sin(Y)
 		vec = np.array([np.ones(X.shape),-2*np.pi/lam*A*np.cos(Y)])

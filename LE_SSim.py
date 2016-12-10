@@ -62,8 +62,6 @@ def input():
 		dest="timefac",default=1.0,type="float")	
 	parser.add_option("--intmeth",
 		dest="intmeth",default="euler",type="str")
-	parser.add_option("--ephi",
-		dest="ephi", default=True, action="store_false")
 	parser.add_option('-v','--verbose',
 		dest="vb",default=False,action="store_true")
 	parser.add_option('-h','--help',
@@ -80,7 +78,6 @@ def input():
 	dt		= opts.dt
 	timefac = opts.timefac
 	intmeth = (opts.intmeth).lower()
-	ephi	= opts.ephi
 	vb		= opts.vb
 	
 	if ftype[0] == "d":		assert S>=0.0, me+"Must specify inner radius S for double circus."
@@ -91,7 +88,7 @@ def input():
 			
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
 	
-	main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb)
+	main(a,ftype,fpar,Nrun,dt,timefac,intmeth,True,vb)
 	
 	return
 
