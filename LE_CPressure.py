@@ -217,10 +217,11 @@ def plot_pressure_file(histfile, nosave, vb):
 	return
 	
 ##=============================================================================
-def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
+def calc_pressure_dir(histdir, srchstr, vb):
 	"""
+	Calculate the pressure for all files in directory matching string.
 	"""
-	me = me0+".plot_pressure_dir: "
+	me = me0+".calc_pressure_dir: "
 	t0 = time.time()
 	
 	##-------------------------------------------------------------------------
@@ -316,10 +317,55 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 	PS /= PS_WN + (PS_WN==0)
 	if Casimir:
 		PT /= PT_WN + (PT_WN==0)
+		
+	##-------------------------------------------------------------------------
+		
+	## SAVING
+	pressfile = histdir+"/PRESS.npz"
+	np.savez(pressfile, A=A, R=R, S=S, T=T, PR=PR, PS=PS, PT=PT, PR_WN=PR_WN, PS_WN=PS_WN, PT_WN=PT_WN)
+	if vb:
+		print me+"Calculations saved to",pressfile
+		print me+"Calculation time %.1f seconds."%(time.time()-t0)
+
+	return A, R, S, T, PR, PS, PT, PR_WN, PS_WN, PT_WN
+		
+
+##=============================================================================
+def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
+	"""
+	Plot the pressure for all files in directory matching string.
+	"""
+	me = me0+".plot_pressure_dir: "
+	t0 = time.time()
 	
+	##-------------------------------------------------------------------------
+	## Read in existing data or calculate afresh
+		
+	try:
+		pressdata = np.load(histdir+"/PRESS.npz")
+		print me+"Pressure data file found:",histdir+"/PRESS.npz"
+		A = pressdata["A"]
+		R = pressdata["R"]
+		S = pressdata["S"]
+		T = pressdata["T"]
+		PR = pressdata["PR"]
+		PS = pressdata["PS"]
+		PT = pressdata["PT"]
+		PR_WN = pressdata["PR_WN"]
+		PS_WN = pressdata["PS_WN"]
+		PT_WN = pressdata["PT_WN"]
+		del pressdata
+	except IOError:
+		print me+"No pressure data found. Calculating from histfiles."
+		A, R, S, T, PR, PS, PT, PR_WN, PS_WN, PT_WN = calc_pressure_dir(histdir, srchstr, vb)
+		
+	Casimir = "_DL_" not in histdir
+
 	##-------------------------------------------------------------------------
 	
 	## PLOTTING
+	
+	t0 = time.time()
 	
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	sty = ["-","--",":"]
@@ -362,7 +408,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 		fig.savefig(plotfile)
 		if vb:	print me+"Figure saved to",plotfile
 		
-	if vb: print me+"Execution time %.1f seconds."%(time.time()-t0)
+	if vb: print me+"Plotting time %.1f seconds."%(time.time()-t0)
 	
 	return
 	
