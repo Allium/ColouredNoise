@@ -237,7 +237,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 
 	##-------------------------------------------------------------------------
 	
-	A, PR, PS, PT = np.zeros([4,numfiles])
+	A, R, S, T, PR, PS, PT, PR_WN, PS_WN, PT_WN = np.zeros([10,numfiles])
 	
 	## Retrieve data
 	for i, histfile in enumerate(filelist):
@@ -246,12 +246,12 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 		
 		## Assuming R, S, T are same for all files
 		A[i] = filename_par(histfile, "_a")
-		R = filename_par(histfile, "_R")
-		S = filename_par(histfile, "_S")
+		R[i] = filename_par(histfile, "_R")
+		S[i] = filename_par(histfile, "_S")
 		try: 
-			T = filename_par(histfile, "_T")
+			T[i] = filename_par(histfile, "_T")
 		except ValueError:
-			T = -S
+			T[i] = -S[i]
 			
 		## Space
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -259,8 +259,8 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 		x = 0.5*(xbins[1:]+xbins[:-1])
 		
 		## Wall indices
-		Rind, Sind, Tind = np.abs(x-R).argmin(), np.abs(x-S).argmin(), np.abs(x-T).argmin()
-		STind = (Sind+Tind)/2
+		Rind, Sind, Tind = np.abs(x-R[i]).argmin(), np.abs(x-S[i]).argmin(), np.abs(x-T[i]).argmin()
+		STind = 0 if T[i]<0.0 else (Sind+Tind)/2
 	
 		## Adjust indices for pressure calculation
 		if "_DL_" in histfile:
@@ -280,10 +280,10 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 		##-------------------------------------------------------------------------
 		
 		## Choose force
-		if   "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
-		elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
-		elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
-		elif "_NL_" in histfile:	fx = force_nlin([x,0],R,S)[0]
+		if   "_DL_" in histfile:	fx = force_dlin([x,0],R[i],S[i])[0]
+		elif "_CL_" in histfile:	fx = force_clin([x,0],R[i],S[i],T[i])[0]
+		elif "_ML_" in histfile:	fx = force_mlin([x,0],R[i],S[i],T[i])[0]
+		elif "_NL_" in histfile:	fx = force_nlin([x,0],R[i],S[i])[0]
 		else: raise IOError, me+"Force not recognised."
 		
 		## Calculate integral pressure
@@ -292,24 +292,26 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 		PT[i] = -sp.integrate.trapz(fx[Tind:STind]*Qx[Tind:STind], x[Tind:STind])
 		
 		if vb: print me+"a=%.1f:\tPressure calculation %.2g seconds"%(A[i],time.time()-ti)
+		
+		## Potential
+		U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+		Qx_WN = np.exp(-U) / np.trapz(np.exp(-U), x)
+		## WN pressure
+		PR_WN[i] = -sp.integrate.trapz(fx[Rind:]*Qx_WN[Rind:], x[Rind:])
+		PS_WN[i] = +sp.integrate.trapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind])
+		if Casimir:
+			PT_WN[i] = -sp.integrate.trapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind])
+		
+	##-------------------------------------------------------------------------
 			
 	## SORT BY ALPHA
 	srtidx = A.argsort()
 	A = A[srtidx]
+	R, S, T = R[srtidx], S[srtidx], T[srtidx]
 	PR, PS, PT = PR[srtidx], PS[srtidx], PT[srtidx]
+	PR_WN, PS_WN, PT_WN = PR_WN[srtidx], PS_WN[srtidx], PT_WN[srtidx]
 	
-	##-------------------------------------------------------------------------
-	
-	## Potential and WN normalisation
-	
-	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
-	Qx_WN = np.exp(-U) / np.trapz(np.exp(-U), x)
-	
-	PR_WN = -sp.integrate.trapz(fx[Rind:]*Qx_WN[Rind:], x[Rind:])
-	PS_WN = +sp.integrate.trapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind])
-	if Casimir:
-		PT_WN = -sp.integrate.trapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind])
-
+	## Normalise
 	PR /= PR_WN + (PR_WN==0)
 	PS /= PS_WN + (PS_WN==0)
 	if Casimir:
@@ -319,16 +321,29 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 	
 	## PLOTTING
 	
-	plotfile = histdir+"/PA_R%.1f_S%.ff_T%.1f."%(R,S,T)+fs["saveext"] if T>=0.0\
-				else histdir+"/PA_R%.1f_S%.1f."%(R,S)+fs["saveext"]
-	
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	sty = ["-","--",":"]
 	
-	ax.plot(A, PR, "o-", label=r"$P_R$")
-	ax.plot(A, PS, "o-", label=r"$P_S$")
-	if Casimir:
-		ax.plot(A, PT, "o-", label=r"$P_T$")
-		
+	Au = np.unique(A)
+	
+	## Hold R & T fixed and vary S
+	if np.unique(R).size==1:# and (np.unique(T).size==1 or T.all()<0.0):
+
+		plotfile = histdir+"/PAR_R%.1f_T%.1f."%(R[0],T[0])+fs["saveext"] if T[0]>=0.0\
+					else histdir+"/PAR_R%.1f."%(R[0])+fs["saveext"]
+		title = r"Pressure as a function of $\alpha$ for $R=%.1f,T=%.1f$"%(R[0],T[0]) if T[0]>=0.0\
+				else r"Pressure as a function of $\alpha$ for $R=%.2f$"%(R[0])
+				
+		for Si in np.unique(S):
+			ax.plot(Au, PR[S==Si], "o"+sty[0], label=r"$S=%.1f$"%(Si))
+			ax.plot(Au, PS[S==Si], "o"+sty[1], c=ax.lines[-1].get_color())
+			if Casimir:
+				ax.plot(Au, PT[S==Si], "o"+sty[2], c=ax.lines[-1].get_color())
+			
+	##-------------------------------------------------------------------------
+	
+	## Plot appearance
+			
 	if logplot:
 		ax.set_xscale("log"); ax.set_yscale("log")
 		ax.set_xlim((ax.get_xlim()[0],A[-1]))
@@ -341,8 +356,6 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 	ax.set_ylabel(r"$P(\alpha)$", fontsize=fs["fsa"])
 	ax.grid()
 	ax.legend(loc="lower left", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
-	title = r"Pressure as a function of $\alpha$ for $R=%.1g,S=%.1g,T=%.1g$"%(R,S,T) if T>=0.0\
-			else r"Pressure as a function of $\alpha$ for $R=%.2g,S=%.2g$"%(R,S)
 	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
