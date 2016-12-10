@@ -95,6 +95,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	except ValueError: T= -S
 	
 	doQfit = (R==S and "_DL_" in histfile)
+	plotq = int(False)
 	
 	##-------------------------------------------------------------------------
 		
@@ -132,11 +133,11 @@ def plot_pdf1d(histfile, nosave, vb):
 	
 	## PLOTTING
 				
-	fig, axs = plt.subplots(2,1, figsize=fs["figsize"])
+	fig, axs = plt.subplots(1+plotq,1, figsize=fs["figsize"])
 	fig.canvas.set_window_title("1D PDFs")
 	
 	## Spatial density plot
-	ax = axs[0]
+	ax = axs[0] if plotq else axs
 	
 	## Data
 	ax.plot(x, Qx, label=r"Simulation")
@@ -153,18 +154,20 @@ def plot_pdf1d(histfile, nosave, vb):
 	else: raise IOError, me+"Force not recognised."
 	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
 	
+#	ax.set_ylim((0.0,1.2))	###
 	ax.plot(x, np.exp(-U)/np.trapz(np.exp(-U),x), "r-", label="WN")
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--",label="Potential")
 	
 	## Indicate bulk
-	ax.axvline(S,c="k")
-	ax.axvline(R,c="k")
+	ax.axvline(S,c="k",lw=1)
+	ax.axvline(R,c="k",lw=1)
 	if T>=0.0:
 		ax.axvspan(S,R,color="y",alpha=0.1)
-		ax.axvline(T,c="k")
-		ax.axvspan(0,T,color="y",alpha=0.1)
+		ax.axvline(T,c="k",lw=1)
+		ax.axvspan(-R,T,color="y",alpha=0.1)
+		ax.axvline(-R,c="k",lw=1)
 	elif T<0.0:
-		ax.axvline(-R,c="k")
+		ax.axvline(-R,c="k",lw=1)
 	
 	ax.set_xlim(left=x[0],right=x[-1])
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
@@ -174,27 +177,34 @@ def plot_pdf1d(histfile, nosave, vb):
 		
 	##-------------------------------------------------------------------------
 	
-	## Force density plot
-	ax = axs[1]
+	if plotq:
+		## Force density plot
+		ax = axs[1]
 	
-	## Data
-	ax.plot(etax, qx, label=r"Simulation $x$")
-	ax.plot(etay, qy, label=r"Simulation $y$")
+		## Data
+		ax.plot(etax, qx, label=r"Simulation $x$")
+		ax.plot(etay, qy, label=r"Simulation $y$")
 	
-	## Gaussian
-	ax.plot(etax, gauss(etax,0.0,1/a), "c-", label=r"$G\left(0, \frac{1}{\alpha}\right)$")
+		## Gaussian
+		ax.plot(etax, gauss(etax,0.0,1/a), "c-", label=r"$G\left(0, \frac{1}{\alpha}\right)$")
 	
-	ax.set_xlabel(r"$\eta$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$q(\eta)$", fontsize=fs["fsa"])
-	ax.grid()
-	ax.legend(loc="upper right", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+		ax.set_xlabel(r"$\eta$", fontsize=fs["fsa"])
+		ax.set_ylabel(r"$q(\eta)$", fontsize=fs["fsa"])
+		ax.grid()
+		ax.legend(loc="upper right", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	
-	##-------------------------------------------------------------------------
+		##-------------------------------------------------------------------------
 	
-	fig.tight_layout()
-	fig.subplots_adjust(top=0.95)
-	title = r"PDFs in $r$ and $\eta$. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S)  if T<0.0\
-			else r"PDFs in $r$ and $\eta$. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
+		fig.tight_layout()
+		fig.subplots_adjust(top=0.95)
+		title = r"PDFs in $r$ and $\eta$. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S)  if T<0.0\
+				else r"PDFs in $r$ and $\eta$. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
+				
+	else:			
+		title = r"Spatial PDF. $\alpha=%.1f, R=%.1g, S=%.1g$"%(a,R,S)  if T<0.0\
+				else r"Spatial PDF. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.f$"%(a,R,S,T)
+				
+				
 	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
@@ -285,7 +295,12 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	ax = axs[0][0] if pred else axs[0]
 	ax.contourf(x,etax,rhoxex.T)
-	ax.axvline(R,c="k"); ax.axvline(S,c="k")
+	
+	## Indicate bulk
+	ax.axvline(S,c="k",lw=1)
+	ax.axvline(R,c="k",lw=1)
+	if T>=0.0:	ax.axvline(T,c="k",lw=1)
+	elif T<0.0:	ax.axvline(-R,c="k",lw=1)
 	
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$\eta_x$", fontsize=fs["fsa"])
@@ -303,7 +318,12 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	ax = axs[1][0] if pred else axs[1]
 	ax.contourf(x,etay,rhoxey.T)
-	ax.axvline(R,c="k"); ax.axvline(S,c="k")
+	
+	## Indicate bulk
+	ax.axvline(S,c="k",lw=1)
+	ax.axvline(R,c="k",lw=1)
+	if T>=0.0:	ax.axvline(T,c="k",lw=1)
+	elif T<0.0:	ax.axvline(-R,c="k",lw=1)
 	
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$\eta_y$", fontsize=fs["fsa"])
@@ -354,32 +374,6 @@ def plot_pdf2d(histfile, nosave, vb):
 	return
 	
 	
-##=============================================================================
-##=============================================================================
-
-def calc_rho_NLsmallR(x, a, R, S):
-	"""
-	Calculate 1o solution for the small-R nlin scenario.
-	See notes 22/11/2016.
-	"""
-	Rind, Sind = np.abs(x-R).argmin(), np.abs(x-S).argmin()
-	DD = np.zeros(x.size); DD[Sind] = 1.0 / (x[1]-x[0])
-	return
-
-def calc_Q_NLsmallR(x, a, R, S):
-	"""
-	Calculate 1o spatial density for the small-R nlin scenario.
-	See notes 22/11/2016.
-	"""
-	Rind, Sind = np.abs(x-R).argmin(), np.abs(x-S).argmin()
-	DD = np.zeros(x.size); DD[Sind] = 1.0 #/ (x[1]-x[0])
-	Q0R = np.sqrt((a+1)/(2*np.pi))*np.exp(-0.5*(a+1)*(x-R)**2)
-	Q0L = np.sqrt((a+1)/(2*np.pi))*np.exp(-0.5*(a+1)*(x+R)**2)
-	n = 1/(1-2*R*np.sqrt((a+1)/(2*np.pi))*np.exp(-0.5*(a+1)*S*S))	## Maybe wrong
-	QR = n*(1 + R*(a+1)*x - 2*R*DD)*Q0R
-	QL = n*(1 - R*(a+1)*x - 2*R*DD)*Q0L
-	Q = np.r_[QL[:Sind],QR[Sind:]]
-	return Q
 
 ##=============================================================================
 ##=============================================================================

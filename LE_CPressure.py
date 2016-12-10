@@ -105,6 +105,9 @@ def plot_pressure_file(histfile, nosave, vb):
 	Rind, Sind, Tind = np.abs(x-R).argmin(), np.abs(x-S).argmin(), np.abs(x-T).argmin()
 	STind = (Sind+Tind)/2
 	
+	## Adjust indices for pressure calculation
+	if "_DL_" in histfile:
+		STind = 0
 	if "_NL_" in histfile:
 		STind = Sind
 		Sind = Rind
@@ -258,6 +261,14 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 		## Wall indices
 		Rind, Sind, Tind = np.abs(x-R).argmin(), np.abs(x-S).argmin(), np.abs(x-T).argmin()
 		STind = (Sind+Tind)/2
+	
+		## Adjust indices for pressure calculation
+		if "_DL_" in histfile:
+			STind = 0
+		if "_NL_" in histfile:
+			STind = Sind
+			Sind = Rind
+			Tind = x.size-Rind
 		
 		##-------------------------------------------------------------------------
 		
@@ -308,7 +319,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 	
 	## PLOTTING
 	
-	plotfile = histdir+"/PA_R%.1f_S%.1f_T%.1f."%(R,S,T)+fs["saveext"] if T>=0.0\
+	plotfile = histdir+"/PA_R%.1f_S%.ff_T%.1f."%(R,S,T)+fs["saveext"] if T>=0.0\
 				else histdir+"/PA_R%.1f_S%.1f."%(R,S)+fs["saveext"]
 	
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
@@ -320,8 +331,10 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 		
 	if logplot:
 		ax.set_xscale("log"); ax.set_yscale("log")
-		plotfile += "_loglog"
+		ax.set_xlim((ax.get_xlim()[0],A[-1]))
+		plotfile = plotfile[:-4]+"_loglog."+fs["saveext"]
 	else:
+		ax.set_xlim((0.0,A[-1]))
 		ax.set_ylim(bottom=0.0,top=max(ax.get_ylim()[1],1.0))
 	
 	ax.set_xlabel(r"$\alpha$", fontsize=fs["fsa"])
@@ -329,7 +342,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 	ax.grid()
 	ax.legend(loc="lower left", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	title = r"Pressure as a function of $\alpha$ for $R=%.1g,S=%.1g,T=%.1g$"%(R,S,T) if T>=0.0\
-			else r"Pressure as a function of $\alpha$ for $R=%.1g,S=%.1g$"%(R,S)
+			else r"Pressure as a function of $\alpha$ for $R=%.2g,S=%.2g$"%(R,S)
 	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:

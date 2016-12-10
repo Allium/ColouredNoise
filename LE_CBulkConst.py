@@ -108,6 +108,9 @@ def plot_file(histfile, nosave, vb):
 	ax.plot(x, Q/Q.max(),   label=r"$Q(x)$")
 	ax.plot(x, ex2/ex2.max(), label=r"$\langle\eta_x^2\rangle(x)$")
 	ax.plot(x, BC/BC.max(), label=r"$\langle\eta_x^2\rangle Q$", lw=2)
+#	ax.plot(x, Q,   label=r"$Q(x)$")
+#	ax.plot(x, ex2, label=r"$\langle\eta_x^2\rangle(x)$")
+#	ax.plot(x, BC, label=r"$\langle\eta_x^2\rangle Q$", lw=2)
 	
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")	
 		
@@ -118,6 +121,11 @@ def plot_file(histfile, nosave, vb):
 	elif "_ML_" in histfile:
 		ax.axvspan(S,R, color="yellow",alpha=0.2)
 		ax.axvspan(-R,T, color="yellow",alpha=0.2)
+		ax.axvline(S, c="k",lw=2);	ax.axvline(R, c="k",lw=2)
+		ax.axvline(T, c="k",lw=2);	ax.axvline(-R, c="k",lw=2)
+	elif "_CL_" in histfile:
+		ax.axvspan(S,R, color="yellow",alpha=0.2)
+		ax.axvspan(0,T, color="yellow",alpha=0.2)
 		ax.axvline(S, c="k",lw=2);	ax.axvline(R, c="k",lw=2)
 		ax.axvline(T, c="k",lw=2);	ax.axvline(-R, c="k",lw=2)
 		
@@ -136,6 +144,7 @@ def plot_file(histfile, nosave, vb):
 	fig.suptitle(title,fontsize=fs["fst"])
 	
 	## SAVE
+#	ax.set_ylim(top=BC.max())
 	plotfile = os.path.dirname(histfile)+"/QEe2"+os.path.basename(histfile)[4:-4]+"."+fs["saveext"]
 	if not nosave:
 		fig.savefig(plotfile)
@@ -152,7 +161,6 @@ def plot_dir(histdir, nosave, srchstr, vb):
 	(where applicable) and plot against alpha.
 	"""
 	me = me0+".plot_dir: "
-	print me+"Not working for some reason."
 	
 	filelist = np.sort(glob.glob(histdir+"/BHIS_CAR_*"+srchstr+"*.npy"))
 	numfiles = filelist.size
@@ -177,12 +185,12 @@ def plot_dir(histdir, nosave, srchstr, vb):
 		
 		## Wall indices
 		Rind, Sind, Tind = np.abs(x-R).argmin(), np.abs(x-S).argmin(), np.abs(x-T).argmin()
-		STind = (Tind+Sind)/2
+		STind = 0 if "_DL_" in histfile else (Tind+Sind)/2
 		
 		##---------------------------------------------------------------------
 		## Calculate pressure from BC
 		
-		if   "_DL_" in histfile:	
+		if "_DL_" in histfile:	
 			BCsr = BC[Sind:Rind+1].mean()
 			pR[i] = A[i] * BCsr
 			pS[i] = A[i] * BCsr
@@ -200,8 +208,8 @@ def plot_dir(histdir, nosave, srchstr, vb):
 			BCts = BC[STind]
 			BCrt = BC[x.size-Rind:Tind+1].mean()
 			pR[i] = A[i] * BCsr
-			pS[i] = A[i] * (BCsr - BCts)
-			pT[i] = A[i] * (BCrt - BCts)
+			pS[i] = A[i] * (-BCsr + BCts)
+			pT[i] = A[i] * (-BCrt + BCts)
 			
 		elif "_NL_" in histfile:
 			BCr = BC[Rind]
@@ -245,7 +253,7 @@ def plot_dir(histdir, nosave, srchstr, vb):
 	PT_WN = -sp.integrate.trapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind])
 	
 	## Normalise
-#	pR /= PR_WN; pS /= PS_WN; pT /= PT_WN
+	pR /= PR_WN; pS /= PS_WN; pT /= PT_WN
 	PR /= PR_WN; PS /= PS_WN; PT /= PT_WN
 	
 	##-------------------------------------------------------------------------
@@ -272,7 +280,7 @@ def plot_dir(histdir, nosave, srchstr, vb):
 	ax.set_xlim(0.0,A[-1])
 	
 	ax.set_xlabel(r"$\alpha$",fontsize=fs["fsa"])
-	ax.set_ylabel(r"$P$",fontsize=fs["fsa"])
+	ax.set_ylabel(r"$P(\alpha)$",fontsize=fs["fsa"])
 	ax.grid()
 	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	title = "Pressure normalised by WN result. $R=%.1f, S=%.1f, T=%.1f.$"%(R,S,T) if T>=0.0\
@@ -280,8 +288,8 @@ def plot_dir(histdir, nosave, srchstr, vb):
 	fig.suptitle(title,fontsize=fs["fst"])
 	
 	## SAVING
-	plotfile = histdir+"/QEe2_Pa_R%.1f_S%.1f_T%.1f.jpg"%(R,S,T) if T>=0.0\
-				else histdir+"/QEe2_Pa_R%.1f_S%.1f.jpg"%(R,S)
+	plotfile = histdir+"/QEe2_Pa_R%.1f_S%.1f_T%.1f"%(R,S,T) if T>=0.0\
+				else histdir+"/QEe2_Pa_R%.1f_S%.1f"%(R,S)
 	plotfile += "."+fs["saveext"]
 	if not nosave:
 		fig.savefig(plotfile)
@@ -311,7 +319,7 @@ def bulk_const(histfile):
 	
 	## Load histogram
 	H = np.load(histfile)
-	rhoxex = H.sum(axis=2) / (H.sum()*(x[1]-x[0])*(ex[1]-ex[0])*(ey[1]-ey[0]))
+	rhoxex = H.sum(axis=2) / (H.sum()*(x[1]-x[0])*(ex[1]-ex[0]))
 	
 	## Spatial density
 	Q = H.sum(axis=2).sum(axis=1) / (H.sum()*(x[1]-x[0]))
