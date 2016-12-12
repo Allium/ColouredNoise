@@ -4,12 +4,15 @@ import numpy as np
 import scipy as sp
 import scipy.integrate
 from matplotlib import pyplot as plt
+from matplotlib.ticker import MaxNLocator, NullLocator
+from mpl_toolkits.mplot3d import axes3d
 from LE_Utils import fs, set_mplrc
 
-from LE_SSim import force_dlin
 from LE_CSim import force_clin, force_mlin, force_nlin, force_dlin, force_ulin
+from LE_SSim import force_dlin
 
-# set_mplrc(fs)
+set_mplrc(fs)
+
 
 ## 1D force
 if 0:
@@ -41,7 +44,75 @@ if 0:
 	plt.show()
 	exit()
 	
-## 2D force
+
+
+## 3D force CARTESIAN
+if 0:
+	R = 4.0
+	S = 2.0
+	T = 0.0
+		
+	x = np.linspace(-R-3,R+3,500)	## For nlin, mlin
+#	x = np.linspace(S-4,R+4,500)	## For dlin
+	y = np.linspace(0,1,50)
+
+	X, Y = np.meshgrid(x, y, indexing="ij")
+
+	fx = force_clin([x,y],R,S,T)[0]
+	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
+	U = np.meshgrid(U, y, indexing="ij")[0]
+
+	## Plotting
+	fig = plt.figure()
+	ax = fig.gca(projection="3d")
+
+	## 3D contour plot
+	ax.plot_surface(X, Y, U, alpha=0.2, rstride=3, cstride=3, antialiased=True)
+	
+	## Angle
+	ax.elev = 15
+	ax.azim = 75
+	
+	ax.set_xlabel(r"$x$")
+	ax.set_ylabel(r"$y$")
+	ax.set_zlabel(r"$U$")
+	
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
+	ax.zaxis.set_major_locator(NullLocator())
+
+	plt.show()
+	exit()
+
+
+## 3D potential -- POLAR
+if 1:
+	fig = plt.figure()
+	ax = fig.add_subplot(111, projection='3d')
+
+	# create supporting points in polar coordinates
+	r = np.linspace(0, 4.0, 100)
+	p = np.linspace(0, 2*np.pi, 50)
+	R, P = np.meshgrid(r, p)
+	# transform them to cartesian system
+	X, Y = R*np.cos(P), R*np.sin(P)
+
+	U = 0.5*(R - 2.0)**2	## ZB
+	U = 0.5*(R - 3.0)**2*(R>=3.0) + 0.5*(R - 1.0)**2*(R<=1.0)	## FB
+	
+	ax.plot_surface(X, Y, U, rstride=1, cstride=1, alpha=0.2)
+#	ax.set_zlim3d(0, 1)
+	ax.set_xlabel(r'$x$')
+	ax.set_ylabel(r'$y$')
+	ax.set_zlabel(r'$U$')
+	
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
+	ax.zaxis.set_major_locator(NullLocator())
+	plt.show()
+	
+	
+## 2D force -- for ulin
 elif 1:
 	R = 1.0
 	A = 0.5

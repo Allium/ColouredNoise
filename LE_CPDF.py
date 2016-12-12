@@ -9,6 +9,7 @@ import matplotlib as mpl
 if "SSH_TTY" in os.environ:
 	print me0+": Using Agg backend."
 	mpl.use("Agg")
+from matplotlib.ticker import MaxNLocator, NullLocator
 from matplotlib import cm
 from matplotlib import pyplot as plt
 
@@ -95,7 +96,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	except ValueError: T= -S
 	
 	doQfit = (R==S and "_DL_" in histfile)
-	plotq = int(False)
+	plotq = int(True)
 	
 	##-------------------------------------------------------------------------
 		
@@ -135,6 +136,13 @@ def plot_pdf1d(histfile, nosave, vb):
 				
 	fig, axs = plt.subplots(1+plotq,1, figsize=fs["figsize"])
 	fig.canvas.set_window_title("1D PDFs")
+	
+	## Set number of ticks
+	for ax in np.ravel([axs]):
+		ax.xaxis.set_major_locator(MaxNLocator(5))
+		ax.yaxis.set_major_locator(MaxNLocator(4))
+	
+	##-------------------------------------------------------------------------
 	
 	## Spatial density plot
 	ax = axs[0] if plotq else axs
@@ -287,6 +295,11 @@ def plot_pdf2d(histfile, nosave, vb):
 	fig, axs = plt.subplots(3,1+pred, sharey=True, figsize=fs["figsize"])
 	fig.canvas.set_window_title("2D PDFs")
 	
+	## Set number of ticks
+	for ax in np.ravel([axs]):
+		ax.xaxis.set_major_locator(MaxNLocator(5))
+		ax.yaxis.set_major_locator(MaxNLocator(4))
+	
 	plt.rcParams["image.cmap"] = "Greys"#"coolwarm"
 	
 	## ------------------------------------------------------------------------
@@ -300,7 +313,7 @@ def plot_pdf2d(histfile, nosave, vb):
 	ax.axvline(S,c="k",lw=1)
 	ax.axvline(R,c="k",lw=1)
 	if T>=0.0:	ax.axvline(T,c="k",lw=1)
-	elif T<0.0:	ax.axvline(-R,c="k",lw=1)
+	elif T<0.0 and "_DL_" not in histfile:	ax.axvline(-R,c="k",lw=1)
 	
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$\eta_x$", fontsize=fs["fsa"])
@@ -310,7 +323,7 @@ def plot_pdf2d(histfile, nosave, vb):
 		ax = axs[0][1]
 		ax.contourf(x,etax,rhoPxex.T)
 		ax.axvline(Xc,c="k")
-	
+		
 		ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 		ax.set_title(r"$\rho(x,\eta_x)$ prediction", fontsize=fs["fsa"])
 	
@@ -323,7 +336,7 @@ def plot_pdf2d(histfile, nosave, vb):
 	ax.axvline(S,c="k",lw=1)
 	ax.axvline(R,c="k",lw=1)
 	if T>=0.0:	ax.axvline(T,c="k",lw=1)
-	elif T<0.0:	ax.axvline(-R,c="k",lw=1)
+	elif T<0.0 and "_DL_" not in histfile:	ax.axvline(-R,c="k",lw=1)
 	
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$\eta_y$", fontsize=fs["fsa"])
@@ -355,8 +368,8 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	## ------------------------------------------------------------------------
 	
-	title = r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1g$"%(a,R,S) if T<0.0\
-			else r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1g, T=%.1f$"%(a,R,S,T)
+	title = r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S) if T<0.0\
+			else r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
 	fig.suptitle(title, fontsize=fs["fst"])
 	fig.tight_layout()
 	fig.subplots_adjust(top=0.9)
