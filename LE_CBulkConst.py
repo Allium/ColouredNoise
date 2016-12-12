@@ -302,7 +302,7 @@ def plot_dir(histdir, srchstr, logplot, nosave, vb):
 	## SAVING
 	plotfile = histdir+"/QEe2_Pa_R%.1f_S%.1f_T%.1f"%(R,S,T) if T>=0.0\
 				else histdir+"/QEe2_Pa_R%.1f_S%.1f"%(R,S)
-	plotfile += "."+fs["saveext"]
+	plotfile += "_loglog"*logplot+"."+fs["saveext"]
 	if not nosave:
 		fig.savefig(plotfile)
 		if vb: print me+"Figure saved to",plotfile

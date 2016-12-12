@@ -552,11 +552,11 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, vb):
 				## Plot normalised Pout and Pin individually against ALPHA
 				title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 				plotfile = dirpath+"/PQAS.jpg"
-				xlabel = r"$\alpha$"
-				xlim = (0.0,AA[-1])
+				xlabel = r"$1+\alpha$"*logplot + r"$\alpha$"*(not logplot)
+				xlim = (int(logplot), int(logplot)+AA[-1])
 				for i in range(SS.size):
-					ax.plot(AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
-					ax.plot(AA,QQ[i,0,:], "v--", color=ax.lines[-1].get_color())
+					ax.plot(int(logplot)+AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
+					ax.plot(int(logplot)+AA,QQ[i,0,:], "v--", color=ax.lines[-1].get_color())
 #				Aarr = np.linspace(AA[0],1+AA[-1],100); ax.plot(1+Aarr,1/(1+Aarr)**0.5, "k:",label=r"$(1+\alpha)^{-1/2}$")
 			elif 0:
 				## Plot normalised Pout and Pin individually against S, for multiple ALPHA
@@ -574,7 +574,7 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, vb):
 				title = "Pressure difference, $P_R-P_S$; $R = "+str(RR[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference"
 				xlabel = r"$\alpha$"
-				xlim = (0.0,AA[-1])
+				xlim = (0.0, AA[-1])
 				plotfile = dirpath+"/DPAS.jpg"
 				for i in range(SS.size):
 					ax.plot(AA,(PP-QQ)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
@@ -749,13 +749,15 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, vb):
 	## ------------------------------------------------
 	## Accoutrements
 	
-	ax.set_xlim(xlim)
 	if logplot:
-		ax.set_xlim(left=(xlim[0] if xlim[0]!=0.0 else 1.0), right=xlim[1])
 		ax.set_xscale("log"); ax.set_yscale("log")
+		ax.set_xlim(left=(xlim[0] if xlim[0]!=0.0 else ax.get_xlim()[0]), right=xlim[1])
 		plotfile = plotfile[:-4]+"_loglog.jpg"
-	if not (logplot or DPplot):
+	elif not (logplot or DPplot):
+		ax.set_xlim(xlim)
 		ax.set_ylim(bottom=0.0, top=max(ax.get_ylim()[1],1.0))
+	else:
+		ax.set_xlim(xlim)
 	
 	ax.set_xlabel(xlabel,fontsize=fs["fsa"])
 	ax.set_ylabel(ylabel,fontsize=fs["fsa"])
