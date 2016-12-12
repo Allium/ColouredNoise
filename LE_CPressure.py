@@ -362,6 +362,19 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 	Casimir = "_DL_" not in histdir
 
 	##-------------------------------------------------------------------------
+	## FIT if DL
+	
+	if 0 and not Casimir:
+		## Fit log
+		fitfunc = lambda x, m, c: m*x + c
+		Au = np.unique(A) + int(logplot)
+		for Si in np.unique(S):
+			fitPR = sp.optimize.curve_fit(fitfunc, np.log(1+Au), np.log(PR[S==Si]), p0=[-0.5,+1.0])[0]
+			fitPS = sp.optimize.curve_fit(fitfunc, np.log(1+Au), np.log(PS[S==Si]), p0=[-0.5,+1.0])[0]
+			if vb:	print me+"Fit S=%.1f: PR=%.1f*(1+a)^(%.2f), PS=%.1f*(1+a)^(%.2f)"%\
+						(Si,np.exp(fitPR[1]),fitPR[0],np.exp(fitPS[1]),fitPS[0])
+			
+	##-------------------------------------------------------------------------
 	
 	## PLOTTING
 	

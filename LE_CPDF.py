@@ -297,7 +297,8 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	## Set number of ticks
 	for ax in np.ravel([axs]):
-		ax.xaxis.set_major_locator(MaxNLocator(5))
+		Nxtick = 5 if pred else 7
+		ax.xaxis.set_major_locator(MaxNLocator(Nxtick))
 		ax.yaxis.set_major_locator(MaxNLocator(4))
 	
 	plt.rcParams["image.cmap"] = "Greys"#"coolwarm"

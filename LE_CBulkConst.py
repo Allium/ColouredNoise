@@ -100,7 +100,12 @@ def plot_file(histfile, nosave, vb):
 	elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
 	elif "_NL_" in histfile:	fx = force_nlin([x,0],R,S)[0]
 	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
-#	Qx_WN = np.exp(-U)/np.trapz(np.exp(-U),x)
+	
+	##-------------------------------------------------------------------------
+	
+	## Smooth
+	sp.ndimage.gaussian_filter1d(Q,1.0,order=0,output=Q)
+	sp.ndimage.gaussian_filter1d(BC,1.0,order=0,output=BC)
 	
 	##-------------------------------------------------------------------------
 	
@@ -108,12 +113,9 @@ def plot_file(histfile, nosave, vb):
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	
 	## Data
-	ax.plot(x, Q/Q.max(),   label=r"$Q(x)$")
-	ax.plot(x, ex2/ex2.max(), label=r"$\langle\eta_x^2\rangle(x)$")
-	ax.plot(x, BC/BC.max(), label=r"$\langle\eta_x^2\rangle Q$", lw=2)
-#	ax.plot(x, Q,   label=r"$Q(x)$")
-#	ax.plot(x, ex2, label=r"$\langle\eta_x^2\rangle(x)$")
-#	ax.plot(x, BC, label=r"$\langle\eta_x^2\rangle Q$", lw=2)
+	ax.plot(x, Q/Q.max(),   label=r"$Q(x)$",lw=1)
+	ax.plot(x, ex2/ex2.max(), label=r"$\langle\eta_x^2\rangle(x)$",lw=1)
+	ax.plot(x, BC/BC.max(), label=r"$\langle\eta_x^2\rangle Q$")
 	
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")	
 		
@@ -141,7 +143,7 @@ def plot_file(histfile, nosave, vb):
 	ax.set_xlabel("$x$",fontsize=fs["fsa"])
 	ax.set_ylabel("Rescaled variable",fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="lower left",fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	ax.legend(loc="lower left",fontsize=fs["fsl"]).get_frame().set_alpha(0.8)
 	title = r"Bulk Constant. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$."%(a,R,S,T) if T>=0.0\
 			else r"Bulk Constant. $\alpha=%.1f, R=%.1f, S=%.1f$."%(a,R,S)
 	fig.suptitle(title,fontsize=fs["fst"])
