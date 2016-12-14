@@ -68,6 +68,8 @@ def main():
 		dest="logplot", default=False, action="store_true")
 	parser.add_option("--nosave",
 		dest="nosave", default=False, action="store_true")
+	parser.add_option('--noread',
+		dest="noread", default=False, action="store_true")
 	parser.add_option("-a","--plotall",
 		dest="plotall", default=False, action="store_true")
 	parser.add_option('--str',
@@ -76,13 +78,14 @@ def main():
 		dest="help", default=False, action="store_true")		
 	opt, args = parser.parse_args()
 	if opt.help: print main.__doc__; return
-	showfig = opt.showfig
 	plotP	= opt.plotP
-	vb = opt.verbose
-	logplot	= opt.logplot
-	nosave	= opt.nosave
+	showfig = opt.showfig
 	plotall = opt.plotall
 	srchstr = opt.searchstr
+	logplot	= opt.logplot
+	nosave	= opt.nosave
+	noread	= opt.noread
+	vb = opt.verbose
 	
 	if plotall and os.path.isdir(args[0]):
 		showfig = False
@@ -91,7 +94,7 @@ def main():
 	elif os.path.isfile(args[0]):
 		pressure_pdf_file(args[0],plotP,vb)
 	elif os.path.isdir(args[0]):
-		plot_pressure_dir(args[0],logplot,nosave,srchstr,vb)
+		plot_pressure_dir(args[0], srchstr, logplot, nosave, noread, vb)
 	else:
 		raise IOError, me+"You gave me rubbish. Abort."
 	
@@ -252,7 +255,7 @@ def allfiles(dirpath, plotP, srchstr, vb):
 	return
 
 ##=============================================================================
-def calc_pressure_dir(dirpath, srchstr, vb):
+def calc_pressure_dir(dirpath, srchstr, noread, vb):
 	"""
 	Plot pressure at "infinity" against alpha for all files in directory.
 	"""
@@ -468,37 +471,40 @@ def calc_pressure_dir(dirpath, srchstr, vb):
 	# QQ = np.ma.array(QQ, mask=mask)
 	
 	## SAVING
-	pressfile = dirpath+"/PRESS.npz"
-	np.savez(pressfile, PP=PP, QQ=QQ, PP_WN=PP_WN, QQ_WN=QQ_WN, AA=AA, RR=RR, SS=SS, LL=LL, NN=NN)
-	if vb:	print me+"Calculations saved to",pressfile
+	if not noread:
+		pressfile = dirpath+"/PRESS.npz"
+		np.savez(pressfile, PP=PP, QQ=QQ, PP_WN=PP_WN, QQ_WN=QQ_WN, AA=AA, RR=RR, SS=SS, LL=LL, NN=NN)
+		if vb:	print me+"Calculations saved to",pressfile
 	
-	return PP, QQ, PP_WN, QQ_WN, AA, RR, SS, LL, NN
+	return {"PP":PP, "QQ":QQ, "PP_WN":PP_WN, "QQ_WN":QQ_WN, "AA":AA, "RR":RR, "SS":SS, "LL":LL, "NN":NN}
 		
 
 ##=============================================================================
-def plot_pressure_dir(dirpath, logplot, nosave, srchstr, vb):
+def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 	"""
 	Plot some slice of pressure array.
 	"""
 	me = me0+".plot_pressure_dir: "
 	
 	try:
+		assert noread == False
 		pressdata = np.load(dirpath+"/PRESS.npz")
 		print me+"Pressure data file found:",dirpath+"/PRESS.npz"
-		PP = pressdata["PP"]
-		QQ = pressdata["QQ"]
-		PP_WN = pressdata["PP_WN"]
-		QQ_WN = pressdata["QQ_WN"]
-		AA = pressdata["AA"]
-		RR = pressdata["RR"]
-		SS = pressdata["SS"]
-		LL = pressdata["LL"]
-		NN = pressdata["NN"]
-		del pressdata
-	except IOError:
+	except (IOError, AssertionError):
 		print me+"No pressure data found. Calculating from histfiles."
-		PP, QQ, PP_WN, QQ_WN, AA, RR, SS, LL, NN = calc_pressure_dir(dirpath, srchstr, vb)
+		pressdata = calc_pressure_dir(dirpath, srchstr, noread, vb)
 	ftype = filename_pars(dirpath)["ftype"]
+	
+	PP = pressdata["PP"]
+	QQ = pressdata["QQ"]
+	PP_WN = pressdata["PP_WN"]
+	QQ_WN = pressdata["QQ_WN"]
+	AA = pressdata["AA"]
+	RR = pressdata["RR"]
+	SS = pressdata["SS"]
+	LL = pressdata["LL"]
+	NN = pressdata["NN"]
+	del pressdata
 
 	## ------------------------------------------------
 	
@@ -579,7 +585,7 @@ def plot_pressure_dir(dirpath, logplot, nosave, srchstr, vb):
 				for i in range(SS.size):
 					ax.plot(AA,(PP-QQ)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
 #					ax.plot(1+AA,(PP_WN-QQ_WN)[i,0,:], "--", color=ax.lines[-1].get_color())
-			elif 1:
+			else:
 				## Plot raw difference Pout-Pin against R
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN

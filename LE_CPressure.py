@@ -42,6 +42,8 @@ def main():
 		dest="logplot", default=False, action="store_true")
 	parser.add_option('--nosave',
 		dest="nosave", default=False, action="store_true")
+	parser.add_option('--noread',
+		dest="noread", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
 		dest="verbose", default=False, action="store_true")
 	opt, args = parser.parse_args()
@@ -50,6 +52,7 @@ def main():
 	srchstr = opt.srchstr
 	logplot = opt.logplot
 	nosave = opt.nosave
+	noread = opt.noread
 	vb = opt.verbose
 	
 	## Plot file
@@ -217,7 +220,7 @@ def plot_pressure_file(histfile, nosave, vb):
 	return
 	
 ##=============================================================================
-def calc_pressure_dir(histdir, srchstr, vb):
+def calc_pressure_dir(histdir, srchstr, noread, vb):
 	"""
 	Calculate the pressure for all files in directory matching string.
 	"""
@@ -321,17 +324,18 @@ def calc_pressure_dir(histdir, srchstr, vb):
 	##-------------------------------------------------------------------------
 		
 	## SAVING
-	pressfile = histdir+"/PRESS.npz"
-	np.savez(pressfile, A=A, R=R, S=S, T=T, PR=PR, PS=PS, PT=PT, PR_WN=PR_WN, PS_WN=PS_WN, PT_WN=PT_WN)
-	if vb:
-		print me+"Calculations saved to",pressfile
-		print me+"Calculation time %.1f seconds."%(time.time()-t0)
+	if not noread:
+		pressfile = histdir+"/PRESS.npz"
+		np.savez(pressfile, A=A, R=R, S=S, T=T, PR=PR, PS=PS, PT=PT, PR_WN=PR_WN, PS_WN=PS_WN, PT_WN=PT_WN)
+		if vb:
+			print me+"Calculations saved to",pressfile
+			print me+"Calculation time %.1f seconds."%(time.time()-t0)
 
-	return A, R, S, T, PR, PS, PT, PR_WN, PS_WN, PT_WN
+	return {"A":A,"R":R,"S":S,"T":T,"PR":PR,"PS":PS,"PT":PT,"PR_WN":PR_WN,"PS_WN":PS_WN,"PT_WN":PT_WN}
 		
 
 ##=============================================================================
-def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
+def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	"""
 	Plot the pressure for all files in directory matching string.
 	"""
@@ -342,22 +346,24 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, vb):
 	## Read in existing data or calculate afresh
 		
 	try:
+		assert noread == False
 		pressdata = np.load(histdir+"/PRESS.npz")
 		print me+"Pressure data file found:",histdir+"/PRESS.npz"
-		A = pressdata["A"]
-		R = pressdata["R"]
-		S = pressdata["S"]
-		T = pressdata["T"]
-		PR = pressdata["PR"]
-		PS = pressdata["PS"]
-		PT = pressdata["PT"]
-		PR_WN = pressdata["PR_WN"]
-		PS_WN = pressdata["PS_WN"]
-		PT_WN = pressdata["PT_WN"]
-		del pressdata
-	except IOError:
+	except (IOError, AssertionError):
 		print me+"No pressure data found. Calculating from histfiles."
-		A, R, S, T, PR, PS, PT, PR_WN, PS_WN, PT_WN = calc_pressure_dir(histdir, srchstr, vb)
+		pressdata = calc_pressure_dir(histdir, srchstr, noread, vb)
+		
+	A = pressdata["A"]
+	R = pressdata["R"]
+	S = pressdata["S"]
+	T = pressdata["T"]
+	PR = pressdata["PR"]
+	PS = pressdata["PS"]
+	PT = pressdata["PT"]
+	PR_WN = pressdata["PR_WN"]
+	PS_WN = pressdata["PS_WN"]
+	PT_WN = pressdata["PT_WN"]
+	del pressdata
 		
 	Casimir = "_DL_" not in histdir
 

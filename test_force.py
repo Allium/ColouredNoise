@@ -13,6 +13,7 @@ from LE_SSim import force_dlin
 
 set_mplrc(fs)
 
+##=============================================================================
 
 ## 1D force
 if 0:
@@ -44,6 +45,7 @@ if 0:
 	plt.show()
 	exit()
 	
+##=============================================================================
 
 
 ## 3D force CARTESIAN
@@ -84,9 +86,10 @@ if 0:
 	plt.show()
 	exit()
 
+##=============================================================================
 
 ## 3D potential -- POLAR
-if 1:
+if 0:
 	fig = plt.figure()
 	ax = fig.add_subplot(111, projection='3d')
 
@@ -111,9 +114,10 @@ if 1:
 	ax.zaxis.set_major_locator(NullLocator())
 	plt.show()
 	
+##=============================================================================
 	
 ## 2D force -- for ulin
-elif 1:
+if 1:
 	R = 1.0
 	A = 0.5
 	l = 1.0
@@ -205,9 +209,75 @@ elif 1:
 	
 	exit()
 
+##=============================================================================
 
+## 1D potential for nlin with regions shaded and pressure key
+if 0:
 
+	R = 2.0
+	S = 1.0
+		
+	x = np.linspace(-R-3,R+3,1000)
+	fx = force_nlin([x,0],R,S)[0]
+	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
 
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	
+	ax.plot(x, U, "-", lw=2)
+	ax.axvline(-R, c="k",ls="-")
+	ax.axvline(S, c="k",ls="-")
+	ax.axvline(R, c="k",ls="-")
+	ax.text(0.5*(x[0]-R),0.4*U.max(), r"$\leftarrow P_U$", fontsize=fs["fsl"], horizontalalignment="center")
+	ax.text(0.5*(-R+S),0.4*U.max(), r"$P_T \rightarrow$", fontsize=fs["fsl"], horizontalalignment="center")
+	ax.text(0.5*(S+R),0.5*U.max(), r"$\leftarrow P_S$", fontsize=fs["fsl"], horizontalalignment="center")
+	ax.text(0.5*(R+x[-1]),0.5*U.max(), r"$P_R \rightarrow$", fontsize=fs["fsl"], horizontalalignment="center")
+
+	ax.set_xlim((x[0],x[-1]))
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$U$", fontsize=fs["fsa"])
+	ax.xaxis.set_ticklabels([])
+	ax.yaxis.set_ticklabels([])
+	ax.grid()
+
+	plt.show()
+	exit()
+
+##=============================================================================
+
+## 1D potential for MLIN with regions shaded and pressure key
+if 1:
+
+	R = 1.5
+	S = 1.0
+	T = 0.0
+		
+	x = np.linspace(-R-1,R+1,1000)
+	fx = force_mlin([x,0],R,S,T)[0]
+	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
+
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	
+	ax.plot(x, U, "-", lw=2)
+	ax.axvline(-R, c="k",ls="-")
+	ax.axvline(S, c="k",ls="-")
+	ax.axvline(0.5*(S+T), c="k",ls="-")
+	ax.axvline(T, c="k",ls="-")
+	ax.axvline(R, c="k",ls="-")
+	ax.text(0.5*(x[0]-R),	0.5*U.max(), r"$\leftarrow P_U$", fontsize=fs["fsl"], horizontalalignment="center")
+	ax.text(0.5*(T+0.5*(T+S)),0.3*U.max(), r"$P_T \rightarrow$", fontsize=fs["fsl"], horizontalalignment="center")
+	ax.text(0.5*(0.5*(T+S)+S),0.3*U.max(), r"$\leftarrow P_S$", fontsize=fs["fsl"], horizontalalignment="center")
+	ax.text(0.5*(R+x[-1]),	0.5*U.max(), r"$P_R \rightarrow$", fontsize=fs["fsl"], horizontalalignment="center")
+
+	ax.set_xlim((x[0],x[-1]))
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$U$", fontsize=fs["fsa"])
+	ax.xaxis.set_ticklabels([])
+	ax.yaxis.set_ticklabels([])
+	ax.grid()
+
+	plt.show()
+	exit()
+	
 
 
 

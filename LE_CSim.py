@@ -99,6 +99,7 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	## CHOOSE FORCE, FILENAME, SPACE
 	
 	xydata = False	## Only interested in x data -- symmetric in y
+	ymin, ymax = 0.0, 1.0	## Only relevant when xydata = True
 	
 	## Double quadratic potential
 	if ftype=="dlin":
@@ -253,7 +254,7 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 			coords[1] %= T
 		
 		## Histogram
-		H += np.histogramdd([coords[0],coords[1]],bins=bins,normed=False)[0]
+		H += np.histogramdd(coords,bins=bins,normed=False)[0]
 		
 	## Divide by bin area and number of particles
 	binc = [np.diff(b) for b in bins]
@@ -294,7 +295,7 @@ def simulate_trajectory(xyini, exyini, a, xy_step, dt, tmax, expmt, xydata, vb):
 	
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 	
-	return np.array([xy[:,0], xy[:,1]]) if xydata else np.array([xy[:,0], exy[:,0], exy[:,1]])
+	return np.array([xy[:,0], xy[:,1]]) if xydata else [xy[:,0], exy[:,0], exy[:,1]]
 	
 ## ====================================================================
 ## INTEGRATION
@@ -388,6 +389,17 @@ def force_ulin(xy,R,A,lam):
 		vec = np.array([np.ones(X.shape),-2*np.pi/lam*A*np.cos(Y)])
 		fxy = np.outer(vec, (+X-R-bi)*(X>+R+bi)) + np.outer(vec, (-X-R+bi)*(X<-R+bi))
 	return fxy
+	
+def potential_ulin(x,y,R,S,T):
+	"""
+	Potential is quadratic. Different arguments to force_ulin.
+	"""
+	X, Y = np.meshgrid(x, y, indexing="ij")
+	U = 0.5*(X-R-S*np.sin(2*np.pi*Y/T))**2 * (X>+R+S*np.sin(2*np.pi*Y/T)) +\
+		0.5*(X+R-S*np.sin(2*np.pi*Y/T))**2 * (X<-R+S*np.sin(2*np.pi*Y/T))
+	U -= U.min()
+	return U
+	
 	
 ## ====================================================================
 ## ====================================================================
