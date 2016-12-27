@@ -104,8 +104,8 @@ def plot_file(histfile, nosave, vb):
 	##-------------------------------------------------------------------------
 	
 	## Smooth
-	sp.ndimage.gaussian_filter1d(Q,1.0,order=0,output=Q)
-	sp.ndimage.gaussian_filter1d(BC,1.0,order=0,output=BC)
+#	sp.ndimage.gaussian_filter1d(Q,1.0,order=0,output=Q)
+#	sp.ndimage.gaussian_filter1d(BC,1.0,order=0,output=BC)
 	
 	##-------------------------------------------------------------------------
 	

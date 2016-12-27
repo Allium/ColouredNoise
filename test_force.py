@@ -54,7 +54,7 @@ if 0:
 	S = 2.0
 	T = 0.0
 		
-	x = np.linspace(-R-3,R+3,500)	## For nlin, mlin
+	x = np.linspace(-R-3,R+3,500)	## For nlin, mlin, clin
 #	x = np.linspace(S-4,R+4,500)	## For dlin
 	y = np.linspace(0,1,50)
 
@@ -83,6 +83,8 @@ if 0:
 	ax.yaxis.set_major_locator(NullLocator())
 	ax.zaxis.set_major_locator(NullLocator())
 
+	fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+	
 	plt.show()
 	exit()
 
@@ -101,7 +103,7 @@ if 0:
 	X, Y = R*np.cos(P), R*np.sin(P)
 
 	U = 0.5*(R - 2.0)**2	## ZB
-	U = 0.5*(R - 3.0)**2*(R>=3.0) + 0.5*(R - 1.0)**2*(R<=1.0)	## FB
+	# U = 0.5*(R - 3.0)**2*(R>=3.0) + 0.5*(R - 1.0)**2*(R<=1.0)	## FB
 	
 	ax.plot_surface(X, Y, U, rstride=1, cstride=1, alpha=0.2)
 #	ax.set_zlim3d(0, 1)
@@ -112,24 +114,30 @@ if 0:
 	ax.xaxis.set_major_locator(NullLocator())
 	ax.yaxis.set_major_locator(NullLocator())
 	ax.zaxis.set_major_locator(NullLocator())
+	
+	fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+	
 	plt.show()
 	
 ##=============================================================================
 	
 ## 2D force -- for ulin
-if 1:
+if 0:
 	R = 1.0
 	A = 0.5
 	l = 1.0
 		
-	x = np.linspace(-R-1*A,R+1*A,201)
+	x = np.linspace(-R-1*A,R+2*A,201)
 	y = np.linspace(0,2*l,101)
 
 	fxy = np.array([force_ulin([xi,yi],R,A,l) for xi in x for yi in y]).reshape((x.size,y.size,2))
 	fxy = np.rollaxis(fxy,2,0)
 	f = np.sqrt((fxy*fxy).sum(axis=0))
 	
-	
+	X, Y = np.meshgrid(x, y, indexing="ij")
+	U = 0.5*(X-R-A*np.sin(2*np.pi*Y/l))**2 * (X>R+A*np.sin(2*np.pi*Y/l)) +\
+		0.5*(X+R-A*np.sin(2*np.pi*Y/l))**2 * (X<-R+A*np.sin(2*np.pi*Y/l))
+		
 	##-------------------------------------------------------------------------
 	## Plotting
 	lvls = 15
@@ -140,10 +148,6 @@ if 1:
 	
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	fig.canvas.set_window_title("Potential")
-	
-	X, Y = np.meshgrid(x, y, indexing="ij")
-	U = 0.5*(X-R-A*np.sin(2*np.pi*Y/l))**2 * (X>R+A*np.sin(2*np.pi*Y/l)) +\
-		0.5*(X+R-A*np.sin(2*np.pi*Y/l))**2 * (X<-R+A*np.sin(2*np.pi*Y/l))
 	
 	ax.contourf(x,y,U.T, lvls)
 
@@ -211,7 +215,7 @@ if 1:
 
 ##=============================================================================
 
-## 1D potential for nlin with regions shaded and pressure key
+## 1D potential for NLIN with pressure key
 if 0:
 
 	R = 2.0
@@ -229,8 +233,8 @@ if 0:
 	ax.axvline(R, c="k",ls="-")
 	ax.text(0.5*(x[0]-R),0.4*U.max(), r"$\leftarrow P_U$", fontsize=fs["fsl"], horizontalalignment="center")
 	ax.text(0.5*(-R+S),0.4*U.max(), r"$P_T \rightarrow$", fontsize=fs["fsl"], horizontalalignment="center")
-	ax.text(0.5*(S+R),0.5*U.max(), r"$\leftarrow P_S$", fontsize=fs["fsl"], horizontalalignment="center")
-	ax.text(0.5*(R+x[-1]),0.5*U.max(), r"$P_R \rightarrow$", fontsize=fs["fsl"], horizontalalignment="center")
+	ax.text(0.5*(S+R),0.55*U.max(), r"$\leftarrow P_S$", fontsize=fs["fsl"], horizontalalignment="center")
+	ax.text(0.5*(R+x[-1]),0.55*U.max(), r"$P_R \rightarrow$", fontsize=fs["fsl"], horizontalalignment="center")
 
 	ax.set_xlim((x[0],x[-1]))
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
@@ -245,7 +249,7 @@ if 0:
 ##=============================================================================
 
 ## 1D potential for MLIN with regions shaded and pressure key
-if 1:
+if 0:
 
 	R = 1.5
 	S = 1.0
@@ -277,8 +281,71 @@ if 1:
 
 	plt.show()
 	exit()
-	
+##=============================================================================
 
+## 1D potential for CLIN with regions shaded and pressure key
+#def UP_CL(ax=None,R=None,S=None,T=None):
+def UP_CL(ax,R,S,T):
+	"""
+	Plot interior walls of CL potential with Pin Pout annotation.
+	"""
+	
+	print ax
+	if ax==None:
+		print gds
+		fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	if R==None:
+		R = 2.0
+		S = 1.0
+		T = 0.0
+		
+	x = np.linspace(-R,R,1000)
+	fx = force_clin([x,0],R,S,T)[0]
+	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
+	
+	ax.plot(x, U, "k-", lw=2)
+		
+	## Pout right
+	ax.text(0.6, 0.70*U.max(), r"$\mathbf{\Leftarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="left", color="b")
+	ax.text(0.6, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm out}}$",
+		fontsize=fs["fsa"], horizontalalignment="left", color="b")
+	ax.text(0.6, 0.80*U.max(), r"$\mathbf{\Leftarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="left", color="b")
+	
+	## Pin right left
+	ax.text(0, 0.70*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="center", color="r")
+	ax.text(0, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm in}\Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="center", color="r")
+	ax.text(0, 0.80*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="center", color="r")
+		
+	## Pout left
+	ax.text(-0.6, 0.70*U.max(), r"$\mathbf{\Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="right", color="b")
+	ax.text(-0.6, 0.75*U.max(), r"$\mathbf{P_{\rm out} \Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="right", color="b")
+	ax.text(-0.6, 0.80*U.max(), r"$\mathbf{\Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="right", color="b")
+
+	ax.set_xlim(x[0],x[-1])
+	ax.set_ylim(0,1.2*ax.get_ylim()[1])
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$U$", fontsize=fs["fsa"])
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
+	
+	return
+	
+if 1:
+	from LE_CPressure import UP_CL
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	R = 2.0
+	S = 1.0
+	T = 0.0
+	UP_CL(fig,ax,R,S,T)
+	plt.show()
 
 
 """

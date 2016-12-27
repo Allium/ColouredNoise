@@ -153,7 +153,7 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 	##-------------------------------------------------------------------------
 	
 	## PLOTTING
-	
+	""" MULTIPLOT
 	fig, axs = plt.subplots(2,1, figsize=fs["figsize"])
 	ms, lw = 8, 2
 	
@@ -167,6 +167,9 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 	ax.grid()
 	ax.legend(loc="lower left", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	ax.set_ylim(bottom=0.0)
+
+	fig.tight_layout()
+	fig.subplots_adjust(top=0.90)
 	
 	## Mass normalised by WN result
 	ax = axs[1]
@@ -196,10 +199,42 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 	axin.set_xlabel(r"$x$", fontsize = fs["fsa"]-5)
 	axin.set_ylabel(r"$U$", fontsize = fs["fsa"]-5)
 	
-		
 	title = r"Mass distribution as a function of $\alpha$ for $R=%.1g,S=%.1g,T=%.1g$"%(R,S,T) if T>=0.0\
 			else r"Mass distribution as a function of $\alpha$ for $R=%.1g,S=%.1g$"%(R,S)
 	fig.suptitle(title, fontsize=fs["fst"])
+	"""
+	## FOR CLIN PAPER PLOT
+	##----------------------------------------------------------------------------
+	fig, ax = plt.subplots(1,1)
+	
+	## Mass normalised by WN result
+	
+	lL = ax.plot(A, ML/MLwn, "o-", label=r"Left")
+	lR = ax.plot(A, MR/MRwn, "o-", label=r"Right")
+	
+	ax.set_xlabel(r"$\alpha$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$M/M^{\rm wn}$", fontsize=fs["fsa"])
+	ax.grid()
+	
+	## Plot potential as inset
+	left, bottom, width, height = [0.2, 0.6, 0.3, 0.25] if "_CL_" in histfile else [0.7, 0.6, 0.2, 0.15]
+	axin = fig.add_axes([left, bottom, width, height])
+	
+	x = np.linspace(-x[-1],x[-1],2*x.size)
+	fx = force_clin([x,0],R,S,T)[0]
+	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+	axin.plot(x, U, "k-")
+	cuspind += x.size/2
+	axin.axvspan(x[0],-x[cuspind], color=lR[0].get_color(),alpha=0.2)
+	axin.axvspan(-x[cuspind],x[cuspind], color=lL[0].get_color(),alpha=0.2)
+	axin.axvspan(x[cuspind],x[-1], color=lR[0].get_color(),alpha=0.2)
+	axin.set_xlim(-R-2, R+2)
+	axin.set_ylim(top=2*U[cuspind])
+	axin.xaxis.set_ticklabels([])
+	axin.yaxis.set_ticklabels([])
+	axin.set_xlabel(r"$x$", fontsize = fs["fsa"]-5)
+	axin.set_ylabel(r"$U$", fontsize = fs["fsa"]-5)
+	##----------------------------------------------------------------------------
 	
 	if not nosave:
 		if   "_ML_" in histfile:	geo = "_ML_"

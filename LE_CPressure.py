@@ -11,6 +11,7 @@ if "SSH_TTY" in os.environ:
 	mpl.use("Agg")
 from matplotlib import cm
 from matplotlib import pyplot as plt
+from matplotlib.ticker import MaxNLocator, NullLocator
 
 from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 from LE_Utils import filename_par, fs, set_mplrc
@@ -68,7 +69,7 @@ def main():
 			plt.close()
 	## Plot directory
 	elif os.path.isdir(args[0]):
-		plot_pressure_dir(args[0], srchstr, logplot, nosave, vb)
+		plot_pressure_dir(args[0], srchstr, logplot, nosave, noread, vb)
 	else: raise IOError, me+"Check input."
 	
 	if vb: print me+"Total execution time",round(time.time()-t0,1),"seconds."
@@ -400,12 +401,22 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 					else histdir+"/PAS_R%.1f."%(R[0])+fs["saveext"]
 		title = r"Pressure as a function of $\alpha$ for $R=%.1f,T=%.1f$"%(R[0],T[0]) if T[0]>=0.0\
 				else r"Pressure as a function of $\alpha$ for $R=%.2f$"%(R[0])
-							
-		for Si in np.unique(S):
-			ax.plot(Au, PR[S==Si], "o"+sty[0], label=r"$S=%.1f$"%(Si))
-			ax.plot(Au, PS[S==Si], "o"+sty[1], c=ax.lines[-1].get_color())
-			if Casimir:
-				ax.plot(Au, PT[S==Si], "o"+sty[2], c=ax.lines[-1].get_color())
+		
+		if np.unique(S).size==1:
+#			ax.plot(Au, PR, "go-", label=r"$P_R$")
+			ax.plot(Au, PS, "bo-", label=r"$P_S$")
+			ax.plot(Au, PT, "ro-", label=r"$P_T$")
+			
+			left, bottom, width, height = [0.2, 0.15, 0.7, 0.4]
+			axin = fig.add_axes([left, bottom, width, height])
+			UP_CL(fig,axin,R[0],S[0],T[0])			
+		
+		else:					
+			for Si in np.unique(S):
+				ax.plot(Au, PR[S==Si], "o"+sty[0], label=r"$S=%.1f$"%(Si))
+				ax.plot(Au, PS[S==Si], "o"+sty[1], c=ax.lines[-1].get_color())
+				if Casimir:
+					ax.plot(Au, PT[S==Si], "o"+sty[2], c=ax.lines[-1].get_color())
 			
 	##-------------------------------------------------------------------------
 	
@@ -424,8 +435,8 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	ax.set_xlabel(xlabel, fontsize=fs["fsa"])
 	ax.set_ylabel(r"$P(\alpha)$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
-	fig.suptitle(title, fontsize=fs["fst"])
+#	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+#	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
 		fig.savefig(plotfile)
@@ -435,6 +446,54 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	
 	return
 	
+	
+##=================================================================================================
+def UP_CL(fig,ax,R,S,T):
+	"""
+	Plot interior walls of CL potential with Pin Pout annotation.
+	"""
+			
+	x = np.linspace(-S-2,+S+2,1000)
+	fx = force_clin([x,0],R,S,T)[0]
+	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
+	
+	ax.plot(x, U, "k-", lw=2)
+	
+	textsize = fs["fsa"]-4
+	Poutpos = 1.2
+		
+	## Pout right
+	ax.text(Poutpos, 0.70*U.max(), r"$\mathbf{\Leftarrow}$",
+		fontsize=textsize, horizontalalignment="left", color="b")
+	ax.text(Poutpos, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm out}}$",
+		fontsize=textsize, horizontalalignment="left", color="b")
+	ax.text(Poutpos, 0.80*U.max(), r"$\mathbf{\Leftarrow}$",
+		fontsize=textsize, horizontalalignment="left", color="b")
+	
+	## Pin right left
+	ax.text(0, 0.70*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
+		fontsize=textsize, horizontalalignment="center", color="r")
+	ax.text(0, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm in}\Rightarrow}$",
+		fontsize=textsize, horizontalalignment="center", color="r")
+	ax.text(0, 0.80*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
+		fontsize=textsize, horizontalalignment="center", color="r")
+		
+	## Pout left
+	ax.text(-Poutpos, 0.70*U.max(), r"$\mathbf{\Rightarrow}$",
+		fontsize=textsize, horizontalalignment="right", color="b")
+	ax.text(-Poutpos, 0.75*U.max(), r"$\mathbf{P_{\rm out} \Rightarrow}$",
+		fontsize=textsize, horizontalalignment="right", color="b")
+	ax.text(-Poutpos, 0.80*U.max(), r"$\mathbf{\Rightarrow}$",
+		fontsize=textsize, horizontalalignment="right", color="b")
+
+	ax.set_xlim(x[0],x[-1])
+	ax.set_ylim(0,1.2*ax.get_ylim()[1])
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"]-4)
+	ax.set_ylabel(r"$U$", fontsize=fs["fsa"]-4)
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
+	
+	return
 	
 ##=============================================================================
 ##=============================================================================

@@ -123,8 +123,11 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 		fxy = np.array([force_ulin([xi,yi],R[i],S[i],T[i]) for xi in x for yi in y]).reshape((x.size,y.size,2))
 		fxy = np.rollaxis(fxy,2,0)
 		
+		## Calculate integral pressure in the x direction as function of y
+		## First index is file; second index is y position
+		Py[i] = np.trapz(fxy[0]*Qxy, y, axis=1)
 		## Calculate integral pressure for full period in y
-		Pt[i] = -np.trapz(np.trapz(fxy[0]*Qxy, y, axis=1), x, axis=0)
+		Pt[i] = -np.trapz(Py[i], x, axis=0)
 		
 		if vb: print me+"a=%.1f:\tPressure calculation %.2g seconds"%(A[i],time.time()-ti)
 		
@@ -133,8 +136,10 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 		Qxy_WN = np.exp(-U)
 		Qxy_WN /= np.trapz(np.trapz(Qxy_WN, y, axis=1), x, axis=0)
 		
-		## WN pressure
-		Pt_WN[i] = -np.trapz(np.trapz(fxy[0]*Qxy_WN, y, axis=1), x, axis=0)
+		## WN pressure in the x direction as function of y
+		Py_WN[i] = np.trapz(fxy[0]*Qxy_WN, y, axis=1)
+		## WN pressure for full period of y
+		Pt_WN[i] = -np.trapz(Py_WN[i], x, axis=0)
 		
 	##-------------------------------------------------------------------------
 			
@@ -142,10 +147,11 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 	srtidx = A.argsort()
 	A = A[srtidx]
 	R, S, T = R[srtidx], S[srtidx], T[srtidx]
-	Pt = Pt[srtidx]
-	Pt_WN = Pt_WN[srtidx]
+	Py = Py[srtidx]; Py_WN = Py_WN[srtidx]
+	Pt = Pt[srtidx]; Pt_WN = Pt_WN[srtidx]
 	
 	## Normalise
+	Py /= Py_WN + (Py_WN==0)
 	Pt /= Pt_WN + (Pt_WN==0)
 		
 	##-------------------------------------------------------------------------

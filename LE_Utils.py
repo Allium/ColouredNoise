@@ -82,7 +82,7 @@ def Px_WBratio(Px,x,X):
 	return round(avspke/avbulk,2)
 	
 
-fs = {"fsa":30,"fsl":26,"fst":20,"fsn":26,"figsize":(10,10),"saveext":"jpg"}
+fs = {"fsa":30,"fsl":26,"fst":20,"fsn":26,"figsize":(10,10),"saveext":"pdf"}
 # fs = [14,12,14]
 # figsize = (4,4)
 

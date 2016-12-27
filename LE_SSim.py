@@ -233,7 +233,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	## ----------------------------------------------------------------
 	## SIMULATION
 	
-	if vb: print me+"Computing",Nparticles,"trajectories. Arena: CIR. Force: "+str(ftype)+"."
+	if vb: print me+"Computing",Nparticles,"trajectories. Arena: POL. Force: "+str(ftype)+"."
 	
 	## Precompute exp(-t)
 	if a == 0:

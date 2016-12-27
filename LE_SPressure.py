@@ -32,7 +32,6 @@ warnings.filterwarnings("ignore",
 ## MPL defaults
 set_mplrc(fs)
 
-
 ##=============================================================================
 ##=============================================================================
 def main():
@@ -112,7 +111,7 @@ def pressure_pdf_file(histfile, plotpress, vb):
 	t0 = time()
 
 	## Filename
-	plotfile = os.path.dirname(histfile)+"/PDF"+os.path.basename(histfile)[4:-4]+".jpg"
+	plotfile = os.path.dirname(histfile)+"/PDF"+os.path.basename(histfile)[4:-4]+"."+fs["saveext"]
 	
 	## Get pars from filename
 	assert "_POL_" in histfile or "_CIR_" in histfile, me+"Check input file."
@@ -203,7 +202,7 @@ def pressure_pdf_file(histfile, plotpress, vb):
 #	ax.set_ylabel(r"$\rho(r,\phi)$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$Q(r)$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="upper left")
+	ax.legend(loc="upper right")
 	
 	
 	##---------------------------------------------------------------
@@ -577,29 +576,29 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				## Plot raw difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
-				title = "Pressure difference, $P_R-P_S$; $R = "+str(RR[0])+"$; ftype = "+ftype
-				ylabel = "Pressure Difference"
+				title = r"Pressure difference, $(P_R-P_S)/P_R^{\rm wn}$; $R = "+str(RR[0])+"$; ftype = "+ftype
+				ylabel = "Pressure Difference (normalised)"
 				xlabel = r"$\alpha$"
 				xlim = (0.0, AA[-1])
 				plotfile = dirpath+"/DPAS.jpg"
 				for i in range(SS.size):
-					ax.plot(AA,(PP-QQ)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
+					ax.plot(AA,(PP-QQ)[i,0,:]/(PP_WN)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
 #					ax.plot(1+AA,(PP_WN-QQ_WN)[i,0,:], "--", color=ax.lines[-1].get_color())
 			else:
-				## Plot raw difference Pout-Pin against R
+				## Plot raw difference Pout-Pin against S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
-				xlim = (SS[0],SS[-1])
-				title = "Pressure difference, $P_R-P_S$; $R = "+str(RR[0])+"$; ftype = "+ftype
+				title = r"Pressure difference,  $(P_R-P_S)/P_R^{\rm wn}$; $R = "+str(RR[0])+"$; ftype = "+ftype
 				plotfile = dirpath+"/DPSA.jpg"
-				xlabel = r"$S$"; xlim = (SS[0],SS[-1])
-				ylabel = "Pressure Difference"
+				xlim = (SS[0],SS[-1])
+				xlabel = r"$S$"
+				ylabel = "Pressure Difference (normalised)"
 				for i in range(0,AA.size,1):
-					ax.plot(SS,(PP-QQ)[:,0,i], "o-", label=r"$\alpha = "+str(AA[i])+"$")
+					ax.plot(SS,(PP-QQ)[:,0,i]/(PP_WN)[:,0,i], "o-", label=r"$\alpha = "+str(AA[i])+"$")
 					
 		## Constant interval
 		elif np.unique(RR-SS).size == 1:
-			if 1:
+			if 0:
 				## Plot Pout and Pin individually against R
 				title = "Pressures $P_R,P_S$ (normalised); $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				plotfile = dirpath+"/PQRA.jpg"
@@ -607,33 +606,33 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				xlim = (RR[0],RR[-1])
 				for i in range(0,AA.size,2):	## To plot against R
 					ax.plot(RR,np.diagonal(PP).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
-					ax.plot(RR[1:],np.diagonal(QQ).T[1:,i], "v--", color=ax.lines[-1].get_color())
-			elif 1:
+					ax.plot(RR[:],np.diagonal(QQ).T[:,i], "v--", color=ax.lines[-1].get_color())
+			elif 0:
 				## Plot difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
-				title = "Pressure difference, $P_R-P_S$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
-				ylabel = "Pressure Difference"
+				title = r"Pressure difference, $(P_R-P_S)/P_R^{\rm wn}$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
+				ylabel = "Pressure Difference (normalised)"
 				plotfile = dirpath+"/DPAS.jpg"
 				for i in range(SS.size):
-					ax.plot(AA,np.diagonal((PP-QQ)).T[i,:], "o-", label="$S = "+str(SS[i])+"$")
+					ax.plot(AA,np.diagonal((PP-QQ)).T[i,:]/np.diagonal((PP_WN)).T[i,:], "o-", label="$S = "+str(SS[i])+"$")
 #					ax.plot(AA,np.diagonal(PP_WN-QQ_WN).T[i,:], "--", color=ax.lines[-1].get_color())
-			elif 1:
+			else:
 				## Plot difference Pout-Pin against R
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
-				title = "Pressure difference, $P_R-P_S$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
-				ylabel = "Pressure Difference"
+				title = r"Pressure difference, $(P_R-P_S)/P_R^{\rm wn}$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
+				ylabel = "Pressure Difference (normalised)"
 				plotfile = dirpath+"/DPRA.jpg"
 				xlabel = r"$R\;(=S+%.1f)$"%((RR-SS)[0]) if (RR-SS)[0]>0.0 else r"$R\;(=S)$"
 				xlim = (RR[0],RR[-1])
 				for i in range(0,AA.size,1):	## To plot against R
-					ax.plot(RR,np.diagonal((PP-QQ)).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$")
+					ax.plot(RR,np.diagonal((PP-QQ)).T[:,i]/np.diagonal((PP_WN)).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$")
 				if logplot:
-					ax.plot(RR,0.1/(RR),"k:",lw=3,label="$R^{-1}, R^{-2}$")
-					ax.plot(RR,0.1/(RR*RR),"k:",lw=3)
-			else:
-				print me+"Warning: no plot."
+					ax.plot(RR,2/(RR),"k:",lw=3,label=r"$2R^{-1}$")
+#					ax.set_color_cycle(None)
+#					for i in range(0,AA.size,1):
+#						ax.plot(RR,2/(RR) * (AA[i]/(AA[i]+1)),":",lw=3)
 					
 	## ------------------------------------------------
 	

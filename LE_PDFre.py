@@ -12,9 +12,10 @@ if "SSH_TTY" in os.environ:
 from matplotlib import pyplot as plt
 
 from LE_Utils import filename_par
-from LE_Utils import fs
-fsa,fsl,fst = fs
+from LE_Utils import fs, set_mplrc
 from LE_SPressure import plot_wall
+
+set_mplrc(fs)
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
@@ -131,10 +132,10 @@ def plot_pdf1d(histfile, nosave, vb):
 	if "_DL_" in histfile:
 		ax.plot(r, (r-R)**2 * Q.max()/((r-R)**2).max(), "k--", label=r"$U(r)$")
 	
-	ax.set_xlabel(r"$r$", fontsize=fsa)
-	ax.set_ylabel(r"$Q(r)$", fontsize=fsa)
+	ax.set_xlabel(r"$r$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$Q(r)$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="upper right", fontsize=fsl).get_frame().set_alpha(0.5)
+	ax.legend(loc="upper right", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 		
 	##-------------------------------------------------------------------------
 	
@@ -147,16 +148,16 @@ def plot_pdf1d(histfile, nosave, vb):
 	## Gaussian
 	ax.plot(eta, gauss(eta,0,1/a), label=r"$G\left(0, \frac{1}{\alpha}\right)$")
 	
-	ax.set_xlabel(r"$\eta$", fontsize=fsa)
-	ax.set_ylabel(r"$q(\eta)$", fontsize=fsa)
+	ax.set_xlabel(r"$\eta$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$q(\eta)$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="upper right", fontsize=fsl).get_frame().set_alpha(0.5)
+	ax.legend(loc="upper right", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	
 	##-------------------------------------------------------------------------
 	
 	fig.tight_layout()
 	fig.subplots_adjust(top=0.9)
-	fig.suptitle(r"PDFs in $r$ and $\eta$. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S), fontsize=fst)
+	fig.suptitle(r"PDFs in $r$ and $\eta$. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S), fontsize=fs["fst"])
 	
 	if not nosave:
 		plotfile = os.path.dirname(histfile)+"/PDFre1d"+os.path.basename(histfile)[4:-4]+".jpg"
@@ -227,9 +228,9 @@ def plot_pdf2d(histfile, nosave, vb):
 	ax.contourf(r,eta,rhore.T)
 	ax.axvline(R,c="k"); ax.axvline(S,c="k")
 	
-	ax.set_xlabel(r"$r$", fontsize=fsa)
-	ax.set_ylabel(r"$\eta$", fontsize=fsa)
-	ax.set_title(r"$\rho(r,\eta)$ data", fontsize=fsa)
+	ax.set_xlabel(r"$r$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$\eta$", fontsize=fs["fsa"])
+	ax.set_title(r"$\rho(r,\eta)$ data", fontsize=fs["fsa"])
 	
 	## r-psi
 	
@@ -237,23 +238,23 @@ def plot_pdf2d(histfile, nosave, vb):
 	ax.contourf(r,psi,rhorp.T)
 	ax.axvline(R,c="k"); ax.axvline(S,c="k")
 	
-	ax.set_xlabel(r"$r$", fontsize=fsa)
-	ax.set_ylabel(r"$\psi$", fontsize=fsa)
-	ax.set_title(r"$\rho(r,\psi)$ data", fontsize=fsa)
+	ax.set_xlabel(r"$r$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$\psi$", fontsize=fs["fsa"])
+	ax.set_title(r"$\rho(r,\psi)$ data", fontsize=fs["fsa"])
 	
 	## etax-etay
 	
 	ax = axs[2]
 	ax.contourf(eta,psi,rhoep.T)
 	
-	ax.set_xlabel(r"$\eta$", fontsize=fsa)
-	ax.set_ylabel(r"$\psi$", fontsize=fsa)
-	ax.set_title(r"$\rho(\eta,\psi)$ data", fontsize=fsa)
+	ax.set_xlabel(r"$\eta$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$\psi$", fontsize=fs["fsa"])
+	ax.set_title(r"$\rho(\eta,\psi)$ data", fontsize=fs["fsa"])
 	
 	## ------------------------------------------------------------------------
 	
 	title = r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S)
-	fig.suptitle(title, fontsize=fst)
+	fig.suptitle(title, fontsize=fs["fst"])
 	fig.tight_layout()
 	fig.subplots_adjust(top=0.9)
 	
@@ -346,11 +347,11 @@ def plot_fitpars(histdir, searchstr, nosave, vb):
 	ax.set_xscale("log")
 	ax.set_yscale("log")
 		
-	ax.set_xlabel(r"$1+\alpha$", fontsize=fsa)
-	ax.set_ylabel(r"Parameter", fontsize=fsa)
-	ax.set_title(r"Gaussian fit parameters. $R=%.1f, S=%.1f$"%(R,S), fontsize=fst)
+	ax.set_xlabel(r"$1+\alpha$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"Parameter", fontsize=fs["fsa"])
+	ax.set_title(r"Gaussian fit parameters. $R=%.1f, S=%.1f$"%(R,S), fontsize=fs["fst"])
 	ax.grid()
-	ax.legend(loc="best", fontsize=fsl).get_frame().set_alpha(0.5)
+	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	
 	if not nosave:
 		plotfile = histdir+"/PDFparsa_R%.1f_S%.1f.jpg"%(R,S)
