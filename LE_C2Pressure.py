@@ -88,7 +88,7 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 	##-------------------------------------------------------------------------
 	
 	A, R, S, T, Pt, Pt_WN = np.zeros([6,numfiles])
-	Py = []
+	Y, Py, Py_WN = [], [], []
 	
 	## Retrieve data
 	for i, histfile in enumerate(filelist):
@@ -116,7 +116,7 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 		H = np.load(histfile)
 		## Spatial density
 		Qxy = H / (H.sum()*(x[1]-x[0])*(y[1]-y[0]))
-		
+				
 		##-------------------------------------------------------------------------
 		
 		## Force array
@@ -125,9 +125,10 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 		
 		## Calculate integral pressure in the x direction as function of y
 		## First index is file; second index is y position
-		Py[i] = np.trapz(fxy[0]*Qxy, y, axis=1)
+		## Flip in y for comparison with Nikola etal 2016
+		Py += [-np.trapz(fxy[0]*Qxy, x, axis=0)[::-1]]
 		## Calculate integral pressure for full period in y
-		Pt[i] = -np.trapz(Py[i], x, axis=0)
+		Pt[i] = np.trapz(Py[i], y)
 		
 		if vb: print me+"a=%.1f:\tPressure calculation %.2g seconds"%(A[i],time.time()-ti)
 		
@@ -137,16 +138,24 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 		Qxy_WN /= np.trapz(np.trapz(Qxy_WN, y, axis=1), x, axis=0)
 		
 		## WN pressure in the x direction as function of y
-		Py_WN[i] = np.trapz(fxy[0]*Qxy_WN, y, axis=1)
+		## Flip in y for comparison with Nikola etal 2016
+		Py_WN += [-np.trapz(fxy[0]*Qxy_WN, x, axis=0)[::-1]]
 		## WN pressure for full period of y
-		Pt_WN[i] = -np.trapz(Py_WN[i], x, axis=0)
+		Pt_WN[i] = np.trapz(Py_WN[i], y)
+		
+		Y += [y]
 		
 	##-------------------------------------------------------------------------
+		
+	Y  = np.array(Y)
+	Py = np.array(Py)
+	Py_WN = np.array(Py_WN)	
 			
 	## SORT BY ALPHA
 	srtidx = A.argsort()
 	A = A[srtidx]
 	R, S, T = R[srtidx], S[srtidx], T[srtidx]
+	y = y[srtidx]
 	Py = Py[srtidx]; Py_WN = Py_WN[srtidx]
 	Pt = Pt[srtidx]; Pt_WN = Pt_WN[srtidx]
 	
@@ -159,12 +168,12 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 	## SAVING
 	if not noread:
 		pressfile = histdir+"/PRESS_"+srchstr+".npz"
-		np.savez(pressfile, A=A, R=R, S=S, T=T, Pt=Pt, Pt_WN=Pt_WN)
+		np.savez(pressfile, A=A, R=R, S=S, T=T, Y=Y, Py=Py, Py_WN=Py_WN, Pt=Pt, Pt_WN=Pt_WN)
 		if vb:
 			print me+"Calculations saved to",pressfile
 			print me+"Calculation time %.1f seconds."%(time.time()-t0)
 
-	return {"A":A, "R":R, "S":S, "T":T, "Pt":Pt, "Pt_WN":Pt_WN}
+	return {"A":A, "R":R, "S":S, "T":T, "Y":Y, "Py":Py, "Py_WN":Py_WN, "Pt":Pt, "Pt_WN":Pt_WN}
 		
 
 ##=============================================================================
@@ -190,7 +199,10 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	R = pressdata["R"]
 	S = pressdata["S"]
 	T = pressdata["T"]
+	Y = pressdata["Y"]
+	Py = pressdata["Py"]
 	Pt = pressdata["Pt"]
+	Py_WN = pressdata["Py_WN"]
 	Pt_WN = pressdata["Pt_WN"]
 	del pressdata
 		
@@ -201,37 +213,54 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	t0 = time.time()
 	
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
-	
-	A += int(logplot)
-	
+
 	##-------------------------------------------------------------------------
 	
 	## Hold R fixed and vary S and T
 	if np.unique(R).size==1:
-		plotfile = histdir+"/PAS_R%.1f."%(R[0])+fs["saveext"]
-		title = r"Pressure as a function of $\alpha$ for $R=%.1f$"%(R[0])
-		for Si in np.unique(S):
-			for Ti in np.unique(T):
-				idx = (S==Si)*(T==Ti)
-				ax.plot(A[idx], Pt[idx], "o-", label=r"$S=%.1f, T=%.1f$"%(Si,Ti))
+	
+		## If there are many S and/or T values, plot Ptot(a)
+		if np.unique(S).size*np.unique(T).size > 1:
+			A += int(logplot)
+			plotfile = histdir+"/PAS_R%.1f."%(R[0])+fs["saveext"]
+			title = r"Pressure as a function of $\alpha$ for $R=%.1f$"%(R[0])
+			xlabel = r"$1+\alpha$" if logplot else r"$\alpha$"
+			ylabel = r"$P_{\rm tot}(\alpha)$"
+			
+			for Si in np.unique(S):
+				for Ti in np.unique(T):
+					idx = (S==Si)*(T==Ti)
+					ax.plot(A[idx], Pt[idx], "o-", label=r"$S=%.1f, T=%.1f$"%(Si,Ti))
+			
+			if logplot:
+				ax.set_xscale("log");	ax.set_yscale("log")
+				ax.set_xlim((ax.get_xlim()[0],A[-1]))
+				ax.set_ylim(0.1,10.0)
+				plotfile = plotfile[:-4]+"_loglog."+fs["saveext"]
+			else:
+				ax.set_xlim((0.0,A[-1]))
+				ax.set_ylim(bottom=0.0,top=max(ax.get_ylim()[1],1.0))
+					
+		## If R, S and T are all specified, plot Px(y) for multiple alpha.
+		else:
+			plotfile = histdir+"/PyA_R%.1f_S%.1f_T%.1f."%(R[0],S[0],T[0])+fs["saveext"]
+			title = r"Pressure as a function of $y$ for $R=%.1f,S=%.1f,T=%.1f$"%(R[0],S[0],T[0])
+			xlabel = r"$y$"
+			ylabel = r"$P_{x}(y)$"
+			for Ai in np.unique(A):
+				idx = (A==Ai)
+				ax.plot(Y[idx][0], Py[idx][0], "-", label=r"$\alpha=%.1f$"%(Ai))
+			
+			if logplot:
+				ax.set_yscale("log")
+				plotfile = plotfile[:-4]+"_linlog."+fs["saveext"]
 			
 	##-------------------------------------------------------------------------
 	
 	## Plot appearance
-			
-	if logplot:
-		ax.set_xscale("log"); ax.set_yscale("log")
-		ax.set_xlim((ax.get_xlim()[0],A[-1]))
-		ax.set_ylim(0.1,10.0)
-		xlabel = r"$1+\alpha$"
-		plotfile = plotfile[:-4]+"_loglog."+fs["saveext"]
-	else:
-		ax.set_xlim((0.0,A[-1]))
-		ax.set_ylim(bottom=0.0,top=max(ax.get_ylim()[1],1.0))
-		xlabel = r"$\alpha$"
 	
 	ax.set_xlabel(xlabel, fontsize=fs["fsa"])
-	ax.set_ylabel(r"$P_{\rm tot}(\alpha)$", fontsize=fs["fsa"])
+	ax.set_ylabel(ylabel, fontsize=fs["fsa"])
 	ax.grid()
 	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	fig.suptitle(title, fontsize=fs["fst"])
@@ -243,7 +272,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	if vb: print me+"Plotting time %.1f seconds."%(time.time()-t0)
 	
 	return
-		
+
 
 ##=============================================================================
 ##=============================================================================
