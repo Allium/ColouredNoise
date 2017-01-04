@@ -16,6 +16,8 @@ from matplotlib.ticker import MaxNLocator, NullLocator
 from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 from LE_Utils import filename_par, fs, set_mplrc
 
+from test_force import plot_U1D_Cartesian
+
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
 
@@ -390,6 +392,17 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	sty = ["-","--",":"]
 	
+	## Add a=0 point
+	if 1:
+		nlin = np.unique(S).size
+		A = np.hstack([[0.0]*nlin,A])
+		R = np.hstack([R[:nlin],R])
+		S = np.hstack([S[:nlin],S])
+		T = np.hstack([T[:nlin],PT])
+		PR = np.hstack([[1.0]*nlin,PR])
+		PS = np.hstack([[1.0]*nlin,PS])
+		PT = np.hstack([[1.0]*nlin,PT])
+	
 	Au = np.unique(A) + int(logplot)
 	
 	##-------------------------------------------------------------------------
@@ -402,21 +415,51 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 		title = r"Pressure as a function of $\alpha$ for $R=%.1f,T=%.1f$"%(R[0],T[0]) if T[0]>=0.0\
 				else r"Pressure as a function of $\alpha$ for $R=%.2f$"%(R[0])
 		
+		## Casimir only
 		if np.unique(S).size==1:
-#			ax.plot(Au, PR, "go-", label=r"$P_R$")
-			ax.plot(Au, PS, "bo-", label=r"$P_S$")
-			ax.plot(Au, PT, "ro-", label=r"$P_T$")
+#			ax.plot(Au, PR, "go-", label=r"$P_R$", zorder=2)
+			ax.plot(Au, PS, "go-", label=r"$P_S$", zorder=2)
+			ax.plot(Au, PT, "bo-", label=r"$P_T$", zorder=2)
 			
-			left, bottom, width, height = [0.2, 0.15, 0.7, 0.4]
+			left, bottom, width, height = [0.25, 0.15, 0.63, 0.4]
 			axin = fig.add_axes([left, bottom, width, height])
-			UP_CL(fig,axin,R[0],S[0],T[0])			
+			UP_CL(fig,axin,R[0],S[0],T[0])
+			
+			left, bottom, width, height = [0.18, 0.75, 0.25, 0.13]
+			axin = fig.add_axes([left, bottom, width, height])
+			x = np.linspace(-R[0]-2,+R[0]+2,1000)
+			fx = force_clin([x,0],R[0],S[0],T[0])[0]
+			U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
+			axin.plot(x, U, "k-", lw=2, zorder=1)
+			axin.set_xlim(x[0],x[-1])
+#			axin.set_ylim(0,1.2*ax.get_ylim()[1])
+			axin.set_xlabel(r"$x$", fontsize=fs["fsa"]-4)
+			axin.set_ylabel(r"$U$", fontsize=fs["fsa"]-4)
+			axin.xaxis.set_major_locator(NullLocator())
+			axin.yaxis.set_major_locator(NullLocator())
+			axin.patch.set_alpha(0.1)
+			
 		
-		else:					
+		else:			
 			for Si in np.unique(S):
-				ax.plot(Au, PR[S==Si], "o"+sty[0], label=r"$S=%.1f$"%(Si))
-				ax.plot(Au, PS[S==Si], "o"+sty[1], c=ax.lines[-1].get_color())
 				if Casimir:
+					ax.plot(Au, PR[S==Si], "o"+sty[0], label=r"$S=%.1f$"%(Si))
+					ax.plot(Au, PS[S==Si], "o"+sty[1], c=ax.lines[-1].get_color())
 					ax.plot(Au, PT[S==Si], "o"+sty[2], c=ax.lines[-1].get_color())
+				else:	## If DL, label should be bulk width
+					### One line, average.
+					P = 0.5*(PR+PS)
+					ax.plot(Au, P[S==Si], "o"+sty[0], label=r"$L=%.1f$"%(R[0]-Si))
+					###
+#					ax.plot(Au, PR[S==Si], "o"+sty[0], label=r"$L=%.1f$"%(R[0]-Si))
+#					ax.plot(Au, PS[S==Si], "o"+sty[1], c=ax.lines[-1].get_color())
+					
+					## Inset of potential
+					left, bottom, width, height = [0.19, 0.58, 0.35, 0.30]
+					axin = fig.add_axes([left, bottom, width, height])
+					plot_U1D_Cartesian(axin, "dlin", 2.0, 0.0, 0.0)
+#					axin.patch.set_alpha(0.5)
+					
 			
 	##-------------------------------------------------------------------------
 	
@@ -435,7 +478,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	ax.set_xlabel(xlabel, fontsize=fs["fsa"])
 	ax.set_ylabel(r"$P(\alpha)$", fontsize=fs["fsa"])
 	ax.grid()
-#	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 #	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
@@ -464,27 +507,27 @@ def UP_CL(fig,ax,R,S,T):
 		
 	## Pout right
 	ax.text(Poutpos, 0.70*U.max(), r"$\mathbf{\Leftarrow}$",
-		fontsize=textsize, horizontalalignment="left", color="b")
+		fontsize=textsize, horizontalalignment="left", color="g")
 	ax.text(Poutpos, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm out}}$",
-		fontsize=textsize, horizontalalignment="left", color="b")
+		fontsize=textsize, horizontalalignment="left", color="g")
 	ax.text(Poutpos, 0.80*U.max(), r"$\mathbf{\Leftarrow}$",
-		fontsize=textsize, horizontalalignment="left", color="b")
+		fontsize=textsize, horizontalalignment="left", color="g")
 	
 	## Pin right left
 	ax.text(0, 0.70*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
-		fontsize=textsize, horizontalalignment="center", color="r")
+		fontsize=textsize, horizontalalignment="center", color="b")
 	ax.text(0, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm in}\Rightarrow}$",
-		fontsize=textsize, horizontalalignment="center", color="r")
+		fontsize=textsize, horizontalalignment="center", color="b")
 	ax.text(0, 0.80*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
-		fontsize=textsize, horizontalalignment="center", color="r")
+		fontsize=textsize, horizontalalignment="center", color="b")
 		
 	## Pout left
 	ax.text(-Poutpos, 0.70*U.max(), r"$\mathbf{\Rightarrow}$",
-		fontsize=textsize, horizontalalignment="right", color="b")
+		fontsize=textsize, horizontalalignment="right", color="g")
 	ax.text(-Poutpos, 0.75*U.max(), r"$\mathbf{P_{\rm out} \Rightarrow}$",
-		fontsize=textsize, horizontalalignment="right", color="b")
+		fontsize=textsize, horizontalalignment="right", color="g")
 	ax.text(-Poutpos, 0.80*U.max(), r"$\mathbf{\Rightarrow}$",
-		fontsize=textsize, horizontalalignment="right", color="b")
+		fontsize=textsize, horizontalalignment="right", color="g")
 
 	ax.set_xlim(x[0],x[-1])
 	ax.set_ylim(0,1.2*ax.get_ylim()[1])

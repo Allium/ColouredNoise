@@ -17,6 +17,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from LE_Utils import save_data, filename_pars, fs, set_mplrc
 from LE_SSim import force_const, force_lin, force_dcon, force_dlin,\
 					force_tan, force_dtan, force_nu, force_dnu
+from test_force import plot_U3D_polar
 
 ## Ignore warnings
 warnings.filterwarnings("ignore",
@@ -189,8 +190,8 @@ def pressure_pdf_file(histfile, plotpress, vb):
 	## PDF PLOT
 	
 	## PDF and WN PDF
-	ax.plot(r,rho,   "b-", label="CN simulation")
-	ax.plot(r_WN,rho_WN,"r-", label="WN theory")
+	ax.plot(r,rho,   "b-", label="OUP")
+	ax.plot(r_WN,rho_WN,"r-", label="Passive")
 	## Wall
 	ax.plot(r, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
 #	plot_wall(ax, ftype, fpars, r)
@@ -604,13 +605,16 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				plotfile = dirpath+"/PQRA.jpg"
 				xlabel = r"$R\;(=S+%.1f)$"%((RR-SS)[0]) if (RR-SS)[0]>0.0 else r"$R\;(=S)$"
 				xlim = (RR[0],RR[-1])
-				for i in range(0,AA.size,2):	## To plot against R
+				for i in range(0,AA.size,1):	## To plot against R
 					ax.plot(RR,np.diagonal(PP).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
 					ax.plot(RR[:],np.diagonal(QQ).T[:,i], "v--", color=ax.lines[-1].get_color())
 			elif 0:
 				## Plot difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
+				if AA[0]==0.0 and logplot:
+					AA = AA[1:]; PP = PP[:,:,1:]; QQ = QQ[:,:,1:]; PP_WN = PP_WN[:,:,1:]
+					print AA.shape, PP.shape, QQ.shape
 				title = r"Pressure difference, $(P_R-P_S)/P_R^{\rm wn}$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference (normalised)"
 				plotfile = dirpath+"/DPAS.jpg"
@@ -621,6 +625,8 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				## Plot difference Pout-Pin against R
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
+				if AA[0]==0.0:
+					AA = AA[1:]; PP = PP[:,:,1:]; QQ = QQ[:,:,1:]; PP_WN = PP_WN[:,:,1:]
 				title = r"Pressure difference, $(P_R-P_S)/P_R^{\rm wn}$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference (normalised)"
 				plotfile = dirpath+"/DPRA.jpg"
@@ -629,11 +635,21 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				for i in range(0,AA.size,1):	## To plot against R
 					ax.plot(RR,np.diagonal((PP-QQ)).T[:,i]/np.diagonal((PP_WN)).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$")
 				if logplot:
-					ax.plot(RR,2/(RR),"k:",lw=3,label=r"$2R^{-1}$")
+					RRR = np.linspace(1,RR[-1],10)
+					ax.plot(RRR,2/(RRR),"k:",lw=3,label=r"$2R^{-1}$")
 #					ax.set_color_cycle(None)
 #					for i in range(0,AA.size,1):
-#						ax.plot(RR,2/(RR) * (AA[i]/(AA[i]+1)),":",lw=3)
-					
+#						ax.plot(RR,2/(RR)*(AA[i]/(AA[i]+1))*(1+0.5*np.unique(RR-SS)/RR*np.sqrt(AA[i]/(AA[i]+1))),":",lw=3)
+				ax.set_ylim(1e-3,1e1)
+				xlim = (1.0,RR[-1])
+		
+			## POTENTIAL INSET
+			left, bottom, width, height = [0.51, 0.58, 0.35, 0.31]
+			axin = fig.add_axes([left, bottom, width, height], projection="3d")
+			Rschem, Sschem = (1.7,1.7) if np.unique(RR-SS) == 0 else (5,1.7)
+			plot_U3D_polar(axin, Rschem, Sschem)
+			axin.patch.set_alpha(0.5)
+			
 	## ------------------------------------------------
 	
 	## Single circus; TAN
@@ -769,7 +785,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 	
 	ax.grid()
 	ax.legend(loc="best",fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
-	fig.suptitle(title,fontsize=fs["fst"])
+#	fig.suptitle(title,fontsize=fs["fst"])
 	
 	#plt.tight_layout();	plt.subplots_adjust(top=0.9)
 	if not nosave:

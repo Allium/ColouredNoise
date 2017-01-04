@@ -1,3 +1,5 @@
+me0 = "test_force"
+
 import os, time
 import timeit
 import numpy as np
@@ -8,18 +10,59 @@ from matplotlib.ticker import MaxNLocator, NullLocator
 from mpl_toolkits.mplot3d import axes3d
 from LE_Utils import fs, set_mplrc
 
-from LE_CSim import force_clin, force_mlin, force_nlin, force_dlin, force_ulin
-from LE_SSim import force_dlin
+from LE_CSim import force_clin, force_mlin, force_nlin, force_ulin
+from LE_CSim import force_dlin as force_Cdlin
+from LE_SSim import force_dlin as force_Pdlin
 
 set_mplrc(fs)
 
 ##=============================================================================
 
+## 1D potential -- CARTESIAN
+def plot_U1D_Cartesian(ax, ftype, R, S, T):
+	"""
+	Plot Cartesian potential in 1D. Must be passed axes and parameters.
+	"""
+	me = me0+"plot_U1D_Cartesian: "
+
+	xmax = +R+1.0
+	xmin = -S-1.0 if ftype is "dlin" else -xmax
+
+	x = np.linspace(xmin,xmax,1000)
+
+	if ftype is "dlin":	fx = force_Cdlin([x,0],R,S)[0]
+	else: raise IOError, me+"Option not available yet."
+
+	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
+
+	ax.plot(x, U, "k-")
+	
+	if ftype is "dlin":
+		ay = 0.15*U.max()
+		
+		ax.annotate("",[S,ay],[R,ay],
+			arrowprops=dict(arrowstyle='<|-|>',facecolor='black'))
+		
+		ax.text(0.5*(R+S),ay+0.05*U.max(),r"$L$",fontsize=fs["fsa"],horizontalalignment="center", color="k")
+            
+	ax.set_xlim((x[0],x[-1]))
+	ax.set_xlabel(r"$x$")
+	ax.set_ylabel(r"$U$")
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
+	ax.grid()
+	
+	return
+
+
+##=============================================================================
+
 ## 3D potential -- POLAR
-def plot_U3D_polar(ax, R, S):
+def plot_U3D_polar(ax, R, S, T):
 	"""
 	Plot polar potential in 3D. Must be passed axes and parameters.
 	"""
+	me = me0+"plot_U3D_polar: "
 
 	## Create supporting points in polar coordinates
 	r = np.linspace(0, R+2, 100)
@@ -53,36 +96,20 @@ def plot_U3D_polar(ax, R, S):
 	ax.zaxis.set_major_locator(NullLocator())
 	
 	return
+	
 ##=============================================================================
 
 if __name__=="__main__":
 
 	## 1D force
-	if 0:
-		R = 2.0
+	if 1:
+		R = 3.0
 		S = 0.0
 		T = 0.0
-		
-		x = np.linspace(-R-4,R+4,1000)	## For nlin, mlin
-		x = np.linspace(-S-4,R+4,1000)	## For dlin
-
-		#fx = force_dlin([x,0],R,S,T)[0]	## For x
-		fx = force_dlin([x,x],x,R,S)[0]	## For r
-
-		U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
 
 		fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
-
-		ax.plot(x, U, "-", label=r"$U(r)$", lw=3)
-		ax.plot(x, fx, "-", label=r"$f(r)$", lw=3)
-
-		ax.set_xlim((x[0],x[-1]))
-		ax.set_xlabel(r"$r$", fontsize=fs["fsa"])
-		#ax.set_ylabel(r"$f,U$", fontsize=fs["fsa"])
-		ax.xaxis.set_ticklabels([])
-		ax.yaxis.set_ticklabels([])
-		ax.grid()
-		ax.legend(loc="best",fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+		
+		plot_U1D_Cartesian(ax, "dlin", R, S, T)
 
 		plt.show()
 		exit()
