@@ -15,6 +15,10 @@ from matplotlib import pyplot as plt
 from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 from LE_Utils import filename_par, fs, set_mplrc
 
+from test_etaCas import plot_peta_CL
+from test_force import plot_U1D_Cartesian
+from matplotlib.ticker import MaxNLocator, NullLocator
+
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
 
@@ -78,7 +82,7 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 	numfiles = len(filelist)
 	assert numfiles>1, me+"Check input directory."
 	if vb: print me+"found",numfiles,"files"
-
+		
 	##-------------------------------------------------------------------------
 	
 	A, ML, MR = np.zeros([3,numfiles])
@@ -108,8 +112,8 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 		Qx = H.sum(axis=2).sum(axis=1) / (H.sum()*(x[1]-x[0]))
 
 		## Mass on either side of cusp: data. Left, right.
-		if   "_CL_" in histfile:	cuspind = np.abs((T+S)/2-x).argmin()	## Half-domain
-		elif "_ML_" in histfile:	cuspind = np.abs((T+S)/2-x).argmin()
+		if   "_CL_" in histfile:	cuspind = np.abs(0.5*(T+S)-x).argmin()	## Half-domain
+		elif "_ML_" in histfile:	cuspind = np.abs(0.5*(T+S)-x).argmin()
 		elif "_NL_" in histfile:	cuspind = np.abs(S-x).argmin()
 		
 		ML[i] = np.trapz(Qx[:cuspind],x[:cuspind])
@@ -136,6 +140,13 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 	MRwn = np.trapz(Qx_WN[cuspind:],x[cuspind:])
 	
 	##-------------------------------------------------------------------------
+	## Add a=0 point
+	if 1:
+		A = np.hstack([0.0,A])
+		ML = np.hstack([MLwn,ML])
+		MR = np.hstack([MRwn,MR])
+	
+	##-------------------------------------------------------------------------
 	"""## WN result from direct calculation	## NOT WORKING
 	if   "_CL_" in histfile:	## Half-domain
 		MLwnc = T+    (1-np.exp(-0.5*(0.5*(T+S))**2))
@@ -153,7 +164,8 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 	##-------------------------------------------------------------------------
 	
 	## PLOTTING
-	""" MULTIPLOT
+	"""## MULTIPLOT -- two different plots
+	
 	fig, axs = plt.subplots(2,1, figsize=fs["figsize"])
 	ms, lw = 8, 2
 	
@@ -202,47 +214,108 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 	title = r"Mass distribution as a function of $\alpha$ for $R=%.1g,S=%.1g,T=%.1g$"%(R,S,T) if T>=0.0\
 			else r"Mass distribution as a function of $\alpha$ for $R=%.1g,S=%.1g$"%(R,S)
 	fig.suptitle(title, fontsize=fs["fst"])
-	"""
-	## FOR CLIN PAPER PLOT
 	##----------------------------------------------------------------------------
+	"""
+	##----------------------------------------------------------------------------
+	## PLOT
+	
 	fig, ax = plt.subplots(1,1)
-	
+
 	## Mass normalised by WN result
-	
+
 	lL = ax.plot(A, ML/MLwn, "o-", label=r"Left")
 	lR = ax.plot(A, MR/MRwn, "o-", label=r"Right")
-	
+
 	ax.set_xlabel(r"$\alpha$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$M/M^{\rm wn}$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$M/M^{\rm passive}$", fontsize=fs["fsa"])
 	ax.grid()
 	
-	## Plot potential as inset
-	left, bottom, width, height = [0.2, 0.6, 0.3, 0.25] if "_CL_" in histfile else [0.7, 0.6, 0.2, 0.15]
-	axin = fig.add_axes([left, bottom, width, height])
+	##----------------------------------------------------------------------------
+	## Casimir insets
+	if "_CL_" in histdir:
+		## Plot potential as inset
+		left, bottom, width, height = [0.2, 0.6, 0.3, 0.25]
+		axin = fig.add_axes([left, bottom, width, height])
 	
-	x = np.linspace(-x[-1],x[-1],2*x.size)
-	fx = force_clin([x,0],R,S,T)[0]
-	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
-	axin.plot(x, U, "k-")
-	cuspind += x.size/2
-	axin.axvspan(x[0],-x[cuspind], color=lR[0].get_color(),alpha=0.2)
-	axin.axvspan(-x[cuspind],x[cuspind], color=lL[0].get_color(),alpha=0.2)
-	axin.axvspan(x[cuspind],x[-1], color=lR[0].get_color(),alpha=0.2)
-	axin.set_xlim(-R-2, R+2)
-	axin.set_ylim(top=2*U[cuspind])
-	axin.xaxis.set_ticklabels([])
-	axin.yaxis.set_ticklabels([])
-	axin.set_xlabel(r"$x$", fontsize = fs["fsa"]-5)
-	axin.set_ylabel(r"$U$", fontsize = fs["fsa"]-5)
+		x = np.linspace(-x[-1],x[-1],2*x.size)
+		fx = force_clin([x,0],R,S,T)[0]
+		U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+		axin.plot(x, U, "k-")
+		cuspind += x.size/2	## Because x.size has doubles
+		axin.axvspan(x[0],-x[cuspind], color=lR[0].get_color(),alpha=0.2)
+		axin.axvspan(-x[cuspind],x[cuspind], color=lL[0].get_color(),alpha=0.2)
+		axin.axvspan(x[cuspind],x[-1], color=lR[0].get_color(),alpha=0.2)
+		axin.set_xlim(-R-2, R+2)
+		axin.set_ylim(top=2*U[cuspind])
+		axin.xaxis.set_ticklabels([])
+		axin.yaxis.set_ticklabels([])
+		axin.set_xlabel(r"$x$", fontsize = fs["fsa"]-5)
+		axin.set_ylabel(r"$U$", fontsize = fs["fsa"]-5)
+	
+		## Plot q(eta) as inset
+		left, bottom, width, height = [0.55, 0.27, 0.33, 0.28]
+		axin = fig.add_axes([left, bottom, width, height])
+		## Grab a file. Hacky. Assumes only one match.
+		histfile = filelist[["_a5.0_" in histfile for histfile in filelist].index(True)]
+		plot_peta_CL(histfile, fig, axin, True)
+		axin.xaxis.set_major_locator(NullLocator())
+		axin.yaxis.set_major_locator(NullLocator())
+		
+	##----------------------------------------------------------------------------
+	## Single wall insets
+	elif "_ML_" in histdir:
+		## Plot potential as inset
+		fx = force_mlin([x,0],R,S,T)[0]
+		U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+		left, bottom, width, height = [0.55, 0.55, 0.33, 0.20]
+		axin = fig.add_axes([left, bottom, width, height])
+		axin.plot(x, U, "k-")
+		axin.axvspan(x[0],x[cuspind], color=lL[0].get_color(),alpha=0.2)
+		axin.axvspan(x[cuspind],x[-1], color=lR[0].get_color(),alpha=0.2)
+		axin.set_xlim(-R-1.5, R+1.5)
+		axin.set_ylim(top=2*U[cuspind])
+		axin.xaxis.set_major_locator(NullLocator())
+		axin.yaxis.set_major_locator(NullLocator())
+		axin.set_xlabel(r"$x$", fontsize = fs["fsa"]-5)
+		axin.set_ylabel(r"$U$", fontsize = fs["fsa"]-5)
+	
+		## Plot q(eta) as inset
+		left, bottom, width, height = [0.55, 0.27, 0.33, 0.23]
+		axin = fig.add_axes([left, bottom, width, height])
+		## Grab a file. Hacky. Assumes only one match.
+		histfile = filelist[["_a10.0_" in histfile for histfile in filelist].index(True)]
+		plot_peta_CL(histfile, fig, axin, True)
+		axin.xaxis.set_major_locator(NullLocator())
+		axin.yaxis.set_major_locator(NullLocator())
+	
+	##----------------------------------------------------------------------------
+	## Double well insets
+	elif "_NL_" in histdir:
+		## Plot potential as inset
+		fx = force_nlin([x,0],R,S)[0]
+		U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+		left, bottom, width, height = [0.61, 0.30, 0.28, 0.20]
+		axin = fig.add_axes([left, bottom, width, height])
+		axin.plot(x, U, "k-")
+		axin.axvspan(x[0],x[cuspind], color=lL[0].get_color(),alpha=0.2)
+		axin.axvspan(x[cuspind],x[-1], color=lR[0].get_color(),alpha=0.2)
+		axin.set_xlim(x[0],x[-1])
+		axin.set_ylim(top=2*U[cuspind])
+		axin.xaxis.set_major_locator(NullLocator())
+		axin.yaxis.set_major_locator(NullLocator())
+		axin.set_xlabel(r"$x$", fontsize = fs["fsa"]-5)
+		axin.set_ylabel(r"$U$", fontsize = fs["fsa"]-5)
+		
+	##----------------------------------------------------------------------------
 	##----------------------------------------------------------------------------
 	
 	if not nosave:
-		if   "_ML_" in histfile:	geo = "_ML_"
-		elif "_NL_" in histfile:	geo = "_NL_"
-		elif "_CL_" in histfile:	geo = "_CL_"
+		if   "_ML_" in histfile:	geo = "ML"
+		elif "_NL_" in histfile:	geo = "NL"
+		elif "_CL_" in histfile:	geo = "CL"
 		
-		plotfile = histdir+"/MLR_CAR_"+geo+"_R%.1g_S%.1g_T%.1g.jpg"%(R,S,T) if T>=0.0\
-					else histdir+"/MLR_CAR_"+geo+"_R%.1g_S%.1g.jpg"%(R,S)
+		plotfile = histdir+"/MLR_CAR_"+geo+"_R%.1f_S%.1f_T%.1f."%(R,S,T)+fs["saveext"] if T>=0.0\
+					else histdir+"/MLR_CAR_"+geo+"_R%.1f_S%.1f."%(R,S)+fs["saveext"]
 		fig.savefig(plotfile)
 		if vb:	print me+"Figure saved to",plotfile
 		

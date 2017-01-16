@@ -27,7 +27,7 @@ def main():
 	
 	fig, ax = plt.subplots(1,1)
 	
-	plot_peta(histfile, fig, ax, nosave)
+	plot_peta_CL(histfile, fig, ax, nosave)
 	
 	plt.show()
 	
@@ -35,12 +35,12 @@ def main():
 
 ##=================================================================================================
 
-def plot_peta(histfile, fig, ax, nosave=True):
+def plot_peta_CL(histfile, fig, ax, nosave=True):
 	"""
 	"""
-	me = me0+".plot_peta: "
+	me = me0+".plot_peta_CL: "
 
-	assert "_CL_" in histfile, me+"Designed for Casmir geometry."
+	assert ("_CL_" in histfile) or ("_ML_" in histfile), me+"Designed for Casmir geometry."
 
 	a = filename_par(histfile, "_a")
 	R = filename_par(histfile, "_R")
@@ -74,9 +74,14 @@ def plot_peta(histfile, fig, ax, nosave=True):
 	Hout = H[cuspind:,:]
 
 	## q is probability density in eta. r is no longer relevant.
-	# qin  = np.trapz(Hin, xin, axis=0)
-	qin  = Hin[Tind]
-	qout = np.trapz(Hout[Sind:Rind+1], xout[Sind:Rind+1], axis=0)
+	## 
+	if  "_CL_" in histfile:
+		qin  = H[Tind]
+		qout = np.trapz(H[Sind:Rind+1], x[Sind:Rind+1], axis=0)
+	elif "_ML_" in histfile:
+		## in is now right region and out is left region
+		qin  = np.trapz(H[Sind:Rind+1], x[Sind:Rind+1], axis=0) if Sind!=Rind else H[Sind]
+		qout = np.trapz(H[x.size-Rind:Tind], x[x.size-Rind:Tind], axis=0)
 
 	## Normalise each individually so we can se just distrbution
 	qin /= np.trapz(qin, ex)
@@ -108,6 +113,8 @@ def plot_peta(histfile, fig, ax, nosave=True):
 	
 	return
 
+
+##=================================================================================================
 
 ##=================================================================================================
 if __name__=="__main__":

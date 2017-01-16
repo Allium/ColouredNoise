@@ -32,6 +32,8 @@ def main():
 	t0 = time.time()
 	
 	parser = optparse.OptionParser(conflict_handler="resolve")
+	parser.add_option('-1','--1dplot','--slices',
+		dest="slices", default=False, action="store_true")
 	parser.add_option('-s','--show',
 		dest="showfig", default=False, action="store_true")
 	parser.add_option('-a','--plotall',
@@ -43,6 +45,7 @@ def main():
 	parser.add_option('-v','--verbose',
 		dest="verbose", default=False, action="store_true")
 	opt, args = parser.parse_args()
+	slices = opt.slices
 	showfig = opt.showfig
 	plotall = opt.plotall
 	searchstr = opt.searchstr
@@ -54,14 +57,20 @@ def main():
 	
 	## Plot file
 	if os.path.isfile(args[0]):
-		plot_pdf2d(args[0], nosave, vb)
+		if slices:
+			plot_pdf1d(args[0], nosave, vb)
+		else:
+			plot_pdf2d(args[0], nosave, vb)
 	## Plot all files
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False
 		filelist = np.sort(glob.glob(args[0]+"/BHIS_CAR_U*"+searchstr+"*.npy"))
 		if vb: print me+"Found",len(filelist),"files."
 		for histfile in filelist:
-			plot_pdf2d(histfile, nosave, vb)
+			if slices:
+				plot_pdf1d(histfile, nosave, vb)
+			else:
+				plot_pdf2d(histfile, nosave, vb)
 			plt.close()
 	else: raise IOError, me+"Check input."
 	
@@ -107,69 +116,151 @@ def plot_pdf2d(histfile, nosave, vb):
 	H = np.load(histfile)
 	rho = H / (H.sum() * (x[1]-x[0])*(y[1]-y[0]))
 	
+	## For comparison with Nik++16
+	rho = rho[:,::-1]
+	
 	## ------------------------------------------------------------------------
 	
 	## Plotting
 	
-	fig, axs = plt.subplots(1,2, sharey=True, figsize=fs["figsize"])
+	fig, axs = plt.subplots(1,1, figsize=fs["figsize"])
+#	fig, axs = plt.subplots(1,2, sharey=True, figsize=fs["figsize"])
+	
 	fig.canvas.set_window_title("2D PDF")
-	lvls = 15
+	lvls = 20
 	
 	plt.rcParams["image.cmap"] = "coolwarm"#"Greys"#
 	
-	## ------------------------------------------------------------------------
-	
 	## Plot density
-	ax = axs[0]
-	ax.contourf(x, y, rho.T, lvls)
+	ax = axs#[0]
+	cax = ax.contourf(x, y, rho.T, lvls)
+	cbar = fig.colorbar(cax)
 	
 	## Indicate bulk
 	yfine = np.linspace(y[0],y[-1],1000)
-	ax.scatter(+R+S*np.sin(2*np.pi*yfine/T), yfine, c="k", s=1)
+	ax.scatter(+R-S*np.sin(2*np.pi*yfine/T), yfine, c="k", s=1)
 	
 	ax.set_xlim(xbins[0],xbins[-1])
 	ax.set_ylim(ybins[0],ybins[-1])
 	
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
-	ax.set_title(r"$\rho(x,y)$ data", fontsize=fs["fsa"])
+#	ax.set_title(r"$\rho(x,y)$ data", fontsize=fs["fsa"])
 	
 	ax.xaxis.set_major_locator(MaxNLocator(5))
 	
 	## ------------------------------------------------------------------------
 	
-	## Plot WN density
-	ax = axs[1]
-	
-	X, Y = np.meshgrid(x, y, indexing="ij")
-	U = 0.5*(X-R-S*np.sin(2*np.pi*Y/T))**2 * (X>R+S*np.sin(2*np.pi*Y/T))
-	rho_WN = np.exp(-U) / np.trapz(np.trapz(np.exp(-U), y, axis=1), x, axis=0)
-	ax.contourf(x, y, rho_WN.T, lvls)
-	
-	## Indicate bulk
-	yfine = np.linspace(y[0],y[-1],1000)
-	ax.scatter(+R+S*np.sin(2*np.pi*yfine/T), yfine, c="k", s=1)
-	
-	ax.set_xlim(xbins[0],xbins[-1])
-	ax.set_ylim(ybins[0],ybins[-1])
-	
-	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-	# ax.set_ylabel(r"$y", fontsize=fs["fsa"])
-	ax.set_title(r"$\rho(x,y)$ WN", fontsize=fs["fsa"])
-	
-	ax.xaxis.set_major_locator(MaxNLocator(5))
+#	## Plot WN density
+#	ax = axs[1]
+#	
+#	X, Y = np.meshgrid(x, y, indexing="ij")
+#	U = 0.5*(X-R-S*np.sin(2*np.pi*Y/T))**2 * (X>R+S*np.sin(2*np.pi*Y/T))
+#	rho_WN = np.exp(-U) / np.trapz(np.trapz(np.exp(-U), y, axis=1), x, axis=0)
+#	ax.contourf(x, y, rho_WN.T, lvls)
+#	
+#	## Indicate bulk
+#	yfine = np.linspace(y[0],y[-1],1000)
+#	ax.scatter(+R+S*np.sin(2*np.pi*yfine/T), yfine, c="k", s=1)
+#	
+#	ax.set_xlim(xbins[0],xbins[-1])
+#	ax.set_ylim(ybins[0],ybins[-1])
+#	
+#	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+#	# ax.set_ylabel(r"$y", fontsize=fs["fsa"])
+#	ax.set_title(r"$\rho(x,y)$ WN", fontsize=fs["fsa"])
+#	
+#	ax.xaxis.set_major_locator(MaxNLocator(5))
 		
 	## ------------------------------------------------------------------------
 	
 	title = r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
 	fig.suptitle(title, fontsize=fs["fst"])
-	fig.tight_layout()
-	fig.subplots_adjust(top=0.9)
+#	fig.tight_layout()
+#	fig.subplots_adjust(top=0.9)
 	
 	## ------------------------------------------------------------------------
 	
 	if not nosave:
 		plotfile = os.path.dirname(histfile)+"/PDFxy2d"+os.path.basename(histfile)[4:-4]
+		plotfile += "."+fs["saveext"]
+		fig.savefig(plotfile)
+		if vb:	print me+"Figure saved to",plotfile
+		
+	if vb: print me+"Execution time %.1f seconds."%(time.time()-t0)
+
+	return
+	
+##=============================================================================
+def plot_pdf1d(histfile, nosave, vb):
+	"""
+	Read in data for a single file and plot a few 1D PDF slices.
+	"""
+	me = me0+".plot_pdf1D: "
+	t0 = time.time()
+
+	##-------------------------------------------------------------------------
+	
+	## Get pars from filename
+	
+	a = filename_par(histfile, "_a")
+	R = filename_par(histfile, "_R")
+	S = filename_par(histfile, "_S")
+	T = filename_par(histfile, "_T")
+	
+	##-------------------------------------------------------------------------
+		
+	## Space
+	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+	xbins = bins["xbins"]
+	ybins = bins["ybins"]
+	x = 0.5*(xbins[1:]+xbins[:-1])
+	y = 0.5*(ybins[1:]+ybins[:-1])
+	
+	##-------------------------------------------------------------------------
+	
+	## Histogram / density
+	H = np.load(histfile)
+	rho = H / (H.sum() * (x[1]-x[0])*(y[1]-y[0]))
+	
+	## For comparison with Nik++16
+	rho = rho[:,::-1]
+	
+	## ------------------------------------------------------------------------
+	
+	## Plotting
+		
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	fig.canvas.set_window_title("1D PDF")
+	
+	## Slices to plot
+	idxs = np.linspace(y.size/4,y.size*3/4,11)
+	labs = [r"$"+str(float(i)/y.size)+"T$" for i in idxs]
+	
+	## Plot density and wall
+	for i, idx in enumerate(idxs):
+		ax.plot(x, rho[:,idx], label=labs[i])
+		ax.axvline(+R-S*np.sin(2*np.pi*y[idx]/T), c=ax.lines[-1].get_color(),ls="--")
+	
+	ax.set_xlim(xbins[0],xbins[-1])
+	
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$\rho(x,y^\ast)$", fontsize=fs["fsa"])
+	
+	ax.xaxis.set_major_locator(MaxNLocator(5))
+	ax.yaxis.set_major_locator(MaxNLocator(7))
+	ax.grid()
+	ax.legend(loc="upper left")
+	
+	## ------------------------------------------------------------------------
+	
+	title = r"PDF slices. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
+	fig.suptitle(title, fontsize=fs["fst"])
+	
+	## ------------------------------------------------------------------------
+	
+	if not nosave:
+		plotfile = os.path.dirname(histfile)+"/PDFxy1d"+os.path.basename(histfile)[4:-4]
 		plotfile += "."+fs["saveext"]
 		fig.savefig(plotfile)
 		if vb:	print me+"Figure saved to",plotfile

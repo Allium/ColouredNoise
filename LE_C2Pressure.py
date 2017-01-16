@@ -206,6 +206,20 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	Pt_WN = pressdata["Pt_WN"]
 	del pressdata
 		
+		
+	##-------------------------------------------------------------------------
+	## Add a=0 point 
+	
+	if 0.0 not in A:
+		add = A.size / np.unique(A).size	## Number of points to add
+		A = np.hstack([[0.0]*add,A])
+		R = np.hstack([R[:add],R])
+		S = np.hstack([S[:add],S])
+		T = np.hstack([T[:add],T])
+		Y = np.vstack([Y[:add],Y])
+		Py = np.vstack([[np.ones(Py.shape[-1])]*add,Py])
+		Pt = np.hstack([[1.0]*add,Pt])
+	
 	##-------------------------------------------------------------------------
 	
 	## PLOTTING
@@ -222,7 +236,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 		## If there are many S and/or T values, plot Ptot(a)
 		if np.unique(S).size*np.unique(T).size > 1:
 			A += int(logplot)
-			plotfile = histdir+"/PAS_R%.1f."%(R[0])+fs["saveext"]
+			plotfile = histdir+"/PAS_CAR_UL_R%.1f."%(R[0])+fs["saveext"]
 			title = r"Pressure as a function of $\alpha$ for $R=%.1f$"%(R[0])
 			xlabel = r"$1+\alpha$" if logplot else r"$\alpha$"
 			ylabel = r"$P_{\rm tot}(\alpha)$"
@@ -243,17 +257,19 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 					
 		## If R, S and T are all specified, plot Px(y) for multiple alpha.
 		else:
-			plotfile = histdir+"/PyA_R%.1f_S%.1f_T%.1f."%(R[0],S[0],T[0])+fs["saveext"]
+			plotfile = histdir+"/PyA_CAR_UL_R%.1f_S%.1f_T%.1f."%(R[0],S[0],T[0])+fs["saveext"]
 			title = r"Pressure as a function of $y$ for $R=%.1f,S=%.1f,T=%.1f$"%(R[0],S[0],T[0])
 			xlabel = r"$y$"
 			ylabel = r"$P_{x}(y)$"
-			for Ai in np.unique(A):
-				idx = (A==Ai)
-				ax.plot(Y[idx][0], Py[idx][0], "-", label=r"$\alpha=%.1f$"%(Ai))
+			for i, Ai in enumerate(np.unique(A)):
+				ax.plot(Y[i][:], Py[i][:], "-", label=r"$\alpha=%.1f$"%(Ai))
 			
 			if logplot:
 				ax.set_yscale("log")
 				plotfile = plotfile[:-4]+"_linlog."+fs["saveext"]
+				
+	else:
+		raise ImplementationError, me+"Not implemented yet."
 			
 	##-------------------------------------------------------------------------
 	

@@ -17,6 +17,7 @@ from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 from LE_Utils import filename_par, fs, set_mplrc
 
 from test_force import plot_U1D_Cartesian
+from test_force import UP_CL, UP_ML
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
@@ -43,6 +44,8 @@ def main():
 		dest="srchstr", default="", type="str")
 	parser.add_option('--logplot',
 		dest="logplot", default=False, action="store_true")
+	parser.add_option('--jpg',
+		dest="savejpg", default=False, action="store_true")
 	parser.add_option('--nosave',
 		dest="nosave", default=False, action="store_true")
 	parser.add_option('--noread',
@@ -57,6 +60,8 @@ def main():
 	nosave = opt.nosave
 	noread = opt.noread
 	vb = opt.verbose
+	
+	if opt.savejpg: fs["saveext"]="jpg"
 	
 	## Plot file
 	if os.path.isfile(args[0]):
@@ -205,7 +210,8 @@ def plot_pressure_file(histfile, nosave, vb):
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$P(x)$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc=legloc, fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	if Casimir:
+		ax.legend(loc=legloc, fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 
 	##-------------------------------------------------------------------------
 	
@@ -328,7 +334,7 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 		
 	## SAVING
 	if not noread:
-		pressfile = histdir+"/PRESS.npz"
+		pressfile = histdir+"/PRESS_"+srchstr+".npz"
 		np.savez(pressfile, A=A, R=R, S=S, T=T, PR=PR, PS=PS, PT=PT, PR_WN=PR_WN, PS_WN=PS_WN, PT_WN=PT_WN)
 		if vb:
 			print me+"Calculations saved to",pressfile
@@ -350,8 +356,8 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 		
 	try:
 		assert noread == False
-		pressdata = np.load(histdir+"/PRESS.npz")
-		print me+"Pressure data file found:",histdir+"/PRESS.npz"
+		pressdata = np.load(histdir+"/PRESS_"+srchstr+".npz")
+		print me+"Pressure data file found:",histdir+"/PRESS_"+srchstr+".npz"
 	except (IOError, AssertionError):
 		print me+"No pressure data found. Calculating from histfiles."
 		pressdata = calc_pressure_dir(histdir, srchstr, noread, vb)
@@ -415,33 +421,46 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 		title = r"Pressure as a function of $\alpha$ for $R=%.1f,T=%.1f$"%(R[0],T[0]) if T[0]>=0.0\
 				else r"Pressure as a function of $\alpha$ for $R=%.2f$"%(R[0])
 		
-		## Casimir only
+		## To plot a single S
 		if np.unique(S).size==1:
 #			ax.plot(Au, PR, "go-", label=r"$P_R$", zorder=2)
 			ax.plot(Au, PS, "go-", label=r"$P_S$", zorder=2)
 			ax.plot(Au, PT, "bo-", label=r"$P_T$", zorder=2)
 			
-			left, bottom, width, height = [0.25, 0.15, 0.63, 0.4]
-			axin = fig.add_axes([left, bottom, width, height])
-			UP_CL(fig,axin,R[0],S[0],T[0])
+			##---------------------------------
+			## Casimir insets
+			if "_CL_" in histdir:
+				## Pressure key
+				left, bottom, width, height = [0.25, 0.15, 0.63, 0.4]
+				axin = fig.add_axes([left, bottom, width, height])
+				UP_CL(axin,R[0],S[0],T[0])
+				## Potential sketch
+				left, bottom, width, height = [0.18, 0.75, 0.25, 0.13]
+				axin = fig.add_axes([left, bottom, width, height])
+				x = np.linspace(-R[0]-2,+R[0]+2,1000)
+				fx = force_clin([x,0],R[0],S[0],T[0])[0]
+				U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
+				axin.plot(x, U, "k-", lw=2, zorder=1)
+				axin.set_xlim(x[0],x[-1])
+	#			axin.set_ylim(0,1.2*ax.get_ylim()[1])
+				axin.set_xlabel(r"$x$", fontsize=fs["fsa"]-4)
+				axin.set_ylabel(r"$U$", fontsize=fs["fsa"]-4)
+				axin.xaxis.set_major_locator(NullLocator())
+				axin.yaxis.set_major_locator(NullLocator())	
+				axin.patch.set_alpha(0.1)
+			##---------------------------------
+			## Single wall insets
+			elif "_ML_" in histdir:
+				## Pressure key
+				left, bottom, width, height = [0.25, 0.15, 0.63, 0.4]
+				axin = fig.add_axes([left, bottom, width, height])
+				UP_ML(axin,R[0],S[0],T[0])
+				axin.patch.set_alpha(0.1)
+			##---------------------------------
 			
-			left, bottom, width, height = [0.18, 0.75, 0.25, 0.13]
-			axin = fig.add_axes([left, bottom, width, height])
-			x = np.linspace(-R[0]-2,+R[0]+2,1000)
-			fx = force_clin([x,0],R[0],S[0],T[0])[0]
-			U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
-			axin.plot(x, U, "k-", lw=2, zorder=1)
-			axin.set_xlim(x[0],x[-1])
-#			axin.set_ylim(0,1.2*ax.get_ylim()[1])
-			axin.set_xlabel(r"$x$", fontsize=fs["fsa"]-4)
-			axin.set_ylabel(r"$U$", fontsize=fs["fsa"]-4)
-			axin.xaxis.set_major_locator(NullLocator())
-			axin.yaxis.set_major_locator(NullLocator())
-			axin.patch.set_alpha(0.1)
-			
-		
+		## If S varies
 		else:			
-			for Si in np.unique(S):
+			for Si in np.unique(S)[::-1]:
 				if Casimir:
 					ax.plot(Au, PR[S==Si], "o"+sty[0], label=r"$S=%.1f$"%(Si))
 					ax.plot(Au, PS[S==Si], "o"+sty[1], c=ax.lines[-1].get_color())
@@ -450,9 +469,8 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 					### One line, average.
 					P = 0.5*(PR+PS)
 					ax.plot(Au, P[S==Si], "o"+sty[0], label=r"$L=%.1f$"%(R[0]-Si))
-					###
-#					ax.plot(Au, PR[S==Si], "o"+sty[0], label=r"$L=%.1f$"%(R[0]-Si))
-#					ax.plot(Au, PS[S==Si], "o"+sty[1], c=ax.lines[-1].get_color())
+					## Prediction for zero bulk
+					ax.plot(Au, (Au)**(-0.5), "--", c=ax.lines[0].get_color())
 					
 					## Inset of potential
 					left, bottom, width, height = [0.19, 0.58, 0.35, 0.30]
@@ -472,8 +490,9 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 		plotfile = plotfile[:-4]+"_loglog."+fs["saveext"]
 	else:
 		ax.set_xlim((0.0,A[-1]))
-		ax.set_ylim(bottom=0.0,top=max(ax.get_ylim()[1],1.0))
+		ax.set_ylim(bottom=0.0,top=max(1.2*ax.get_ylim()[1],1.0))
 		xlabel = r"$\alpha$"
+#	ax.set_ylim(1e-1,1e1)
 	
 	ax.set_xlabel(xlabel, fontsize=fs["fsa"])
 	ax.set_ylabel(r"$P(\alpha)$", fontsize=fs["fsa"])

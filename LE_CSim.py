@@ -250,8 +250,10 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 		if ftype[0]=="c":
 			coords[0] = np.abs(coords[0])	## Reflecting BC at x=0
 		if ftype[0]=="u":
+			coords = np.array(coords)
 			coords[:,coords[0]<0.0] *= -1
 			coords[1] %= T
+			coords = coords.tolist()
 		
 		## Histogram
 		H += np.histogramdd(coords,bins=bins,normed=False)[0]
@@ -295,7 +297,7 @@ def simulate_trajectory(xyini, exyini, a, xy_step, dt, tmax, expmt, xydata, vb):
 	
 	if vb: print me+"Simulation of x",round(time.time()-t0,2),"seconds for",nstp,"steps"
 	
-	return np.array([xy[:,0], xy[:,1]]) if xydata else [xy[:,0], exy[:,0], exy[:,1]]
+	return [xy[:,0], xy[:,1]] if xydata else [xy[:,0], exy[:,0], exy[:,1]]
 	
 ## ====================================================================
 ## INTEGRATION

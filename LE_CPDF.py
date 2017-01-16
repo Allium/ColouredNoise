@@ -53,7 +53,8 @@ def main():
 	## Plot file
 	if os.path.isfile(args[0]):
 		plot_pdf1d(args[0], nosave, vb)
-		plot_pdf2d(args[0], nosave, vb)
+		plot_pdfq1d(args[0], nosave, vb)
+#		plot_pdf2d(args[0], nosave, vb)
 	## Plot all files
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False
@@ -379,6 +380,85 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	if not nosave:
 		plotfile = os.path.dirname(histfile)+"/PDFxy2d"+os.path.basename(histfile)[4:-4]
+		plotfile += "."+fs["saveext"]
+		fig.savefig(plotfile)
+		if vb:	print me+"Figure saved to",plotfile
+		
+	if vb: print me+"Execution time %.1f seconds."%(time.time()-t0)
+
+	return
+	
+	
+##=============================================================================
+def plot_pdfq1d(histfile, nosave, vb):
+	"""
+	Read in data for a single file and plot a quasi-1d 2D PDF projections.
+	"""
+	me = me0+".plot_pdfq1d: "
+	t0 = time.time()
+
+	##-------------------------------------------------------------------------
+	
+	## Get pars from filename
+	
+	assert "_CAR_" in histfile, me+"Functional only for Cartesian geometry."
+	Casimir = "_CL_" in histfile
+	
+	a = filename_par(histfile, "_a")
+	R = filename_par(histfile, "_R")
+	S = filename_par(histfile, "_S")
+	T = filename_par(histfile, "_T") if Casimir else -S
+	
+	##-------------------------------------------------------------------------
+		
+	## Space
+	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+	xbins = bins["xbins"]
+	exbins = bins["exbins"]
+	x = 0.5*(xbins[1:]+xbins[:-1])
+	etax = 0.5*(exbins[1:]+exbins[:-1])
+	
+	## Wall indices
+	Rind, Sind = np.abs(x-R).argmin(), np.abs(x-S).argmin()
+	
+	##-------------------------------------------------------------------------
+	
+	## Histogram / density
+	H = np.load(histfile).sum(axis=2)
+	rhoxex = H / (H.sum() * (x[1]-x[0])*(etax[1]-etax[0]))
+	
+	## ------------------------------------------------------------------------
+	
+	## Plotting
+	
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	fig.canvas.set_window_title("Quasi-1D PDF")
+	
+	## Set number of ticks
+	ax.xaxis.set_major_locator(MaxNLocator(7))
+	ax.yaxis.set_major_locator(MaxNLocator(7))
+	
+	plt.rcParams["image.cmap"] = "Greys"#"coolwarm"
+	
+	## ------------------------------------------------------------------------
+	
+	## x-etax
+	
+	ax.contourf(x,etax,rhoxex.T)
+	
+	## Indicate bulk
+	ax.axvline(S,c="k",lw=1)
+	ax.axvline(R,c="k",lw=1)
+	if T>=0.0:	ax.axvline(T,c="k",lw=1)
+	elif T<0.0 and "_DL_" not in histfile:	ax.axvline(-R,c="k",lw=1)
+	
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$\eta_x$", fontsize=fs["fsa"])
+	
+	## ------------------------------------------------------------------------
+	
+	if not nosave:
+		plotfile = os.path.dirname(histfile)+"/PDFxyq1d"+os.path.basename(histfile)[4:-4]
 		plotfile += "."+fs["saveext"]
 		fig.savefig(plotfile)
 		if vb:	print me+"Figure saved to",plotfile

@@ -30,7 +30,8 @@ def plot_U1D_Cartesian(ax, ftype, R, S, T):
 
 	x = np.linspace(xmin,xmax,1000)
 
-	if ftype is "dlin":	fx = force_Cdlin([x,0],R,S)[0]
+	if ftype is "dlin":		fx = force_Cdlin([x,0],R,S)[0]
+	elif ftype is "nlin":	fx = force_nlin([x,0],R,S)[0]
 	else: raise IOError, me+"Option not available yet."
 
 	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
@@ -39,10 +40,8 @@ def plot_U1D_Cartesian(ax, ftype, R, S, T):
 	
 	if ftype is "dlin":
 		ay = 0.15*U.max()
-		
 		ax.annotate("",[S,ay],[R,ay],
 			arrowprops=dict(arrowstyle='<|-|>',facecolor='black'))
-		
 		ax.text(0.5*(R+S),ay+0.05*U.max(),r"$L$",fontsize=fs["fsa"],horizontalalignment="center", color="k")
             
 	ax.set_xlim((x[0],x[-1]))
@@ -99,10 +98,152 @@ def plot_U3D_polar(ax, R, S, T):
 	
 ##=============================================================================
 
+## 3D potential -- CAR ULIN
+def plot_U3D_ulin(ax, R, S, T):
+	"""
+	Plot undulating potential in 3D. Must be passed axes and parameters.
+	"""
+	me = me0+"plot_U3D_ulin: "
+
+	## Create supporting points in polar coordinates
+	x = np.linspace(0, R+1.5*S, 100)
+	y = np.linspace(0, 2*T, 100)
+	X, Y = np.meshgrid(x,y,indexing="xy")
+	
+	## Define potential
+	U = 0.5*(X-R-S*np.sin(2*np.pi*Y/T))**2 * (X>R+S*np.sin(2*np.pi*Y/T))
+	
+	## Plot walls
+	ax.plot(R+S*np.sin(2*np.pi*y/T),y, "r-", alpha=0.5, zorder=1)
+	
+	## Plot U
+	ax.plot_surface(X, Y, U, rstride=1, cstride=1, alpha=0.15, zorder=2)
+	
+	## Perspective
+	ax.elev = 25
+	ax.azim = 210
+	
+	## Modify axes
+#	ax.set_zlim3d(0, 1)
+	ax.set_xlabel(r'$x$')
+	ax.set_ylabel(r'$y$')
+	ax.set_zlabel(r'$U$')
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
+	ax.zaxis.set_major_locator(NullLocator())
+	
+	return
+
+##=============================================================================
+
+## 1D potential for CLIN with pressure key
+def UP_CL(ax,R,S,T):
+	"""
+	Plot interior walls of CL potential with Pin Pout annotation.
+	"""
+
+	if ax==None:
+		fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	if R==None:
+		R = 2.0
+		S = 1.0
+		T = 0.0
+	
+	x = np.linspace(-R,R,1000)
+	fx = force_clin([x,0],R,S,T)[0]
+	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
+
+	ax.plot(x, U, "k-", lw=2)
+	
+	## Pout right
+	ax.text(0.6, 0.70*U.max(), r"$\mathbf{\Leftarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="left", color="b")
+	ax.text(0.6, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm out}}$",
+		fontsize=fs["fsa"], horizontalalignment="left", color="b")
+	ax.text(0.6, 0.80*U.max(), r"$\mathbf{\Leftarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="left", color="b")
+
+	## Pin right left
+	ax.text(0, 0.70*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="center", color="r")
+	ax.text(0, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm in}\Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="center", color="r")
+	ax.text(0, 0.80*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="center", color="r")
+	
+	## Pout left
+	ax.text(-0.6, 0.70*U.max(), r"$\mathbf{\Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="right", color="b")
+	ax.text(-0.6, 0.75*U.max(), r"$\mathbf{P_{\rm out} \Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="right", color="b")
+	ax.text(-0.6, 0.80*U.max(), r"$\mathbf{\Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="right", color="b")
+
+	ax.set_xlim(x[0],x[-1])
+	ax.set_ylim(0,1.2*ax.get_ylim()[1])
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$U$", fontsize=fs["fsa"])
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
+
+	return
+
+
+##=============================================================================
+
+## 1D potential for MLIN pressure key
+def UP_ML(ax,R,S,T):
+	"""
+	Plot interior walls of CL potential with Pin Pout annotation.
+	"""
+
+	if ax==None:
+		fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	if R==None:
+		R = 2.0
+		S = 1.0
+		T = 0.0
+	
+	x = np.linspace(-R-1.5,R+1.5,1000)
+	fx = force_mlin([x,0],R,S,T)[0]
+	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
+
+	ax.plot(x, U, "k-", lw=2)
+	
+	ST = 0.5*(S+T)
+	
+	## Pout right
+	ax.text(ST+0.6, 0.30*U.max(), r"$\mathbf{\Leftarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="left", color="g")
+	ax.text(ST+0.6, 0.35*U.max(), r"$\mathbf{\Leftarrow P_{\rm in}}$",
+		fontsize=fs["fsa"], horizontalalignment="left", color="g")
+	ax.text(ST+0.6, 0.40*U.max(), r"$\mathbf{\Leftarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="left", color="g")
+	
+	## Pout left
+	ax.text(ST-0.6, 0.30*U.max(), r"$\mathbf{\Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="right", color="b")
+	ax.text(ST-0.6, 0.35*U.max(), r"$\mathbf{P_{\rm out} \Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="right", color="b")
+	ax.text(ST-0.6, 0.40*U.max(), r"$\mathbf{\Rightarrow}$",
+		fontsize=fs["fsa"], horizontalalignment="right", color="b")
+
+	ax.set_xlim(x[0],x[-1])
+	ax.set_ylim(0,1.2*ax.get_ylim()[1])
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$U$", fontsize=fs["fsa"])
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
+
+	return
+
+	
+##=============================================================================
+
 if __name__=="__main__":
 
 	## 1D force
-	if 1:
+	if 0:
 		R = 3.0
 		S = 0.0
 		T = 0.0
@@ -156,10 +297,23 @@ if __name__=="__main__":
 	
 		plt.show()
 		exit()
-
-
-
+		
+	##=============================================================================
 	
+	## 3D POLAR
+	if 1:
+		fig = plt.figure()
+		ax = fig.add_subplot(111, projection='3d')
+
+		R, S, T = 4.0, 1.0, 1.0
+	
+		plot_U3D_ulin(ax, R, S, T)
+	
+		fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+	
+		plt.show()
+		exit()
+
 	##=============================================================================
 	
 	## 3D POLAR
@@ -340,62 +494,7 @@ if __name__=="__main__":
 
 		plt.show()
 		exit()
-	##=============================================================================
 
-	## 1D potential for CLIN with regions shaded and pressure key
-	#def UP_CL(ax=None,R=None,S=None,T=None):
-	def UP_CL(ax,R,S,T):
-		"""
-		Plot interior walls of CL potential with Pin Pout annotation.
-		"""
-	
-		print ax
-		if ax==None:
-			print gds
-			fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
-		if R==None:
-			R = 2.0
-			S = 1.0
-			T = 0.0
-		
-		x = np.linspace(-R,R,1000)
-		fx = force_clin([x,0],R,S,T)[0]
-		U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
-	
-		ax.plot(x, U, "k-", lw=2)
-		
-		## Pout right
-		ax.text(0.6, 0.70*U.max(), r"$\mathbf{\Leftarrow}$",
-			fontsize=fs["fsa"], horizontalalignment="left", color="b")
-		ax.text(0.6, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm out}}$",
-			fontsize=fs["fsa"], horizontalalignment="left", color="b")
-		ax.text(0.6, 0.80*U.max(), r"$\mathbf{\Leftarrow}$",
-			fontsize=fs["fsa"], horizontalalignment="left", color="b")
-	
-		## Pin right left
-		ax.text(0, 0.70*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
-			fontsize=fs["fsa"], horizontalalignment="center", color="r")
-		ax.text(0, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm in}\Rightarrow}$",
-			fontsize=fs["fsa"], horizontalalignment="center", color="r")
-		ax.text(0, 0.80*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
-			fontsize=fs["fsa"], horizontalalignment="center", color="r")
-		
-		## Pout left
-		ax.text(-0.6, 0.70*U.max(), r"$\mathbf{\Rightarrow}$",
-			fontsize=fs["fsa"], horizontalalignment="right", color="b")
-		ax.text(-0.6, 0.75*U.max(), r"$\mathbf{P_{\rm out} \Rightarrow}$",
-			fontsize=fs["fsa"], horizontalalignment="right", color="b")
-		ax.text(-0.6, 0.80*U.max(), r"$\mathbf{\Rightarrow}$",
-			fontsize=fs["fsa"], horizontalalignment="right", color="b")
-
-		ax.set_xlim(x[0],x[-1])
-		ax.set_ylim(0,1.2*ax.get_ylim()[1])
-		ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-		ax.set_ylabel(r"$U$", fontsize=fs["fsa"])
-		ax.xaxis.set_major_locator(NullLocator())
-		ax.yaxis.set_major_locator(NullLocator())
-	
-		return
 	
 	if 1:
 		from LE_CPressure import UP_CL
