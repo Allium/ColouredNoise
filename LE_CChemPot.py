@@ -42,17 +42,20 @@ def main():
 		dest="srchstr", default="", type="str")
 	parser.add_option('--nosave',
 		dest="nosave", default=False, action="store_true")
+	parser.add_option('--noread',
+		dest="noread", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
 		dest="verbose", default=False, action="store_true")
 	opt, args = parser.parse_args()
 	showfig = opt.showfig
 	srchstr = opt.srchstr
 	nosave = opt.nosave
+	noread = opt.noread
 	vb = opt.verbose
 	
 	## Plot directory
 	if os.path.isdir(args[0]):
-		plot_mass_ratio(args[0], srchstr, nosave, vb)
+		plot_mass_ratio(args[0], srchstr, nosave, noread, vb)
 	else: raise IOError, me+"Check input."
 	
 	if vb: print me+"Total execution time",round(time.time()-t0,1),"seconds."
@@ -62,13 +65,13 @@ def main():
 
 
 ##=============================================================================
-def plot_mass_ratio(histdir, srchstr, nosave, vb):
+def calc_mass_ratio(histdir, srchstr, noread, vb):
 	"""
 	Read in directory of files with inner and outer regions.
 	Compute mass in each region, take ratio.
 	Compare with integrated and calculated white noise result. 
 	"""
-	me = me0+".plot_mass_ratio: "
+	me = me0+".calc_mass_ratio: "
 	t0 = time.time()
 	
 	##-------------------------------------------------------------------------
@@ -141,83 +144,59 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 	
 	##-------------------------------------------------------------------------
 	## Add a=0 point
-	if 1:
+	if 0.0 not in A:
 		A = np.hstack([0.0,A])
 		ML = np.hstack([MLwn,ML])
 		MR = np.hstack([MRwn,MR])
 	
 	##-------------------------------------------------------------------------
-	"""## WN result from direct calculation	## NOT WORKING
-	if   "_CL_" in histfile:	## Half-domain
-		MLwnc = T+    (1-np.exp(-0.5*(0.5*(T+S))**2))
-		MRwnc = R-S+1+(1-np.exp(-0.5*(0.5*(T+S))**2))
-		MLwnc /= MLwnc+MRwnc; MRwnc /= MLwnc+MRwnc
-	elif "_ML_" in histfile:
-		MLwnc = T+R+1+(1-np.exp(-0.5*(0.5*(T+S))**2))
-		MRwnc = R-S+1+(1-np.exp(-0.5*(0.5*(T+S))**2))
-		MLwnc /= MLwnc+MRwnc; MRwnc /= MLwnc+MRwnc
-	elif "_NL_" in histfile:	## Assume S>=0
-		MLwnc = 1+(1-np.exp(-0.5*S))
-		MRwnc = ( 1+(1-np.exp(-0.5*S)) ) * np.exp(S*R)
-		MLwnc /= MLwnc+MRwnc; MRwnc /= MLwnc+MRwnc"""
+	
+	### This might not be the cleanest thing to save...
+	
+	## SAVING
+	if not noread:
+		massfile = histdir+"/MASS_"+srchstr+".npz"
+		np.savez(massfile, A=A, ML=ML, MR=MR, MLwn=MLwn, MRwn=MRwn, x=x, Qx_WN=Qx_WN, R=R, S=S, T=T, cuspind=cuspind)
+		if vb:
+			print me+"Calculations saved to",massfile
+			print me+"Calculation time %.1f seconds."%(time.time()-t0)
+
+	return {"A":A, "ML":ML, "MR":MR, "MLwn":MLwn, "MRwn":MRwn, "x":x, "Qx_WN":Qx_WN, "R":R, "S":S, "T":T, "cuspind":cuspind}
+		
+
+##=============================================================================
+def plot_mass_ratio(histdir, srchstr, nosave, noread, vb):
+	"""
+	Plot the mass for all files in directory matching string.
+	"""
+	me = me0+".plot_mass_ratio: "
+	t0 = time.time()
+	
+	##-------------------------------------------------------------------------
+	## Read in existing data or calculate afresh
+		
+	try:
+		assert noread == False
+		massdata = np.load(histdir+"/MASS_"+srchstr+".npz")
+		print me+"Mass data file found:",histdir+"/MASS_"+srchstr+".npz"
+	except (IOError, AssertionError):
+		print me+"No mass data found. Calculating from histfiles."
+		massdata = calc_mass_ratio(histdir, srchstr, noread, vb)
+		
+	A = massdata["A"]
+	ML = massdata["ML"]
+	MR = massdata["MR"]
+	MLwn = massdata["MLwn"]
+	MRwn = massdata["MRwn"]
+	x = massdata["x"]
+	Qx_WN = massdata["Qx_WN"]
+	R, S, T = massdata["R"], massdata["S"], massdata["T"]
+	cuspind = massdata["cuspind"]
+	del massdata
 	
 	##-------------------------------------------------------------------------
 	
 	## PLOTTING
-	"""## MULTIPLOT -- two different plots
-	
-	fig, axs = plt.subplots(2,1, figsize=fs["figsize"])
-	ms, lw = 8, 2
-	
-	## Mass ratio
-	ax = axs[0]
-	
-	ax.plot(A, MR/ML, "ro-", ms=ms, lw=lw, label=r"CN")
-	ax.axhline(MRwn/MLwn, c="r", ls="--", lw=lw, label=r"WN")
-	
-	ax.set_ylabel(r"$M_{\rm R}/M_{\rm L}$", fontsize=fs["fsa"])
-	ax.grid()
-	ax.legend(loc="lower left", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
-	ax.set_ylim(bottom=0.0)
-
-	fig.tight_layout()
-	fig.subplots_adjust(top=0.90)
-	
-	## Mass normalised by WN result
-	ax = axs[1]
-	
-	lL = ax.plot(A, ML/MLwn, "o-", ms=ms, lw=lw, label=r"Left")
-	lR = ax.plot(A, MR/MRwn, "o-", ms=ms, lw=lw, label=r"Right")
-	
-	ax.set_xlabel(r"$\alpha$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$M_{\rm R,L}/M^{\rm wn}_{\rm R,L}$", fontsize=fs["fsa"])
-	ax.grid()
-#	ax.legend(loc="upper left", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)	
-
-	fig.tight_layout()
-	fig.subplots_adjust(top=0.90)
-	
-	## Plot potential as inset
-	left, bottom, width, height = [0.2, 0.3, 0.2, 0.15] if "_CL_" in histfile else [0.7, 0.6, 0.2, 0.15]
-	axin = fig.add_axes([left, bottom, width, height])
-	axin.plot(x, U, "k-", lw=lw)
-	axin.axvspan(x[0],x[cuspind], color=lL[0].get_color(),alpha=0.2)
-	axin.axvspan(x[cuspind],x[-1], color=lR[0].get_color(),alpha=0.2)
-	xlimL = -R-2.0 if "_NL_" in histfile else x[0]
-	axin.set_xlim(left=xlimL, right=R+2.0)
-	axin.set_ylim(top=2*U[cuspind])
-	axin.xaxis.set_ticklabels([])
-	axin.yaxis.set_ticklabels([])
-	axin.set_xlabel(r"$x$", fontsize = fs["fsa"]-5)
-	axin.set_ylabel(r"$U$", fontsize = fs["fsa"]-5)
-	
-	title = r"Mass distribution as a function of $\alpha$ for $R=%.1g,S=%.1g,T=%.1g$"%(R,S,T) if T>=0.0\
-			else r"Mass distribution as a function of $\alpha$ for $R=%.1g,S=%.1g$"%(R,S)
-	fig.suptitle(title, fontsize=fs["fst"])
-	##----------------------------------------------------------------------------
-	"""
-	##----------------------------------------------------------------------------
-	## PLOT
 	
 	fig, ax = plt.subplots(1,1)
 
@@ -256,7 +235,7 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 		left, bottom, width, height = [0.55, 0.27, 0.33, 0.28]
 		axin = fig.add_axes([left, bottom, width, height])
 		## Grab a file. Hacky. Assumes only one match.
-		histfile = filelist[["_a5.0_" in histfile for histfile in filelist].index(True)]
+		histfile = glob.glob(histdir+"/BHIS_CAR_CL_a5.0_*"+srchstr+"*.npy")[0]
 		plot_peta_CL(histfile, fig, axin, True)
 		axin.xaxis.set_major_locator(NullLocator())
 		axin.yaxis.set_major_locator(NullLocator())
@@ -283,7 +262,7 @@ def plot_mass_ratio(histdir, srchstr, nosave, vb):
 		left, bottom, width, height = [0.55, 0.27, 0.33, 0.23]
 		axin = fig.add_axes([left, bottom, width, height])
 		## Grab a file. Hacky. Assumes only one match.
-		histfile = filelist[["_a10.0_" in histfile for histfile in filelist].index(True)]
+		histfile = glob.glob(histdir+"/BHIS_CAR_ML_a10.0_*"+srchstr+"*.npy")[0]
 		plot_peta_CL(histfile, fig, axin, True)
 		axin.xaxis.set_major_locator(NullLocator())
 		axin.yaxis.set_major_locator(NullLocator())
