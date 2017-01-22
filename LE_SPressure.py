@@ -191,7 +191,9 @@ def pressure_pdf_file(histfile, plotpress, vb):
 	
 	## PDF and WN PDF
 	ax.plot(r,rho,   "b-", label="OUP")
-	ax.plot(r_WN,rho_WN,"r-", label="Passive")
+	ax.fill_between(r,0,rho,facecolor="b",alpha=0.1)
+	ax.plot(r_WN,rho_WN,"r-", label="Thermal")
+	ax.fill_between(r_WN,0,rho_WN,facecolor="r",alpha=0.1)
 	## Wall
 	ax.plot(r, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
 #	plot_wall(ax, ftype, fpars, r)
@@ -236,11 +238,10 @@ def pressure_pdf_file(histfile, plotpress, vb):
 		ax.set_ylabel("$P(r)$", fontsize=fs["fsa"])
 		ax.grid()
 	
+		fig.tight_layout();	plt.subplots_adjust(top=0.9)	
 	##---------------------------------------------------------------
 	
-	## Tidy figure
-	fig.suptitle(figtit,fontsize=fs["fst"])
-	fig.tight_layout();	plt.subplots_adjust(top=0.9)	
+#	fig.suptitle(figtit,fontsize=fs["fst"])
 		
 	fig.savefig(plotfile)
 	if vb: print me+"plot saved to",plotfile
@@ -509,7 +510,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 	## ------------------------------------------------
 	
 	## Mask zeros
-	mask = (PP==0.0)+(PP==-1.0)
+	mask = (PP==-1.0)
 	PP_WN = np.ma.array(PP_WN, mask=mask)
 	QQ_WN = np.ma.array(QQ_WN, mask=mask)
 	PP = np.ma.array(PP, mask=mask)
@@ -526,10 +527,10 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 	PP /= PP_WN + 1*(PP_WN==0.0)
 	if  ftype[0] is "d": QQ /= QQ_WN + 1*(QQ_WN==0.0)
 	title = "Pressure normalised by WN; ftype = "+ftype
-	plotfile = dirpath+"/PAR.jpg"
+	plotfile = dirpath+"/PAR"
 	ylabel = "Pressure (normalised)"
 	xlabel = "$\\alpha$"
-	xlim = (AA[0],AA[-1])
+	xlim = [AA[0],AA[-1]]
 	DPplot = False
 	
 	## ------------------------------------------------
@@ -557,41 +558,56 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 			if 0:
 				## Plot normalised Pout and Pin individually against ALPHA
 				title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
-				plotfile = dirpath+"/PQAS.jpg"
-				xlabel = r"$1+\alpha$"*logplot + r"$\alpha$"*(not logplot)
+				plotfile = dirpath+"/PQAS"
+				xlabel = r"$1+\alpha$" if logplot else r"$\alpha$"
 				xlim = (int(logplot), int(logplot)+AA[-1])
+				## Shunt on the a=0 values
+				if 0.0 not in AA:
+					AA = np.hstack([0.0,AA])
+					PP = np.dstack([np.ones([SS.size,RR.size]),PP])
+					QQ = np.dstack([np.ones([SS.size,RR.size]),QQ])
 				for i in range(SS.size):
 					ax.plot(int(logplot)+AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
 					ax.plot(int(logplot)+AA,QQ[i,0,:], "v--", color=ax.lines[-1].get_color())
-#				Aarr = np.linspace(AA[0],1+AA[-1],100); ax.plot(1+Aarr,1/(1+Aarr)**0.5, "k:",label=r"$(1+\alpha)^{-1/2}$")
-			elif 0:
+			elif 1:
 				## Plot normalised Pout and Pin individually against S, for multiple ALPHA
 				title = "Pressures $P_R,P_S$ (normalised); $R = "+str(RR[0])+"$; ftype = "+ftype
-				plotfile = dirpath+"/PQSA.jpg"
+				plotfile = dirpath+"/PQSA"
 				xlabel = r"$S$"
-				xlim = (SS[0],SS[-1])
+				xlim = [SS[0],SS[-1]]
+				## Shunt on the a=0 values
+				if 0.0 not in AA:
+					AA = np.hstack([0.0,AA])
+					PP = np.dstack([np.ones([SS.size,RR.size]),PP])
+					QQ = np.dstack([np.ones([SS.size,RR.size]),QQ])
 				for i in range(0,AA.size,1):
 					ax.plot(SS,PP[:,0,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
 					ax.plot(SS,QQ[:,0,i], "v--", color=ax.lines[-1].get_color())
-			elif 1:
-				## Plot raw difference Pout-Pin against ALPHA, for multiple S
+			elif 0:
+				## Plot difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
 				title = r"Pressure difference, $(P_R-P_S)/P_R^{\rm wn}$; $R = "+str(RR[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference (normalised)"
 				xlabel = r"$\alpha$"
-				xlim = (0.0, AA[-1])
-				plotfile = dirpath+"/DPAS.jpg"
-				for i in range(SS.size):
-					ax.plot(AA,(PP-QQ)[i,0,:]/(PP_WN)[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
-#					ax.plot(1+AA,(PP_WN-QQ_WN)[i,0,:], "--", color=ax.lines[-1].get_color())
+				xlim = [0.0, AA[-1]]
+				plotfile = dirpath+"/DPAS"
+				## Messy shunting a=0 onto the plot because PP,QQ too complicated to modify directly
+				if 0.0 not in AA and not logplot:
+					DP_WN = ((PP_WN-QQ_WN)/(PP_WN))[:,0,:]	## Data for the a=0 point
+					for i in range(SS.size):
+						ax.plot(np.hstack([0.0,AA]),np.hstack([DP_WN[i,0],((PP-QQ)/(PP_WN))[i,0,:]]),
+									"o-", label="$S = "+str(SS[i])+"$")
+				else:
+					for i in range(SS.size):
+						ax.plot(AA,((PP-QQ)/(PP_WN))[i,0,:], "o-", label="$S = "+str(SS[i])+"$")
 			else:
-				## Plot raw difference Pout-Pin against S
+				## Plot difference Pout-Pin against S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
 				title = r"Pressure difference,  $(P_R-P_S)/P_R^{\rm wn}$; $R = "+str(RR[0])+"$; ftype = "+ftype
-				plotfile = dirpath+"/DPSA.jpg"
-				xlim = (SS[0],SS[-1])
+				plotfile = dirpath+"/DPSA"
+				xlim = [SS[0],SS[-1]]
 				xlabel = r"$S$"
 				ylabel = "Pressure Difference (normalised)"
 				for i in range(0,AA.size,1):
@@ -602,25 +618,35 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 			if 0:
 				## Plot Pout and Pin individually against R
 				title = "Pressures $P_R,P_S$ (normalised); $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
-				plotfile = dirpath+"/PQRA.jpg"
-				xlabel = r"$R\;(=S+%.1f)$"%((RR-SS)[0]) if (RR-SS)[0]>0.0 else r"$R\;(=S)$"
-				xlim = (RR[0],RR[-1])
+				plotfile = dirpath+"/PQRA"
+				xlabel = r"$R\;(=S+%.1f)$"%((RR-SS)[0]) if (RR-SS)[0]>0.0 else r"$R$"
+				xlim = [RR[0],RR[-1]]
 				for i in range(0,AA.size,1):	## To plot against R
 					ax.plot(RR,np.diagonal(PP).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
 					ax.plot(RR[:],np.diagonal(QQ).T[:,i], "v--", color=ax.lines[-1].get_color())
-			elif 0:
+			elif 1:
 				## Plot difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
 				if AA[0]==0.0 and logplot:
 					AA = AA[1:]; PP = PP[:,:,1:]; QQ = QQ[:,:,1:]; PP_WN = PP_WN[:,:,1:]
-					print AA.shape, PP.shape, QQ.shape
 				title = r"Pressure difference, $(P_R-P_S)/P_R^{\rm wn}$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference (normalised)"
-				plotfile = dirpath+"/DPAS.jpg"
-				for i in range(SS.size):
-					ax.plot(AA,np.diagonal((PP-QQ)).T[i,:]/np.diagonal((PP_WN)).T[i,:], "o-", label="$S = "+str(SS[i])+"$")
-#					ax.plot(AA,np.diagonal(PP_WN-QQ_WN).T[i,:], "--", color=ax.lines[-1].get_color())
+				plotfile = dirpath+"/DPAS"
+				## Advance colour cycle for consistent colour between diffrent R-S plots
+				for Ri in [0.0,1.0,2.0,5.0]: if Ri not in RR: ax.plot([],[])
+				## Messy shunting a=0 onto the plot because PP,QQ too complicated to modify directly
+				if 0.0 not in AA and not logplot:
+					if vb: print me+"Adding alpha=0 points."
+					DP_WN = np.diagonal((PP_WN-QQ_WN)/(PP_WN)).T	## To plot the a=0 point
+					for i in range(SS.size):
+						ax.plot(np.hstack([0.0,AA]),np.hstack([DP_WN[i,0],np.diagonal((PP-QQ)/(PP_WN)).T[i,:]]),
+									"o-", label="$R = "+str(RR[i])+"$")
+					xlim[0]=0.0
+				else:
+					for i in range(SS.size):
+						ax.plot(AA,np.diagonal((PP-QQ)/(PP_WN)).T[i,:],	"o-", label="$R = "+str(RR[i])+"$")
+					
 			else:
 				## Plot difference Pout-Pin against R
 				DPplot = True
@@ -629,11 +655,11 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 					AA = AA[1:]; PP = PP[:,:,1:]; QQ = QQ[:,:,1:]; PP_WN = PP_WN[:,:,1:]
 				title = r"Pressure difference, $(P_R-P_S)/P_R^{\rm wn}$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference (normalised)"
-				plotfile = dirpath+"/DPRA.jpg"
-				xlabel = r"$R\;(=S+%.1f)$"%((RR-SS)[0]) if (RR-SS)[0]>0.0 else r"$R\;(=S)$"
-				xlim = (RR[0],RR[-1])
+				plotfile = dirpath+"/DPRA"
+				xlabel = r"$R\;(=S+%.1f)$"%((RR-SS)[0]) if (RR-SS)[0]>0.0 else r"$R$"
+				xlim = [RR[0],RR[-1]]
 				for i in range(0,AA.size,1):	## To plot against R
-					ax.plot(RR,np.diagonal((PP-QQ)).T[:,i]/np.diagonal((PP_WN)).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$")
+					ax.plot(RR,np.diagonal((PP-QQ)/(PP_WN)).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$")
 				if logplot:
 					RRR = np.linspace(1,RR[-1],10)
 					ax.plot(RRR,2/(RRR),"k:",lw=3,label=r"$2R^{-1}$")
@@ -641,20 +667,21 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 #					for i in range(0,AA.size,1):
 #						ax.plot(RR,2/(RR)*(AA[i]/(AA[i]+1))*(1+0.5*np.unique(RR-SS)/RR*np.sqrt(AA[i]/(AA[i]+1))),":",lw=3)
 				ax.set_ylim(1e-3,1e1)
-				xlim = (1.0,RR[-1])
+				xlim = [1.0,RR[-1]]
 		
-			## POTENTIAL INSET
-			left, bottom, width, height = [0.51, 0.58, 0.35, 0.31]
-			axin = fig.add_axes([left, bottom, width, height], projection="3d")
-			Rschem, Sschem = (1.7,1.7) if np.unique(RR-SS) == 0 else (5,1.7)
-			plot_U3D_polar(axin, Rschem, Sschem)
-			axin.patch.set_alpha(0.5)
+				## POTENTIAL INSET
+#				left, bottom, width, height = [0.51, 0.58, 0.35, 0.31]	## For upper right
+				left, bottom, width, height = [0.13, 0.14, 0.35, 0.31]	## For lower left
+				axin = fig.add_axes([left, bottom, width, height], projection="3d")
+				Rschem, Sschem = (1.7,1.7) if np.unique(RR-SS) == 0 else (5,1.7)
+				plot_U3D_polar(axin, Rschem, Sschem, zorder=0.1)
+				axin.patch.set_alpha(0.3)
 			
 	## ------------------------------------------------
 	
 	## Single circus; TAN
 	elif ftype == "tan":
-		plotfile = dirpath+"/PAL.jpg"
+		plotfile = dirpath+"/PAL"
 		title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 		for i in range(LL.size):
 			ax.plot(AA,PP[i,0,:],  "o-", label="$\\lambda = "+str(LL[i])+"$")
@@ -670,7 +697,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 			if vb:	print me+"Plotting P_R and P_S against alpha for different values of lambda. R and S fixed."
 			Ridx = 1
 			Sidx = np.where(SS==RR[Ridx]-1.0)[0][0]
-			plotfile = dirpath+"/PAL.jpg"
+			plotfile = dirpath+"/PAL"
 			title = "Pressure normalised by WN, $R = "+str(RR[Ridx])+"$, $S = "+str(SS[Sidx])+"$; ftype = "+ftype
 			for i in range(LL.size):
 				ax.plot(AA[1:],PP[i,Ridx,Sidx,1:], "o-", label="$\\lambda = "+str(LL[i])+"$")
@@ -679,7 +706,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 		elif plotbool[1]:
 			if vb:	print me+"Plotting P_R and P_S against alpha for different values of R. lambda is fixed."
 			Lidx = 0
-			plotfile = dirpath+"/PAR.jpg"
+			plotfile = dirpath+"/PAR"
 			title = "Pressure normalised by WN, $\\lambda = "+str(LL[0])+"$; ftype = "+ftype
 			for i in range(RR.size):
 				Sidx = np.where(SS==RR[i]-1.0)[0][0]
@@ -694,7 +721,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 			## Find S indices corresponding to R-1.0
 			Ridx = range(RR.size)
 			Sidx = [np.where(SS==RR[Ridx[i]]-1.0)[0][0] for i in range(len(Ridx))]
-			plotfile = dirpath+"/DPALDR.jpg"
+			plotfile = dirpath+"/DPALDR"
 			title = "Pressure difference, $P_R-P_S$; $R-S = "+str(RR[Ridx[0]]-SS[Sidx[0]])+"$; ftype = "+ftype
 			for i in range(LL.size):
 				ax.plot(AA[1:],DP[i,Ridx[0],Sidx[0],1:], "o-",
@@ -710,7 +737,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 			DP = PP*PP_WN-QQ*QQ_WN
 			## Fix lambda index
 			Lidx = 1
-			plotfile = dirpath+"/DPRA.jpg"
+			plotfile = dirpath+"/DPRA"
 			title = "Pressure difference, $P_R-P_S$; $R-S = "+str(RR[Ridx[0]]-SS[Sidx[0]])+"$; ftype = "+ftype
 			for i in range(0,AA.size,2):	## To plot against S
 				ax.plot(SS,DP[Lidx,Ridx,Sidx,i], "o-", label="$\\alpha = "+str(AA[i])+"$") 
@@ -720,14 +747,14 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 	elif ftype == "nu":
 		## All R equal; plot against a; large and small l
 		"""
-		plotfile = dirpath+"/PALN.jpg"
+		plotfile = dirpath+"/PALN"
 		title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 		for i in range(LL.size):
 			ax.plot(AA,PP[0,i,:],   "o-", label="$\\lambda, \\nu = "+str(LL[i])+", "+str(NN[0]) +"$")
 			ax.plot(AA,PP[-1,i,:], "o--", color=ax.lines[-1].get_color(), label="$\\lambda, \\nu = "+str(LL[i])+", "+str(NN[-1])+"$")
 		"""
 		## All R equal; plot against nu; assume same L; [N,L,A]
-		plotfile = dirpath+"/PNA.jpg"
+		plotfile = dirpath+"/PNA"
 		title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype+"; $\\lambda = "+str(LL[0])+"$"
 		fitfunc = lambda NN, M, b: M*np.power(NN, b)
 		for i in range(AA.size):
@@ -743,7 +770,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 			if 0:
 				## Plot individually
 				title = "Pressures $P_R,P_S$ (normalised); $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
-				plotfile = dirpath+"/PQRA.jpg"
+				plotfile = dirpath+"/PQRA"
 				xlabel = "$R\\;(=S+"+str((RR-SS)[0])+")$"; xlim = (RR[0],RR[-1])
 				for i in range(0,AA.size,1):	## To plot against R
 					ax.plot(RR[:],PP[:,i], "o-", label="$\\alpha = "+str(AA[i])+"$") 
@@ -754,7 +781,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				## Plot difference
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
-				plotfile = dirpath+"/DPRA.jpg"
+				plotfile = dirpath+"/DPRA"
 				title = "Pressure difference, $P_R-P_S$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				xlabel = "$R\\;(=S+"+str((RR-SS)[0])+")$"; ylabel = "Pressure Difference"
 				xlim = (RR[0],RR[-1])
@@ -773,24 +800,25 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 	if logplot:
 		ax.set_xscale("log"); ax.set_yscale("log")
 		ax.set_xlim(left=(xlim[0] if xlim[0]!=0.0 else ax.get_xlim()[0]), right=xlim[1])
-		plotfile = plotfile[:-4]+"_loglog.jpg"
+		plotfile = plotfile+"_loglog"
 	elif not (logplot or DPplot):
 		ax.set_xlim(xlim)
 		ax.set_ylim(bottom=0.0, top=max(ax.get_ylim()[1],1.0))
 	else:
 		ax.set_xlim(xlim)
+	ax.set_ylim(bottom=0.0)
 	
 	ax.set_xlabel(xlabel,fontsize=fs["fsa"])
 	ax.set_ylabel(ylabel,fontsize=fs["fsa"])
 	
 	ax.grid()
-	ax.legend(loc="best",fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	ax.legend(loc="best",fontsize=fs["fsl"], ncol=2).get_frame().set_alpha(0.5)
 #	fig.suptitle(title,fontsize=fs["fst"])
 	
 	#plt.tight_layout();	plt.subplots_adjust(top=0.9)
 	if not nosave:
-		fig.savefig(plotfile)
-		if vb: print me+"plot saved to",plotfile
+		fig.savefig(plotfile+"."+fs["saveext"])
+		if vb: print me+"plot saved to",plotfile+"."+fs["saveext"]
 	
 	if vb: print me+"Plotting %.2f seconds."%(time()-t0)
 		
