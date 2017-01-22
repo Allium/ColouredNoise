@@ -22,12 +22,12 @@ Plot Q(x) and Q(r) on top of one another for high R. They should match closely.
 
 try:
 	a, R, S = [float(x) for x in argv[1:4]]
-except IndexError:
+except (IndexError, ValueError):
 	a = 10.0
 	R = 100.0
 	S = 90.0
 
-histdirP = "/home/users2/cs3006/Documents/Coloured_Noise/161119_POL_DL_dt0.01_psi--R100/"
+histdirP = "/home/users2/cs3006/Documents/Coloured_Noise/161212_POL_DL_dt0.01_psi--R100/"
 histdirC = "/home/users2/cs3006/Documents/Coloured_Noise/161116_CAR_DL_dt0.01--R100/"
 
 histfileP = histdirP+"BHIS_POL_DL_a%.1f_R%.1f_S%.1f_dt0.01.npy"%(a,R,S)
@@ -72,7 +72,7 @@ if 1:
 	ax.set_xlim((r[0],r[-1]))
 		
 	ax.set_xlabel(r"$r$ or $x$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$Q$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$Q$ (rescaled)", fontsize=fs["fsa"])
 	ax.legend()
 	ax.grid()
 	
