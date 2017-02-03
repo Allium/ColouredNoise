@@ -1,6 +1,7 @@
 me0 = "LE_CJPlot"
 
 import numpy as np
+import scipy as sp
 import os, optparse, glob, time
 
 import matplotlib as mpl
@@ -51,10 +52,11 @@ def main():
 	assert "_CAR_" in args[0], me+"Functional only for Cartesian geometry."
 
 	## Plot file
-	if os.path.isfile(args[0]):
-		if os.path.basename(args[0])[:4]=="BHIS":
-			plot_current_1d(args[0], nosave, vb)
-		else: raise IOError, me+"Check input."
+	assert os.path.isfile(args[0])
+	if os.path.basename(args[0])[:8] =="BHIS_CAR":
+		plot_current_1d(args[0], nosave, vb)
+	if os.path.basename(args[0])[:11]=="CURR_CAR_UL":
+		plot_current_2d(args[0], nosave, vb)
 	else: raise IOError, me+"Check input."
 	
 	if vb: print me+"Total execution time",round(time.time()-t0,1),"seconds."
@@ -114,6 +116,12 @@ def plot_current_1d(histfile, nosave, vb):
 	
 	##-------------------------------------------------------------------------
 	
+	## SMOOTHING
+	
+	Vy = sp.ndimage.gaussian_filter(Vy, 1.0, order=0)
+	
+	##-------------------------------------------------------------------------
+	
 	## PLOTTING
 				
 	plt.rcParams["image.cmap"] = "Greys"
@@ -125,7 +133,7 @@ def plot_current_1d(histfile, nosave, vb):
 	
 	## Data
 	ax.contourf(x, etax, rho.T)
-	sx, se = 20, 5
+	sx, se = 30, 5
 	ax.quiver(x[::sx], etax[::se], Vx.T[::se,::sx], Vy.T[::se,::sx])
 	
 	
@@ -155,6 +163,97 @@ def plot_current_1d(histfile, nosave, vb):
 	
 	return
 	
+
+
+##=============================================================================
+def plot_current_2d(currfile, nosave, vb):
+	"""
+	"""
+	me = me0+".plot_current_2d: "
+	t0 = time.time()
+	
+	##-------------------------------------------------------------------------
+	
+	## Filename pars
+	
+	a = filename_par(currfile, "_a")
+	R = filename_par(currfile, "_R")
+	S = filename_par(currfile, "_S")
+	T = filename_par(currfile, "_T")
+	
+	##-------------------------------------------------------------------------
+		
+	## Load data
+	
+	data = np.load(currfile)
+	xbins = data["xbins"]
+	ybins = data["ybins"]
+	vxbins = data["vxbins"]
+	vybins = data["vybins"]
+	Hxy = data["Hxy"][:,::-1]
+	Vx = data["Vx"][:,::-1]
+	Vy = data["Vy"][:,::-1]
+	del data
+	
+	x = 0.5*(xbins[:-1]+xbins[1:])
+	y = 0.5*(ybins[:-1]+ybins[1:])
+	vx = 0.5*(vxbins[:-1]+vxbins[1:])
+	vy = 0.5*(vybins[:-1]+vybins[1:])
+		
+	##-------------------------------------------------------------------------
+	
+	## SMOOTHING
+	
+#	Vy = sp.ndimage.gaussian_filter(Vy, 1.0, order=0)
+	
+	zx, zy = 0.2, 1.0
+	Vx = sp.ndimage.interpolation.zoom(Vx, (zx,zy), mode="nearest", cval=0.0)
+	Vy = sp.ndimage.interpolation.zoom(Vy, (zx,zy), mode="nearest", cval=0.0)
+	Vy[:,0]  = 0.0
+	Vy[:,-1] = 0.0
+	
+	##-------------------------------------------------------------------------
+	
+	## PLOTTING
+				
+	plt.rcParams["image.cmap"] = "Greys"
+	
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	fig.canvas.set_window_title("Current in x-eta")
+	
+	##-------------------------------------------------------------------------
+	
+	## Data
+	ax.contourf(x, y, Hxy.T)
+	sx, sy = 1, 1
+	ax.quiver(x[::int(1/zx)], y[::int(1/zy)], Vx.T[::sy,::sx], Vy.T[::sy,::sx])
+	
+	## Indicate wall
+	yfine = np.linspace(0,T,1000)
+	ax.scatter(+R-S*np.sin(2*np.pi*yfine/T), yfine, c="k", s=1)
+	
+	## Set number of ticks
+	ax.xaxis.set_major_locator(MaxNLocator(5))
+	ax.yaxis.set_major_locator(MaxNLocator(4))
+
+	ax.set_xlim([xbins[0],xbins[-1]])
+	ax.set_ylim([ybins[0],ybins[-1]])
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
+	ax.grid()
+	# ax.legend(loc="upper right", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+		
+	##-------------------------------------------------------------------------
+		
+	if not nosave:
+		plotfile = os.path.dirname(currfile)+"/Jxy"+os.path.basename(currfile)[4:-4]
+		plotfile += "."+fs["saveext"]
+		fig.savefig(plotfile, format=fs["saveext"])
+		if vb:	print me+"Figure saved to",plotfile
+		
+	if vb: print me+"Execution time %.1f seconds."%(time.time()-t0)
+	
+	return
 	
 ##=============================================================================
 ##=============================================================================
