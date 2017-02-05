@@ -337,6 +337,7 @@ def calc_pressure_dir(dirpath, srchstr, noread, vb):
 	if (ftype[0] != "d" and ftype[-3:] != "tan" and ftype[-2:] != "nu"):
 		PP = -np.ones([RR.size,AA.size])
 		PP_WN = np.zeros(PP.shape)
+		QQ, QQ_WN = np.zeros(PP.shape), np.zeros(PP.shape)
 		for i in range(RR.size):
 			Ridx = (R==RR[i])
 			for j in range(AA.size):
@@ -348,6 +349,7 @@ def calc_pressure_dir(dirpath, srchstr, noread, vb):
 				except ValueError:
 					## No value there
 					pass
+
 	
 	## 3D pressure array: [S,R,A]
 	elif  (ftype[0] == "d" and ftype[-3:] != "tan" and ftype[-2:] != "nu"):
@@ -537,14 +539,35 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 	## Plot pressure
 			
 	## E2 prediction
-	if ftype == "lin":
-		plt.plot(AA,np.power(AA+1.0,-0.5),"b:",label="$(\\alpha+1)^{-1/2}$",lw=2)
+#	if ftype == "lin":
+#		plt.plot(AA,np.power(AA+1.0,-0.5),"b:",label=r"$(\alpha+1)^{-1/2}$",lw=2)
 	
 	## Disc; non-finite
 	## Plot pressure against alpha for R or for S
-	if (ftype[0] != "d" and ftype[-3:] != "tan" and ftype[-2:] != "nu"):
-		for i in range(RR.size):
-			ax.plot(AA,PP[i,:],  "o-", label="$R = "+str(RR[i])+"$")
+#	if ((ftype[0]!="d" and SS.sum()!=0.0) or (ftype[0]=="d" and SS.sum()==0.0)  and ftype[-3:]!="tan" and ftype[-2:]!="nu"):
+	if SS.sum()==0.0:
+		## In case run with DL but S=0 for all files, will need to restructure array
+		if SS.all()==0.0:
+			PP=PP[0]
+		## Shunt on the a=0 values
+		if 0.0 not in AA:
+			AA = np.hstack([0.0,AA])
+			PP = np.vstack([np.ones(RR.size),PP.T]).T
+			xlim = [AA[0],AA[-1]]
+		
+		## PLOTTING	
+		## Plot against ALPHA
+		if 0:
+			for i in range(RR.size):
+				ax.plot(AA,PP[i,:],  "o-", label=r"$R = "+str(RR[i])+"$")
+				
+		## Plot against R
+		else:
+			plotfile = dirpath+"PRA"
+			for i in range(AA.size):
+				ax.plot(RR,PP[:,i],  "o-", label=r"$\alpha = %.1f$"%(AA[i]))
+			xlim = [RR[0],RR[-1]]
+			xlabel = r"$R$"
 	
 	## ------------------------------------------------
 	## 
@@ -555,7 +578,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 		
 		## Holding R fixed
 		if RR.size == 1:
-			if 0:
+			if 1:
 				## Plot normalised Pout and Pin individually against ALPHA
 				title = "Pressure normalised by WN, $R = "+str(RR[0])+"$; ftype = "+ftype
 				plotfile = dirpath+"/PQAS"
@@ -569,7 +592,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				for i in range(SS.size):
 					ax.plot(int(logplot)+AA,PP[i,0,:],  "o-", label="$S = "+str(SS[i])+"$") 
 					ax.plot(int(logplot)+AA,QQ[i,0,:], "v--", color=ax.lines[-1].get_color())
-			elif 1:
+			elif 0:
 				## Plot normalised Pout and Pin individually against S, for multiple ALPHA
 				title = "Pressures $P_R,P_S$ (normalised); $R = "+str(RR[0])+"$; ftype = "+ftype
 				plotfile = dirpath+"/PQSA"
@@ -580,10 +603,12 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 					AA = np.hstack([0.0,AA])
 					PP = np.dstack([np.ones([SS.size,RR.size]),PP])
 					QQ = np.dstack([np.ones([SS.size,RR.size]),QQ])
+				## Avoid plotting QQ for S=0 point
+				idx = 1 if 0.0 in SS else 0
 				for i in range(0,AA.size,1):
 					ax.plot(SS,PP[:,0,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
-					ax.plot(SS,QQ[:,0,i], "v--", color=ax.lines[-1].get_color())
-			elif 0:
+					ax.plot(SS[idx:],QQ[idx:,0,i], "v--", color=ax.lines[-1].get_color())
+			elif 1:
 				## Plot difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
@@ -623,8 +648,8 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				xlim = [RR[0],RR[-1]]
 				for i in range(0,AA.size,1):	## To plot against R
 					ax.plot(RR,np.diagonal(PP).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
-					ax.plot(RR[:],np.diagonal(QQ).T[:,i], "v--", color=ax.lines[-1].get_color())
-			elif 1:
+					ax.plot(RR,np.diagonal(QQ).T[:,i], "v--", color=ax.lines[-1].get_color())
+			elif 0:
 				## Plot difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
@@ -633,8 +658,8 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				title = r"Pressure difference, $(P_R-P_S)/P_R^{\rm wn}$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference (normalised)"
 				plotfile = dirpath+"/DPAS"
-				## Advance colour cycle for consistent colour between diffrent R-S plots
-				for Ri in [0.0,1.0,2.0,5.0]: if Ri not in RR: ax.plot([],[])
+#				## Advance colour cycle for consistent colour between diffrent R-S plots
+#				[ax.plot([],[]) for i in range(np.sum([Ri not in RR for Ri in [0.0,1.0,2.0,5.0]])-1)]
 				## Messy shunting a=0 onto the plot because PP,QQ too complicated to modify directly
 				if 0.0 not in AA and not logplot:
 					if vb: print me+"Adding alpha=0 points."
@@ -668,13 +693,13 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 #						ax.plot(RR,2/(RR)*(AA[i]/(AA[i]+1))*(1+0.5*np.unique(RR-SS)/RR*np.sqrt(AA[i]/(AA[i]+1))),":",lw=3)
 				ax.set_ylim(1e-3,1e1)
 				xlim = [1.0,RR[-1]]
-		
+				
 				## POTENTIAL INSET
-#				left, bottom, width, height = [0.51, 0.58, 0.35, 0.31]	## For upper right
-				left, bottom, width, height = [0.13, 0.14, 0.35, 0.31]	## For lower left
+				left, bottom, width, height = [0.51, 0.58, 0.35, 0.31]	## For upper right
+#				left, bottom, width, height = [0.13, 0.14, 0.35, 0.31]	## For lower left
 				axin = fig.add_axes([left, bottom, width, height], projection="3d")
 				Rschem, Sschem = (1.7,1.7) if np.unique(RR-SS) == 0 else (5,1.7)
-				plot_U3D_polar(axin, Rschem, Sschem, zorder=0.1)
+				plot_U3D_polar(axin, Rschem, Sschem)
 				axin.patch.set_alpha(0.3)
 			
 	## ------------------------------------------------
@@ -806,7 +831,12 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 		ax.set_ylim(bottom=0.0, top=max(ax.get_ylim()[1],1.0))
 	else:
 		ax.set_xlim(xlim)
-	ax.set_ylim(bottom=0.0)
+	
+	## AD HOC
+	if not logplot:
+		ax.set_ylim(bottom=0.0)
+		ax.set_ylim(top=1.2)
+#	ax.set_ylim(1e-3,1e1)
 	
 	ax.set_xlabel(xlabel,fontsize=fs["fsa"])
 	ax.set_ylabel(ylabel,fontsize=fs["fsa"])
