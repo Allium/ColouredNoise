@@ -232,6 +232,7 @@ def plot_pressure_file(histfile, nosave, vb):
 def calc_pressure_dir(histdir, srchstr, noread, vb):
 	"""
 	Calculate the pressure for all files in directory matching string.
+	The 
 	"""
 	me = me0+".calc_pressure_dir: "
 	t0 = time.time()
@@ -250,7 +251,7 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 
 	##-------------------------------------------------------------------------
 	
-	A, R, S, T, PR, PS, PT, PR_WN, PS_WN, PT_WN = np.zeros([10,numfiles])
+	A, R, S, T, PR, PS, PT, PU, PR_WN, PS_WN, PT_WN, PU_WN = np.zeros([12,numfiles])
 	
 	## Retrieve data
 	for i, histfile in enumerate(filelist):
@@ -303,6 +304,9 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 		PR[i] = -sp.integrate.trapz(fx[Rind:]*Qx[Rind:], x[Rind:])
 		PS[i] = +sp.integrate.trapz(fx[STind:Sind]*Qx[STind:Sind], x[STind:Sind])
 		PT[i] = -sp.integrate.trapz(fx[Tind:STind]*Qx[Tind:STind], x[Tind:STind])
+		if "_ML_" in histfile:
+			mRind = x.size-Rind	## Index of wall at x=-R
+			PU[i] = +sp.integrate.trapz(fx[:mRind]*Qx[:mRind], x[:mRind])
 		
 		if vb: print me+"a=%.1f:\tPressure calculation %.2g seconds"%(A[i],time.time()-ti)
 		
@@ -314,6 +318,8 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 		PS_WN[i] = +sp.integrate.trapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind])
 		if Casimir:
 			PT_WN[i] = -sp.integrate.trapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind])
+		if "_ML_" in histfile:
+			PU_WN[i] = +sp.integrate.trapz(fx[:mRind]*Qx_WN[:mRind], x[:mRind])
 		
 	##-------------------------------------------------------------------------
 			
@@ -321,26 +327,30 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 	srtidx = A.argsort()
 	A = A[srtidx]
 	R, S, T = R[srtidx], S[srtidx], T[srtidx]
-	PR, PS, PT = PR[srtidx], PS[srtidx], PT[srtidx]
-	PR_WN, PS_WN, PT_WN = PR_WN[srtidx], PS_WN[srtidx], PT_WN[srtidx]
+	PR, PS, PT, PU = PR[srtidx], PS[srtidx], PT[srtidx], PU[srtidx]
+	PR_WN, PS_WN, PT_WN, PU_WN = PR_WN[srtidx], PS_WN[srtidx], PT_WN[srtidx], PU_WN[srtidx]
 	
 	## Normalise
 	PR /= PR_WN + (PR_WN==0)
 	PS /= PS_WN + (PS_WN==0)
 	if Casimir:
 		PT /= PT_WN + (PT_WN==0)
+	if "_ML_" in histdir:
+		PU /= PU_WN + (PU_WN==0)
 		
 	##-------------------------------------------------------------------------
 		
 	## SAVING
 	if not noread:
 		pressfile = histdir+"/PRESS_"+srchstr+".npz"
-		np.savez(pressfile, A=A, R=R, S=S, T=T, PR=PR, PS=PS, PT=PT, PR_WN=PR_WN, PS_WN=PS_WN, PT_WN=PT_WN)
+		np.savez(pressfile, A=A, R=R, S=S, T=T, PR=PR, PS=PS, PT=PT, PU=PU,
+								PR_WN=PR_WN, PS_WN=PS_WN, PT_WN=PT_WN, PU_WN=PU_WN)
 		if vb:
 			print me+"Calculations saved to",pressfile
 			print me+"Calculation time %.1f seconds."%(time.time()-t0)
 
-	return {"A":A,"R":R,"S":S,"T":T,"PR":PR,"PS":PS,"PT":PT,"PR_WN":PR_WN,"PS_WN":PS_WN,"PT_WN":PT_WN}
+	return {"A":A,"R":R,"S":S,"T":T,"PR":PR,"PS":PS,"PT":PT,"PU":PU,
+					"PR_WN":PR_WN,"PS_WN":PS_WN,"PT_WN":PT_WN,"PU_WN":PU_WN}
 		
 
 ##=============================================================================
@@ -369,9 +379,11 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	PR = pressdata["PR"]
 	PS = pressdata["PS"]
 	PT = pressdata["PT"]
+	PU = pressdata["PU"]
 	PR_WN = pressdata["PR_WN"]
 	PS_WN = pressdata["PS_WN"]
 	PT_WN = pressdata["PT_WN"]
+	PU_WN = pressdata["PU_WN"]
 	del pressdata
 		
 	Casimir = "_DL_" not in histdir
@@ -399,7 +411,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	sty = ["-","--",":"]
 	
 	## Add a=0 point
-	if 1:
+	if 0.0 not in A:
 		nlin = np.unique(S).size
 		A = np.hstack([[0.0]*nlin,A])
 		R = np.hstack([R[:nlin],R])
@@ -408,6 +420,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 		PR = np.hstack([[1.0]*nlin,PR])
 		PS = np.hstack([[1.0]*nlin,PS])
 		PT = np.hstack([[1.0]*nlin,PT])
+		PU = np.hstack([[1.0]*nlin,PU])
 	
 	Au = np.unique(A) + int(logplot)
 	
@@ -416,16 +429,19 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	## Hold R & T fixed and vary S
 	if np.unique(R).size==1:
 		
-		plotfile = histdir+"/PAS_R%.1f_T%.1f."%(R[0],T[0])+fs["saveext"] if T[0]>=0.0\
-					else histdir+"/PAS_R%.1f."%(R[0])+fs["saveext"]
+		plotfile = histdir+"/PAS_R%.1f_S%.1f_T%.1f."%(R[0],S[0],T[0])+fs["saveext"] if T[0]>=0.0\
+					else histdir+"/PAS_R%.1f_S%.1f."%(R[0])+fs["saveext"]
 		title = r"Pressure as a function of $\alpha$ for $R=%.1f,T=%.1f$"%(R[0],T[0]) if T[0]>=0.0\
 				else r"Pressure as a function of $\alpha$ for $R=%.2f$"%(R[0])
 		
 		## To plot a single S
 		if np.unique(S).size==1:
-#			ax.plot(Au, PR, "go-", label=r"$P_R$", zorder=2)
+#			ax.plot(Au, PR, "gv--", label=r"$P_R$", zorder=2)
 			ax.plot(Au, PS, "go-", label=r"$P_S$", zorder=2)
 			ax.plot(Au, PT, "bo-", label=r"$P_T$", zorder=2)
+			if "_ML_" in histdir:
+				ax.plot(Au, PU, "bv--", label=r"$P_U$", zorder=2)
+				ax.plot(Au, -(PR-PS+PT-PU), "ks-", label=r"Net", zorder=2)
 			
 			##---------------------------------
 			## Casimir insets
@@ -433,7 +449,8 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 				## Pressure key
 				left, bottom, width, height = [0.25, 0.15, 0.63, 0.4]
 				axin = fig.add_axes([left, bottom, width, height])
-				UP_CL(axin,R[0],S[0],T[0])
+				UP_CL(axin,3.0,2.0,0.0)
+				axin.patch.set_alpha(0.3)
 				## Potential sketch
 				left, bottom, width, height = [0.18, 0.75, 0.25, 0.13]
 				axin = fig.add_axes([left, bottom, width, height])
@@ -447,10 +464,10 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 				axin.set_ylabel(r"$U$", fontsize=fs["fsa"]-4)
 				axin.xaxis.set_major_locator(NullLocator())
 				axin.yaxis.set_major_locator(NullLocator())	
-				axin.patch.set_alpha(0.1)
+				axin.patch.set_alpha(0.3)
 			##---------------------------------
 			## Single wall insets
-			elif "_ML_" in histdir:
+			elif 0:# "_ML_" in histdir:
 				## Pressure key
 				left, bottom, width, height = [0.25, 0.15, 0.63, 0.4]
 				axin = fig.add_axes([left, bottom, width, height])
@@ -469,14 +486,17 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 					### One line, average.
 					P = 0.5*(PR+PS)
 					ax.plot(Au, P[S==Si], "o"+sty[0], label=r"$L=%.1f$"%(R[0]-Si))
-					## Prediction for zero bulk
-					ax.plot(Au, (Au)**(-0.5), "--", c=ax.lines[0].get_color())
 					
 					## Inset of potential
 					left, bottom, width, height = [0.19, 0.58, 0.35, 0.30]
 					axin = fig.add_axes([left, bottom, width, height])
 					plot_U1D_Cartesian(axin, "dlin", 2.0, 0.0, 0.0)
 #					axin.patch.set_alpha(0.5)
+			
+			## Prediction for zero and infinite bulk
+			if "_DL_" in histdir:
+				ax.plot(Au, (Au)**(-0.5), "--", c=ax.lines[0].get_color())
+				ax.plot(Au, np.ones(Au.size), "y--", label=r"$L\to\infty$")
 					
 			
 	##-------------------------------------------------------------------------
@@ -497,7 +517,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	ax.set_xlabel(xlabel, fontsize=fs["fsa"])
 	ax.set_ylabel(r"$P(\alpha)$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+#	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 #	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
@@ -505,55 +525,6 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 		if vb:	print me+"Figure saved to",plotfile
 		
 	if vb: print me+"Plotting time %.1f seconds."%(time.time()-t0)
-	
-	return
-	
-	
-##=================================================================================================
-def UP_CL(fig,ax,R,S,T):
-	"""
-	Plot interior walls of CL potential with Pin Pout annotation.
-	"""
-			
-	x = np.linspace(-S-2,+S+2,1000)
-	fx = force_clin([x,0],R,S,T)[0]
-	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
-	
-	ax.plot(x, U, "k-", lw=2)
-	
-	textsize = fs["fsa"]-4
-	Poutpos = 1.2
-		
-	## Pout right
-	ax.text(Poutpos, 0.70*U.max(), r"$\mathbf{\Leftarrow}$",
-		fontsize=textsize, horizontalalignment="left", color="g")
-	ax.text(Poutpos, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm out}}$",
-		fontsize=textsize, horizontalalignment="left", color="g")
-	ax.text(Poutpos, 0.80*U.max(), r"$\mathbf{\Leftarrow}$",
-		fontsize=textsize, horizontalalignment="left", color="g")
-	
-	## Pin right left
-	ax.text(0, 0.70*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
-		fontsize=textsize, horizontalalignment="center", color="b")
-	ax.text(0, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm in}\Rightarrow}$",
-		fontsize=textsize, horizontalalignment="center", color="b")
-	ax.text(0, 0.80*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
-		fontsize=textsize, horizontalalignment="center", color="b")
-		
-	## Pout left
-	ax.text(-Poutpos, 0.70*U.max(), r"$\mathbf{\Rightarrow}$",
-		fontsize=textsize, horizontalalignment="right", color="g")
-	ax.text(-Poutpos, 0.75*U.max(), r"$\mathbf{P_{\rm out} \Rightarrow}$",
-		fontsize=textsize, horizontalalignment="right", color="g")
-	ax.text(-Poutpos, 0.80*U.max(), r"$\mathbf{\Rightarrow}$",
-		fontsize=textsize, horizontalalignment="right", color="g")
-
-	ax.set_xlim(x[0],x[-1])
-	ax.set_ylim(0,1.2*ax.get_ylim()[1])
-	ax.set_xlabel(r"$x$", fontsize=fs["fsa"]-4)
-	ax.set_ylabel(r"$U$", fontsize=fs["fsa"]-4)
-	ax.xaxis.set_major_locator(NullLocator())
-	ax.yaxis.set_major_locator(NullLocator())
 	
 	return
 	
