@@ -57,7 +57,7 @@ def plot_U1D_Cartesian(ax, ftype, R, S, T):
 ##=============================================================================
 
 ## 3D potential -- POLAR
-def plot_U3D_polar(ax, R, S, T):
+def plot_U3D_polar(ax, R, S):
 	"""
 	Plot polar potential in 3D. Must be passed axes and parameters.
 	"""
@@ -78,12 +78,12 @@ def plot_U3D_polar(ax, R, S, T):
 		U = 0.5*(rr-R)**2*(rr>=R) + 0.5*(rr-S)**2*(rr<=S)
 	
 	## Plot walls -- too strong but I've tried
-	ax.plot(R*np.cos(pp),R*np.sin(pp),0.0, "r-", alpha=0.2, zorder=1)
+	ax.plot(R*np.cos(pp),R*np.sin(pp),0.0, "r-", alpha=0.2, zorder=0.1)
 	if R!=S:
-		ax.plot(S*np.cos(pp),S*np.sin(pp),0.0, "g-", alpha=0.2, zorder=1)
+		ax.plot(S*np.cos(pp),S*np.sin(pp),0.0, "y-", alpha=0.2, zorder=0.1)
 	
 	## Plot U
-	ax.plot_surface(X, Y, U, rstride=1, cstride=1, alpha=0.15, zorder=2)
+	ax.plot_surface(X, Y, U, rstride=1, cstride=1, alpha=0.15, zorder=0.5)
 	
 	## Modify axes
 #	ax.set_zlim3d(0, 1)
@@ -148,44 +148,47 @@ def UP_CL(ax,R,S,T):
 		R = 2.0
 		S = 1.0
 		T = 0.0
-	
-	x = np.linspace(-R,R,1000)
+			
+	x = np.linspace(-S-2,+S+2,1000)
 	fx = force_clin([x,0],R,S,T)[0]
 	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
-
+	
 	ax.plot(x, U, "k-", lw=2)
 	
+	textsize = fs["fsa"]-4
+	Poutpos = 1.2
+		
 	## Pout right
-	ax.text(0.6, 0.70*U.max(), r"$\mathbf{\Leftarrow}$",
-		fontsize=fs["fsa"], horizontalalignment="left", color="b")
-	ax.text(0.6, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm out}}$",
-		fontsize=fs["fsa"], horizontalalignment="left", color="b")
-	ax.text(0.6, 0.80*U.max(), r"$\mathbf{\Leftarrow}$",
-		fontsize=fs["fsa"], horizontalalignment="left", color="b")
-
+	ax.text(Poutpos, 0.70*U.max(), r"$\mathbf{\Leftarrow}$",
+		fontsize=textsize, horizontalalignment="left", color="g")
+	ax.text(Poutpos, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm out}}$",
+		fontsize=textsize, horizontalalignment="left", color="g")
+	ax.text(Poutpos, 0.80*U.max(), r"$\mathbf{\Leftarrow}$",
+		fontsize=textsize, horizontalalignment="left", color="g")
+	
 	## Pin right left
 	ax.text(0, 0.70*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
-		fontsize=fs["fsa"], horizontalalignment="center", color="r")
+		fontsize=textsize, horizontalalignment="center", color="b")
 	ax.text(0, 0.75*U.max(), r"$\mathbf{\Leftarrow P_{\rm in}\Rightarrow}$",
-		fontsize=fs["fsa"], horizontalalignment="center", color="r")
+		fontsize=textsize, horizontalalignment="center", color="b")
 	ax.text(0, 0.80*U.max(), r"$\mathbf{\Leftarrow \qquad \Rightarrow}$",
-		fontsize=fs["fsa"], horizontalalignment="center", color="r")
-	
+		fontsize=textsize, horizontalalignment="center", color="b")
+		
 	## Pout left
-	ax.text(-0.6, 0.70*U.max(), r"$\mathbf{\Rightarrow}$",
-		fontsize=fs["fsa"], horizontalalignment="right", color="b")
-	ax.text(-0.6, 0.75*U.max(), r"$\mathbf{P_{\rm out} \Rightarrow}$",
-		fontsize=fs["fsa"], horizontalalignment="right", color="b")
-	ax.text(-0.6, 0.80*U.max(), r"$\mathbf{\Rightarrow}$",
-		fontsize=fs["fsa"], horizontalalignment="right", color="b")
+	ax.text(-Poutpos, 0.70*U.max(), r"$\mathbf{\Rightarrow}$",
+		fontsize=textsize, horizontalalignment="right", color="g")
+	ax.text(-Poutpos, 0.75*U.max(), r"$\mathbf{P_{\rm out} \Rightarrow}$",
+		fontsize=textsize, horizontalalignment="right", color="g")
+	ax.text(-Poutpos, 0.80*U.max(), r"$\mathbf{\Rightarrow}$",
+		fontsize=textsize, horizontalalignment="right", color="g")
 
-	ax.set_xlim(x[0],x[-1])
+	ax.set_xlim(-R,R)
 	ax.set_ylim(0,1.2*ax.get_ylim()[1])
-	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$U$", fontsize=fs["fsa"])
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"]-4)
+	ax.set_ylabel(r"$U$", fontsize=fs["fsa"]-4)
 	ax.xaxis.set_major_locator(NullLocator())
 	ax.yaxis.set_major_locator(NullLocator())
-
+	
 	return
 
 
@@ -300,8 +303,8 @@ if __name__=="__main__":
 		
 	##=============================================================================
 	
-	## 3D POLAR
-	if 1:
+	## 3D UL
+	if 0:
 		fig = plt.figure()
 		ax = fig.add_subplot(111, projection='3d')
 
@@ -317,7 +320,7 @@ if __name__=="__main__":
 	##=============================================================================
 	
 	## 3D POLAR
-	if 1:
+	if 0:
 		fig = plt.figure()
 		ax = fig.add_subplot(111, projection='3d')
 
@@ -335,12 +338,12 @@ if __name__=="__main__":
 	##=============================================================================
 	
 	## 2D force -- for ulin
-	if 0:
+	if 1:
 		R = 1.0
 		A = 0.5
 		l = 1.0
 		
-		x = np.linspace(-R-1*A,R+2*A,201)
+		x = np.linspace(-R-1.5*A,R+1.5*A,201)
 		y = np.linspace(0,2*l,101)
 
 		fxy = np.array([force_ulin([xi,yi],R,A,l) for xi in x for yi in y]).reshape((x.size,y.size,2))
@@ -384,10 +387,10 @@ if __name__=="__main__":
 	
 		ax.contourf(x,y,f.T, lvls)
 	
-	#	U, V = fxy
-	#	stp = (3,3)
-	#	ax.quiver(X[::stp[0],::stp[1]], Y[::stp[0],::stp[1]], U[::stp[0],::stp[1]], V[::stp[0],::stp[1]],
-	#			units="width")#, color='r', linewidths=(1,), edgecolors=('k'), headaxislength=5)
+		U, V = fxy
+		stp = (3,3)
+		ax.quiver(X[::stp[0],::stp[1]], Y[::stp[0],::stp[1]], U[::stp[0],::stp[1]], V[::stp[0],::stp[1]],
+				units="width")#, color='r', linewidths=(1,), edgecolors=('k'), headaxislength=5)
 	
 		## Wall boundary
 		yfine = np.linspace(y[0],y[-1],1000)

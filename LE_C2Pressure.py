@@ -279,7 +279,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	ax.set_ylabel(ylabel, fontsize=fs["fsa"])
 	ax.grid()
 	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
-	fig.suptitle(title, fontsize=fs["fst"])
+	# fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
 		fig.savefig(plotfile)

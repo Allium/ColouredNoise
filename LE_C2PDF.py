@@ -15,6 +15,7 @@ from matplotlib.ticker import MaxNLocator
 
 from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 from LE_Utils import filename_par, fs, set_mplrc
+from test_force import plot_U3D_ulin
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
@@ -27,6 +28,15 @@ set_mplrc(fs)
 def main():
 	"""
 	Adapted from LE_CPDF.py.
+	
+	OPTIONS / FLAGS
+		slices	False	Plot PDF as a function of x for several y
+		intx	False	Plot PDF integrated over x in wall region as a function of y
+		showfig	False	Show the figure in matplotlib window
+		plotall	False	Read in all files in directory (matching srchstr) and make plot
+		srchstr	""		Only plot files matching string (for plotall)
+		nosave	False	Do not save figure
+		verbose	False	Status to stdout
 	"""
 	me = me0+".main: "
 	t0 = time.time()
@@ -34,21 +44,24 @@ def main():
 	parser = optparse.OptionParser(conflict_handler="resolve")
 	parser.add_option('-1','--1dplot','--slices',
 		dest="slices", default=False, action="store_true")
+	parser.add_option('--intx',
+		dest="intx", default=False, action="store_true")
 	parser.add_option('-s','--show',
 		dest="showfig", default=False, action="store_true")
 	parser.add_option('-a','--plotall',
 		dest="plotall", default=False, action="store_true")
 	parser.add_option('--str',
-		dest="searchstr", default="", type="str")
+		dest="srchstr", default="", type="str")
 	parser.add_option('--nosave',
 		dest="nosave", default=False, action="store_true")
 	parser.add_option('-v','--verbose',
 		dest="verbose", default=False, action="store_true")
 	opt, args = parser.parse_args()
 	slices = opt.slices
+	intx = opt.intx
 	showfig = opt.showfig
 	plotall = opt.plotall
-	searchstr = opt.searchstr
+	srchstr = opt.srchstr
 	nosave = opt.nosave
 	vb = opt.verbose
 	
@@ -59,12 +72,14 @@ def main():
 	if os.path.isfile(args[0]):
 		if slices:
 			plot_pdf1d(args[0], nosave, vb)
+		elif intx:
+			plot_pdf1d_intx(args[0], nosave, vb)
 		else:
 			plot_pdf2d(args[0], nosave, vb)
 	## Plot all files
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False
-		filelist = np.sort(glob.glob(args[0]+"/BHIS_CAR_U*"+searchstr+"*.npy"))
+		filelist = np.sort(glob.glob(args[0]+"/BHIS_CAR_U*"+srchstr+"*.npy"))
 		if vb: print me+"Found",len(filelist),"files."
 		for histfile in filelist:
 			if slices:
@@ -124,17 +139,18 @@ def plot_pdf2d(histfile, nosave, vb):
 	## Plotting
 	
 	fig, axs = plt.subplots(1,1, figsize=fs["figsize"])
-#	fig, axs = plt.subplots(1,2, sharey=True, figsize=fs["figsize"])
 	
 	fig.canvas.set_window_title("2D PDF")
 	lvls = 20
 	
-	plt.rcParams["image.cmap"] = "coolwarm"#"Greys"#
+	plt.set_cmap("Greys")#Greys coolwarm
+	
 	
 	## Plot density
 	ax = axs#[0]
 	cax = ax.contourf(x, y, rho.T, lvls)
-	cbar = fig.colorbar(cax)
+	cbar = fig.colorbar(cax,)
+	cbar.locator = MaxNLocator(nbins=5); cbar.update_ticks()
 	
 	## Indicate bulk
 	yfine = np.linspace(y[0],y[-1],1000)
@@ -151,31 +167,17 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	## ------------------------------------------------------------------------
 	
-#	## Plot WN density
-#	ax = axs[1]
-#	
-#	X, Y = np.meshgrid(x, y, indexing="ij")
-#	U = 0.5*(X-R-S*np.sin(2*np.pi*Y/T))**2 * (X>R+S*np.sin(2*np.pi*Y/T))
-#	rho_WN = np.exp(-U) / np.trapz(np.trapz(np.exp(-U), y, axis=1), x, axis=0)
-#	ax.contourf(x, y, rho_WN.T, lvls)
-#	
-#	## Indicate bulk
-#	yfine = np.linspace(y[0],y[-1],1000)
-#	ax.scatter(+R+S*np.sin(2*np.pi*yfine/T), yfine, c="k", s=1)
-#	
-#	ax.set_xlim(xbins[0],xbins[-1])
-#	ax.set_ylim(ybins[0],ybins[-1])
-#	
-#	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-#	# ax.set_ylabel(r"$y", fontsize=fs["fsa"])
-#	ax.set_title(r"$\rho(x,y)$ WN", fontsize=fs["fsa"])
-#	
-#	ax.xaxis.set_major_locator(MaxNLocator(5))
+	## Plot potential in 3D
+	left, bottom, width, height = [0.44, 0.16, 0.30, 0.30]	## For upper right
+	axin = fig.add_axes([left, bottom, width, height], projection="3d")
+	Rschem, Sschem, Tschem = (2.0,1.0,1.0)
+	plot_U3D_ulin(axin, Rschem, Sschem, Tschem)
+	axin.set_axis_bgcolor(plt.get_cmap()(0.00))
 		
 	## ------------------------------------------------------------------------
 	
 	title = r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
-	fig.suptitle(title, fontsize=fs["fst"])
+#	fig.suptitle(title, fontsize=fs["fst"])
 #	fig.tight_layout()
 #	fig.subplots_adjust(top=0.9)
 	
@@ -245,7 +247,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	ax.set_xlim(xbins[0],xbins[-1])
 	
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$\rho(x,y^\ast)$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$Q(x,y^\ast)$", fontsize=fs["fsa"])
 	
 	ax.xaxis.set_major_locator(MaxNLocator(5))
 	ax.yaxis.set_major_locator(MaxNLocator(7))
@@ -270,6 +272,85 @@ def plot_pdf1d(histfile, nosave, vb):
 	return
 	
 	
+##=============================================================================
+def plot_pdf1d_intx(histfile, nosave, vb):
+	"""
+	Read in data for a single file and plot the density integrated from the wall to infinity
+	as a function of y.
+	"""
+	me = me0+".plot_pdf1D_intx: "
+	t0 = time.time()
+	
+	##-------------------------------------------------------------------------
+	
+	## Get pars from filename
+	
+	a = filename_par(histfile, "_a")
+	R = filename_par(histfile, "_R")
+	S = filename_par(histfile, "_S")
+	T = filename_par(histfile, "_T")
+	
+	##-------------------------------------------------------------------------
+		
+	## Space
+	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+	xbins = bins["xbins"]
+	ybins = bins["ybins"]
+	x = 0.5*(xbins[1:]+xbins[:-1])
+	y = 0.5*(ybins[1:]+ybins[:-1])
+	
+	##-------------------------------------------------------------------------
+	
+	## Histogram / density
+	H = np.load(histfile)
+	rho = H / (H.sum() * (x[1]-x[0])*(y[1]-y[0]))
+	
+	## For comparison with Nik++16
+	rho = rho[:,::-1]
+	
+	## Integrate rho over x IN WALL REGION
+	Qy = np.zeros(y.size)
+	wind = +R-S*np.sin(2*np.pi*y/T)	### HARD CODED
+	for i,yi in enumerate(y):
+		Qy[i] = np.trapz(rho[wind[i]:,i],x[wind[i]:],axis=0)
+	
+	## ------------------------------------------------------------------------
+	
+	## Plotting
+		
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	fig.canvas.set_window_title("1D PDF integrated along x")
+		
+	## Plot density and wall
+	ax.plot(y, Qy)
+	
+	## Indicate inflexion point
+	ax.axvspan(y[0],0.5*T, color="g",alpha=0.2)
+	
+	ax.set_xlabel(r"$y$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$Q_x(y)$", fontsize=fs["fsa"])
+	
+	ax.xaxis.set_major_locator(MaxNLocator(5))
+	ax.yaxis.set_major_locator(MaxNLocator(7))
+	ax.grid()
+	ax.legend(loc="upper left")
+	
+	## ------------------------------------------------------------------------
+	
+	title = r"PDF slice integrated over x in wall region. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
+	fig.suptitle(title, fontsize=fs["fst"])
+	
+	## ------------------------------------------------------------------------
+	
+	if not nosave:
+		plotfile = os.path.dirname(histfile)+"/PDFxy1dintx"+os.path.basename(histfile)[4:-4]
+		plotfile += "."+fs["saveext"]
+		fig.savefig(plotfile)
+		if vb:	print me+"Figure saved to",plotfile
+		
+	if vb: print me+"Execution time %.1f seconds."%(time.time()-t0)
+
+	return
 
 ##=============================================================================
 ##=============================================================================

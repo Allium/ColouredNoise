@@ -54,7 +54,7 @@ def main():
 	if os.path.isfile(args[0]):
 		plot_pdf1d(args[0], nosave, vb)
 		plot_pdfq1d(args[0], nosave, vb)
-#		plot_pdf2d(args[0], nosave, vb)
+		plot_pdf2d(args[0], nosave, vb)
 	## Plot all files
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False

@@ -246,7 +246,7 @@ def plot_mass_ratio(histdir, srchstr, nosave, noread, vb):
 		## Plot potential as inset
 		fx = force_mlin([x,0],R,S,T)[0]
 		U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
-		left, bottom, width, height = [0.55, 0.55, 0.33, 0.20]
+		left, bottom, width, height = [0.18, 0.68, 0.33, 0.20]
 		axin = fig.add_axes([left, bottom, width, height])
 		axin.plot(x, U, "k-")
 		axin.axvspan(x[0],x[cuspind], color=lL[0].get_color(),alpha=0.2)
@@ -259,7 +259,7 @@ def plot_mass_ratio(histdir, srchstr, nosave, noread, vb):
 		axin.set_ylabel(r"$U$", fontsize = fs["fsa"]-5)
 	
 		## Plot q(eta) as inset
-		left, bottom, width, height = [0.55, 0.27, 0.33, 0.23]
+		left, bottom, width, height = [0.55, 0.35, 0.33, 0.23]
 		axin = fig.add_axes([left, bottom, width, height])
 		## Grab a file. Hacky. Assumes only one match.
 		histfile = glob.glob(histdir+"/BHIS_CAR_ML_a10.0_*"+srchstr+"*.npy")[0]

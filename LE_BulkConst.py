@@ -93,9 +93,9 @@ def plot_file(histfile, nosave, vb):
 	ax.plot(r,BCout, label=r"BC (out)", lw=2)
 	if S>0.0:
 		ax.plot(r,BCin,label=r"BC (in)", lw=2)
-#	ax.plot(r,e2c2Q, label=r"$\langle\eta^2\cos^2\psi\rangle Q(r)$")
-#	ax.plot(r,e2s2Q, label=r"$\langle\eta^2\sin^2\psi\rangle Q(r)$")
-#	ax.plot(r,intgl, label=r"$\int_0^r\frac{1}{r^\prime}(\cdots)Q\,dr^\prime$")
+	ax.plot(r,e2c2Q, label=r"$\langle\eta^2\cos^2\psi\rangle Q(r)$")
+	ax.plot(r,e2s2Q, label=r"$\langle\eta^2\sin^2\psi\rangle Q(r)$")
+	ax.plot(r,intgl, label=r"$\int_0^r\frac{1}{r^\prime}(\cdots)Q\,dr^\prime$")
 	
 	## Potential
 	ymax = ax.get_ylim()[1]
