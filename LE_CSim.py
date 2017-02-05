@@ -40,7 +40,6 @@ def input():
 		-h	--help		False	Print docstring and exit
 		
 	TODO
-		Undulating force.
 	"""	
 	me = me0+".input: "
 	t0 = time.time()
@@ -247,9 +246,13 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 		coords = simulate_trajectory([xini[i],yini[i]], eIC[i], a, xy_step, dt, tmax, expmt, xydata, vb)
 		
 		## Apply BCs where appropriate
-		if ftype[0]=="c":
-			coords[0] = np.abs(coords[0])	## Reflecting BC at x=0
-		if ftype[0]=="u":
+		if ftype[0]=="c":	## Reflecting BC at x=0
+			idx = coords[0]<0.0
+			coords[0][idx] *= -1
+			coords[1][idx] *= -1
+			coords[2][idx] *= -1
+#			coords[0] = np.abs(coords[0])
+		if ftype[0]=="u":	## Periodic BC
 			coords = np.array(coords)
 			coords[:,coords[0]<0.0] *= -1
 			coords[1] %= T
@@ -274,7 +277,7 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 
 def simulate_trajectory(xyini, exyini, a, xy_step, dt, tmax, expmt, xydata, vb):
 	"""
-	Run the LE simulation from (x0,y0), stopping if x<xmin.
+	Run the LE simulation from (x0,y0).
 	"""
 	me = me0+".simulate_trajectory: "
 		
