@@ -55,7 +55,7 @@ def main():
 	assert os.path.isfile(args[0])
 	if os.path.basename(args[0])[:8] =="BHIS_CAR":
 		plot_current_1d(args[0], nosave, vb)
-	if os.path.basename(args[0])[:11]=="CURR_CAR_UL":
+	elif os.path.basename(args[0])[:11]=="CURR_CAR_UL":
 		plot_current_2d(args[0], nosave, vb)
 	else: raise IOError, me+"Check input."
 	
@@ -111,7 +111,7 @@ def plot_current_1d(histfile, nosave, vb):
 	
 	## Currents
 	Jx = (F + ETAX)*rho
-	Jy = -1/a*ETAX*rho - 1/(a*a)*np.gradient(rho,etax[1]-etax[0],axis=1)
+	Jy = -1/a*ETAX*rho - 1/(a*a)*np.gradient(rho,etax[1]-etax[0])[1]
 	Vx, Vy = Jx/rho, Jy/rho
 	
 	##-------------------------------------------------------------------------
@@ -219,14 +219,13 @@ def plot_current_2d(currfile, nosave, vb):
 	plt.rcParams["image.cmap"] = "Greys"
 	
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
-	fig.canvas.set_window_title("Current in x-eta")
+	fig.canvas.set_window_title("Velocity in x-y")
 	
 	##-------------------------------------------------------------------------
 	
 	## Data
 	ax.contourf(x, y, Hxy.T)
-	sx, sy = 1, 1
-	ax.quiver(x[::int(1/zx)], y[::int(1/zy)], Vx.T[::sy,::sx], Vy.T[::sy,::sx])
+	ax.quiver(x[::int(1/zx)], y[::int(1/zy)], Vx.T, Vy.T)
 	
 	## Indicate wall
 	yfine = np.linspace(0,T,1000)
