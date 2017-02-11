@@ -174,7 +174,7 @@ def plot_energy_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	try:
 		assert noread == False
 		pressdata = np.load(histdir+"/E_"+srchstr+".npz")
-		print me+"Energy data file found:",histdir+"/PRESS_"+srchstr+".npz"
+		print me+"Energy data file found:",histdir+"/E_"+srchstr+".npz"
 	except (IOError, AssertionError):
 		print me+"No energy data found. Calculating from histfiles."
 		pressdata = calc_energy_dir(histdir, srchstr, noread, vb)
@@ -195,13 +195,19 @@ def plot_energy_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	
 	## Add a=0 point
-	if 0.0 not in A:
-		nlin = np.unique(S).size
-		A = np.hstack([[0.0]*nlin,A])
-		R = np.hstack([R[:nlin],R])
-		S = np.hstack([S[:nlin],S])
-		E = np.hstack([[1.0]*nlin,E])
-		E_WN = np.hstack([[1.0]*nlin,E_WN])
+#	if 0.0 not in A:
+#		nlin = np.unique(S).size
+#		A = np.hstack([[0.0]*nlin,A])
+#		R = np.hstack([R[:nlin],R])
+#		E = np.hstack([[1.0]*nlin,E])
+#		E_WN = np.hstack([[1.0]*nlin,E_WN])
+
+	## Eliminate R=0
+	idx = (R!=0.0)
+	A = A[idx]
+	R = R[idx]
+	E = E[idx]
+	E_WN = E_WN[idx]
 			
 	##-------------------------------------------------------------------------
 	
@@ -210,12 +216,13 @@ def plot_energy_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	plotfile = histdir+"/E_R=S."+fs["saveext"]
 	
 	for Ai in np.unique(A):
-		idx = (R==S)*(A==Ai)
-#		idx = np.argsort(R[idx])
-		ax.plot(R[idx], E[idx], label=r"\alpha=%.1f"%(Ai))
+		idx = (A==Ai)	## Pick out each alpha
+		Rj, Ej, E_WNj = R[idx], E[idx], E_WN[idx]
+		idx = Rj.argsort()	## Sort according to R
+		ax.plot(Rj[idx], Ej[idx]/E_WNj[idx], "o-", label=r"\alpha=%.1f"%(Ai))
 		
 	RR = np.linspace(1,R.max(),11)
-	ax.plot(RR,2/(RR),"k:",lw=3,label=r"$R^{-1}$")
+	ax.plot(RR,1/(RR),"k:",lw=3,label=r"$R^{-1}$")
 					
 	##-------------------------------------------------------------------------
 	
@@ -224,16 +231,11 @@ def plot_energy_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	if logplot:
 		ax.set_xscale("log"); ax.set_yscale("log")
 		plotfile = plotfile[:-4]+"_loglog."+fs["saveext"]
-#	else:
-#		ax.set_xlim((0.0,A[-1]))
-#		ax.set_ylim(bottom=0.0,top=max(1.2*ax.get_ylim()[1],1.0))
-#		xlabel = r"$\alpha$"
-#	ax.set_ylim(1e-1,1e1)
 	
 	ax.set_xlabel(r"$R$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$E(\alpha,R)$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$E(\alpha,R)/E^{\rm passive}$", fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	ax.legend(loc="best", ncol=2, fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	
 	if not nosave:
 		fig.savefig(plotfile)
