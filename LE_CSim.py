@@ -58,6 +58,8 @@ def input():
 		dest="S",default=-1.0,type="float")
 	parser.add_option('-T',
 		dest="T",default=-1.0,type="float")
+	parser.add_option('-P',"--phi",
+		dest="P",default=0.0,type="float")
 	parser.add_option('--dt',
 		dest="dt",default=0.01,type="float")
 	parser.add_option('-t','--timefac',
@@ -73,6 +75,7 @@ def input():
 	R		= opts.R
 	S		= opts.S
 	T		= opts.T
+	P		= opts.P
 	dt		= opts.dt
 	timefac = opts.timefac
 	vb		= opts.vb
@@ -82,13 +85,13 @@ def input():
 		
 	if vb: print "\n==\n"+me+"Input parameters:\n\t",opts
 	
-	main(a,ftype,R,S,T,dt,timefac,vb)
+	main(a,ftype,R,S,T,P,dt,timefac,vb)
 	
 	return
 
 ##=============================================================================
 
-def main(a,ftype,R,S,T,dt,timefac,vb):
+def main(a,ftype,R,S,T,P,dt,timefac,vb):
 	"""
 	"""
 	me = me0+".main: "
@@ -148,10 +151,10 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 	elif ftype=="ulin":
 		## Force
 		## R is position of right wall, S is amplitude, T is wavelength
-		fxy = lambda xy: force_ulin(xy,R,S,T)
+		fxy = lambda xy: force_ulin(xy,R,S,T,P*np.pi)
 		## Filename
 		fstr = "UL"
-		filepar = "_T%.1f"%(T)
+		filepar = "_T%.1f_P%.1f"%(T,P)
 		## Simulation limits
 		xmax = R+4.0
 		xmin = 0.0
@@ -252,10 +255,14 @@ def main(a,ftype,R,S,T,dt,timefac,vb):
 			coords[1][idx] *= -1
 			coords[2][idx] *= -1
 #			coords[0] = np.abs(coords[0])
-		if ftype[0]=="u":	## Periodic BC
+		if ftype[0]=="u":	## Periodic BC -- what to do with x<0 and (y<0 and y>T)
 			coords = np.array(coords)
-			coords[:,coords[0]<0.0] *= -1
-			coords[1] %= T
+			if P==0:
+				coords[:,coords[0]<0.0] *= -1	## Reflect around x and y: x->-1,y->-y
+			else:	
+				coords[1,coords[0]<0.0] -= T*0.5*(1-P)	## Translate y->y-T*(pi-phi)/2pi
+				coords[0,coords[0]<0.0] *= -1			## Reflect x->-x
+			coords[1] %= T					## Periodic in y
 			coords = coords.tolist()
 		
 		## Histogram
@@ -374,36 +381,62 @@ def force_nlin(xy,R,S):
 	return np.array([fx,0.0])
 	
 	
-def force_ulin(xy,R,A,lam):
-	"""
-	Undulating. No y-offset yet.
-	R is position of right-hand wall.
-	A is amplitude of undulation.
-	lam is wavelength.
-	"""
-	x, y = xy
-	y = 2*np.pi*(y/lam)
-	bi = A*np.sin(y)	## Inner boundary
-	try:
-		if x<=-R+bi:	fxy = (-x-R+bi)*np.array([1.0,-2*np.pi*A/lam*np.cos(y)])
-		elif x>R+bi:	fxy = (-x+R+bi)*np.array([1.0,-2*np.pi*A/lam*np.cos(y)])
-		else:			fxy = np.array([0.0,0.0])
-	except ValueError:	## If array
-		X, Y = np.meshgrid(x, y, indexing="ij")
-		bi = A*np.sin(Y)
-		vec = np.array([np.ones(X.shape),-2*np.pi/lam*A*np.cos(Y)])
-		fxy = np.outer(vec, (+X-R-bi)*(X>+R+bi)) + np.outer(vec, (-X-R+bi)*(X<-R+bi))
-	return fxy
+#def force_ulin(xy,R,A,lam):
+#	"""
+#	Undulating. No y-offset yet.
+#	R is position of right-hand wall.
+#	A is amplitude of undulation.
+#	lam is wavelength.
+#	"""
+#	x, y = xy
+#	y = 2*np.pi*(y/lam)
+#	bi = A*np.sin(y)	## Inner boundary
+#	try:
+#		if x<=-R+bi:	fxy = (-x-R+bi)*np.array([1.0,-2*np.pi*A/lam*np.cos(y)])
+#		elif x>R+bi:	fxy = (-x+R+bi)*np.array([1.0,-2*np.pi*A/lam*np.cos(y)])
+#		else:			fxy = np.array([0.0,0.0])
+#	except ValueError:	## If array
+#		X, Y = np.meshgrid(x, y, indexing="ij")
+#		bi = A*np.sin(Y)
+#		vec = np.array([np.ones(X.shape),-2*np.pi/lam*A*np.cos(Y)])
+#		fxy = np.outer(vec, (+X-R-bi)*(X>+R+bi)) + np.outer(vec, (-X-R+bi)*(X<-R+bi))
+#	return fxy
 	
-def potential_ulin(x,y,R,S,T):
+def potential_ulin(x,y,R,S,T,phi=0.0):
 	"""
 	Potential is quadratic. Different arguments to force_ulin.
 	"""
 	X, Y = np.meshgrid(x, y, indexing="ij")
 	U = 0.5*(X-R-S*np.sin(2*np.pi*Y/T))**2 * (X>+R+S*np.sin(2*np.pi*Y/T)) +\
-		0.5*(X+R-S*np.sin(2*np.pi*Y/T))**2 * (X<-R+S*np.sin(2*np.pi*Y/T))
+		0.5*(X+R-S*np.sin(2*np.pi*Y/T+phi))**2 * (X<-R+S*np.sin(2*np.pi*Y/T+phi))
 	U -= U.min()
 	return U
+	
+		
+def force_ulin(xy,R,A,lam,phi=0.0):
+	"""
+	Undulating.
+	R is position of right-hand wall.
+	A is amplitude of undulation.
+	lam is wavelength.
+	phi is offset.
+	"""
+	x, y = xy
+	y = 2*np.pi*(y/lam)
+	bi = A*np.sin(y+phi)	## Inner boundary
+	bo = A*np.sin(y)
+	try:
+		if x<=-R+bi:	fxy = (-x-R+bi)*np.array([1.0,-2*np.pi*A/lam*np.cos(y+phi)])
+		elif x>R+bo:	fxy = (-x+R+bo)*np.array([1.0,-2*np.pi*A/lam*np.cos(y)])
+		else:			fxy = np.array([0.0,0.0])
+	except ValueError:	## If array
+		X, Y = np.meshgrid(x, y, indexing="ij")
+		bi = A*np.sin(Y+phi)
+		bo = A*np.sin(Y)
+		veci = np.array([np.ones(X.shape),-2*np.pi/lam*A*np.cos(Y+phi)])
+		veco = np.array([np.ones(X.shape),-2*np.pi/lam*A*np.cos(Y)])
+		fxy = np.outer(veco, (+X-R-bo)*(X>+R+bo)) + np.outer(veci, (-X-R+bi)*(X<-R+bi))
+	return fxy
 	
 	
 ## ====================================================================

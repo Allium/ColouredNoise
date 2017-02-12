@@ -56,7 +56,48 @@ def plot_U1D_Cartesian(ax, ftype, R, S, T):
 
 ##=============================================================================
 
-## 3D potential -- POLAR
+### 3D potential -- POLAR
+#def plot_U3D_polar(ax, R, S):
+#	"""
+#	Plot polar potential in 3D. Must be passed axes and parameters.
+#	"""
+#	me = me0+"plot_U3D_polar: "
+
+#	## Create supporting points in polar coordinates
+#	r = np.linspace(0, R+2, 100)
+#	p = np.linspace(0, 2*np.pi, 50)
+#	rr, pp = np.meshgrid(r, p)
+#	## Transform to Cartesian
+#	X, Y = rr*np.cos(pp), rr*np.sin(pp)
+
+#	## Zero bulk
+#	if R==S:
+#		U = 0.5*(rr - R)**2
+#	## Finite bulk
+#	else:
+#		U = 0.5*(rr-R)**2*(rr>=R) + 0.5*(rr-S)**2*(rr<=S)
+#	
+#	## Plot walls -- too strong but I've tried
+#	ax.plot(R*np.cos(pp),R*np.sin(pp),0.0, "r-", alpha=0.2, zorder=0.1)
+#	if R!=S:
+#		ax.plot(S*np.cos(pp),S*np.sin(pp),0.0, "y-", alpha=0.2, zorder=0.1)
+#	
+#	## Plot U
+#	ax.plot_surface(X, Y, U, rstride=1, cstride=1, alpha=0.15, zorder=0.5)
+#	
+#	## Modify axes
+##	ax.set_zlim3d(0, 1)
+#	ax.set_xlabel(r'$x$')
+#	ax.set_ylabel(r'$y$')
+#	ax.set_zlabel(r'$U$')
+#	ax.xaxis.set_major_locator(NullLocator())
+#	ax.yaxis.set_major_locator(NullLocator())
+#	ax.zaxis.set_major_locator(NullLocator())
+#	
+#	return
+	
+	
+## 3D potential -- POLAR. WITH HARD-CODED WALL SHADOWING
 def plot_U3D_polar(ax, R, S):
 	"""
 	Plot polar potential in 3D. Must be passed axes and parameters.
@@ -65,7 +106,7 @@ def plot_U3D_polar(ax, R, S):
 
 	## Create supporting points in polar coordinates
 	r = np.linspace(0, R+2, 100)
-	p = np.linspace(0, 2*np.pi, 50)
+	p = np.linspace(0, 2*np.pi, 100)
 	rr, pp = np.meshgrid(r, p)
 	## Transform to Cartesian
 	X, Y = rr*np.cos(pp), rr*np.sin(pp)
@@ -77,10 +118,21 @@ def plot_U3D_polar(ax, R, S):
 	else:
 		U = 0.5*(rr-R)**2*(rr>=R) + 0.5*(rr-S)**2*(rr<=S)
 	
-	## Plot walls -- too strong but I've tried
-	ax.plot(R*np.cos(pp),R*np.sin(pp),0.0, "r-", alpha=0.2, zorder=0.1)
-	if R!=S:
-		ax.plot(S*np.cos(pp),S*np.sin(pp),0.0, "y-", alpha=0.2, zorder=0.1)
+	## Plot walls ASSUME S=1.7 and S=5
+	if R==S:
+		p1, p2 = 22, 45
+		ax.plot(R*np.cos(pp[:p1]),R*np.sin(pp[:p1]),0.0, "r-")
+		ax.plot(R*np.cos(pp[p2:]),R*np.sin(pp[p2:]),0.0, "r-")
+		ax.plot(R*np.cos(pp[p1:p2]),R*np.sin(pp[p1:p2]),0.0, "r:", lw=1)
+	elif R!=S:
+		p1, p2 = 31, 36
+		ax.plot(R*np.cos(pp[:p1]),R*np.sin(pp[:p1]),0.0, "r-")
+		ax.plot(R*np.cos(pp[p2:]),R*np.sin(pp[p2:]),0.0, "r-")
+		ax.plot(R*np.cos(pp[p1:p2]),R*np.sin(pp[p1:p2]),0.0, "r:", lw=1)
+		p1, p2 = 16, 48
+		ax.plot(S*np.cos(pp[:p1]),S*np.sin(pp[:p1]),0.0, "y-")
+		ax.plot(S*np.cos(pp[p2:]),S*np.sin(pp[p2:]),0.0, "y-")
+		ax.plot(S*np.cos(pp[p1:p2]),S*np.sin(pp[p1:p2]),0.0, "y:", lw=1)
 	
 	## Plot U
 	ax.plot_surface(X, Y, U, rstride=1, cstride=1, alpha=0.15, zorder=0.5)
@@ -324,8 +376,8 @@ if __name__=="__main__":
 		fig = plt.figure()
 		ax = fig.add_subplot(111, projection='3d')
 
-		R, S = 2.0, 2.0
-		# R, S = 3.0, 1.0
+#		R, S = 1.7, 1.7
+		R, S = 5.0, 1.7
 	
 		plot_U3D_polar(ax, R, S)
 	
@@ -337,22 +389,23 @@ if __name__=="__main__":
 	
 	##=============================================================================
 	
-	## 2D force -- for ulin
+	## 2D force -- for ULIN
 	if 1:
 		R = 1.0
 		A = 0.5
 		l = 1.0
+		p = np.pi/2
 		
 		x = np.linspace(-R-1.5*A,R+1.5*A,201)
 		y = np.linspace(0,2*l,101)
 
-		fxy = np.array([force_ulin([xi,yi],R,A,l) for xi in x for yi in y]).reshape((x.size,y.size,2))
+		fxy = np.array([force_ulin([xi,yi],R,A,l,p) for xi in x for yi in y]).reshape((x.size,y.size,2))
 		fxy = np.rollaxis(fxy,2,0)
 		f = np.sqrt((fxy*fxy).sum(axis=0))
 	
 		X, Y = np.meshgrid(x, y, indexing="ij")
 		U = 0.5*(X-R-A*np.sin(2*np.pi*Y/l))**2 * (X>R+A*np.sin(2*np.pi*Y/l)) +\
-			0.5*(X+R-A*np.sin(2*np.pi*Y/l))**2 * (X<-R+A*np.sin(2*np.pi*Y/l))
+			0.5*(X+R-A*np.sin(2*np.pi*Y/l+p))**2 * (X<-R+A*np.sin(2*np.pi*Y/l+p))
 		
 		##-------------------------------------------------------------------------
 		## Plotting
@@ -370,7 +423,7 @@ if __name__=="__main__":
 		## Wall boundary
 		yfine = np.linspace(y[0],y[-1],1000)
 		ax.scatter(R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
-		ax.scatter(-R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
+		ax.scatter(-R+A*np.sin(2*np.pi*yfine/l+p), yfine, c="k", s=1)
 
 		ax.set_xlim((x[0],x[-1]))
 		ax.set_ylim((y[0],y[-1]))
@@ -380,48 +433,25 @@ if __name__=="__main__":
 		##-------------------------------------------------------------------------
 		## Plot force
 	
-		fig, axs = plt.subplots(1,1, figsize=fs["figsize"], sharey=True)
+		fig, ax = plt.subplots(1,1, figsize=fs["figsize"], sharey=True)
 		fig.canvas.set_window_title("Force")
 
-		ax = axs#[0]
-	
 		ax.contourf(x,y,f.T, lvls)
 	
 		U, V = fxy
-		stp = (3,3)
+		stp = [3,3]
 		ax.quiver(X[::stp[0],::stp[1]], Y[::stp[0],::stp[1]], U[::stp[0],::stp[1]], V[::stp[0],::stp[1]],
 				units="width")#, color='r', linewidths=(1,), edgecolors=('k'), headaxislength=5)
 	
 		## Wall boundary
 		yfine = np.linspace(y[0],y[-1],1000)
 		ax.scatter(R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
-		ax.scatter(-R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
+		ax.scatter(-R+A*np.sin(2*np.pi*yfine/l+p), yfine, c="k", s=1)
 
 		ax.set_xlim((x[0],x[-1]))
 		ax.set_ylim((y[0],y[-1]))
 		ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 		ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
-	#	ax.set_title(r"force_ulin")
-	
-	
-	#	## Check prediction 
-	#	ax = axs[1]
-	#	
-	#	X, Y = np.meshgrid(x, y)
-	#	fcalc = +(X-R-A*np.sin(2*np.pi*Y/l))*np.sqrt(1+(2*np.pi/l)**2*A*np.cos(2*np.pi*Y/l)**2)*(X>(R+A*np.sin(2*np.pi*Y/l))) +\
-	#			-(X+R-A*np.sin(2*np.pi*Y/l))*np.sqrt(1+(2*np.pi/l)**2*A*np.cos(2*np.pi*Y/l)**2)*(X<(-R+A*np.sin(2*np.pi*Y/l)))
-	#	ax.contourf(x,y,fcalc)
-	
-	#	## Wall boundary
-	#	yfine = np.linspace(y[0],y[-1],1000)
-	#	ax.scatter(R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
-	#	ax.scatter(-R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
-
-	#	ax.set_xlim((x[0],x[-1]))
-	#	ax.set_ylim((y[0],y[-1]))
-	#	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-	#	ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
-	#	ax.set_title(r"calculation")
 
 		##-------------------------------------------------------------------------
 
@@ -462,6 +492,7 @@ if __name__=="__main__":
 		plt.show()
 		exit()
 
+
 	##=============================================================================
 
 	## 1D potential for MLIN with regions shaded and pressure key
@@ -499,7 +530,7 @@ if __name__=="__main__":
 		exit()
 
 	
-	if 1:
+	if 0:
 		from LE_CPressure import UP_CL
 		fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 		R = 2.0
@@ -508,23 +539,3 @@ if __name__=="__main__":
 		UP_CL(fig,ax,R,S,T)
 		plt.show()
 
-
-	"""
-
-	N = 10000
-	xy = np.linspace(0.0,1.0,10000).reshape((2,5000))
-	T1, T2, T3 = np.zeros((3,N))
-	for i in range(N):
-		t0 = time.time()
-		np.array([force_dlin(xyi,np.sqrt((xyi*xyi).sum()),R,S) for xyi in xy])[:,0]
-		T1[i] = time.time()-t0
-	for i in range(N):
-		t0 = time.time()
-		np.array([force_dlin2(xyi,np.sqrt((xyi*xyi).sum()),R,S) for xyi in xy])[:,0]
-		T2[i] = time.time()-t0
-	print "1 %.3g"%(T1.mean())
-	print "2 %.3g"%(T2.mean())
-	
-	
-	exit()
-	"""

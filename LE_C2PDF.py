@@ -111,6 +111,10 @@ def plot_pdf2d(histfile, nosave, vb):
 	R = filename_par(histfile, "_R")
 	S = filename_par(histfile, "_S")
 	T = filename_par(histfile, "_T")
+	try:
+		P = filename_par(histfile, "_P")
+	except:
+		P = 0.0
 	
 	##-------------------------------------------------------------------------
 		
@@ -138,7 +142,7 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	## Plotting
 	
-	fig, axs = plt.subplots(1,1, figsize=fs["figsize"])
+	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	
 	fig.canvas.set_window_title("2D PDF")
 	lvls = 20
@@ -147,7 +151,6 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	
 	## Plot density
-	ax = axs#[0]
 	cax = ax.contourf(x, y, rho.T, lvls)
 	cbar = fig.colorbar(cax,)
 	cbar.locator = MaxNLocator(nbins=5); cbar.update_ticks()
@@ -159,11 +162,13 @@ def plot_pdf2d(histfile, nosave, vb):
 	ax.set_xlim(xbins[0],xbins[-1])
 	ax.set_ylim(ybins[0],ybins[-1])
 	
-	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
+	ax.set_xlabel(r"$x/T$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$y/T$", fontsize=fs["fsa"])
 #	ax.set_title(r"$\rho(x,y)$ data", fontsize=fs["fsa"])
 	
 	ax.xaxis.set_major_locator(MaxNLocator(5))
+	
+	ax.grid()
 	
 	## ------------------------------------------------------------------------
 	
@@ -173,13 +178,11 @@ def plot_pdf2d(histfile, nosave, vb):
 	Rschem, Sschem, Tschem = (2.0,1.0,1.0)
 	plot_U3D_ulin(axin, Rschem, Sschem, Tschem)
 	axin.set_axis_bgcolor(plt.get_cmap()(0.00))
+	axin.patch.set_facecolor("None")
 		
 	## ------------------------------------------------------------------------
 	
-	title = r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
-#	fig.suptitle(title, fontsize=fs["fst"])
-#	fig.tight_layout()
-#	fig.subplots_adjust(top=0.9)
+	title = r"PDF projections. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f, P=%.1f\pi$"%(a,R,S,T,P)
 	
 	## ------------------------------------------------------------------------
 	
@@ -209,6 +212,10 @@ def plot_pdf1d(histfile, nosave, vb):
 	R = filename_par(histfile, "_R")
 	S = filename_par(histfile, "_S")
 	T = filename_par(histfile, "_T")
+	try:
+		P = filename_par(histfile, "_P")
+	except:
+		P = 0.0
 	
 	##-------------------------------------------------------------------------
 		
@@ -241,13 +248,14 @@ def plot_pdf1d(histfile, nosave, vb):
 	
 	## Plot density and wall
 	for i, idx in enumerate(idxs):
+		sp.ndimage.gaussian_filter1d(rho[:,idx],1.0,order=0,output=rho[:,idx])
 		ax.plot(x, rho[:,idx], label=labs[i])
 		ax.axvline(+R-S*np.sin(2*np.pi*y[idx]/T), c=ax.lines[-1].get_color(),ls="--")
 	
 	ax.set_xlim(xbins[0],xbins[-1])
 	
-	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$Q(x,y^\ast)$", fontsize=fs["fsa"])
+	ax.set_xlabel(r"$x/T$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$n(x,y^\ast)$", fontsize=fs["fsa"])
 	
 	ax.xaxis.set_major_locator(MaxNLocator(5))
 	ax.yaxis.set_major_locator(MaxNLocator(7))
@@ -256,8 +264,8 @@ def plot_pdf1d(histfile, nosave, vb):
 	
 	## ------------------------------------------------------------------------
 	
-	title = r"PDF slices. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
-	fig.suptitle(title, fontsize=fs["fst"])
+	title = r"PDF slices. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f, P=%.1f\pi$"%(a,R,S,T,P)
+#	fig.suptitle(title, fontsize=fs["fst"])
 	
 	## ------------------------------------------------------------------------
 	
@@ -289,6 +297,10 @@ def plot_pdf1d_intx(histfile, nosave, vb):
 	R = filename_par(histfile, "_R")
 	S = filename_par(histfile, "_S")
 	T = filename_par(histfile, "_T")
+	try:
+		P = filename_par(histfile, "_P")
+	except:
+		P = 0.0
 	
 	##-------------------------------------------------------------------------
 		
@@ -337,7 +349,7 @@ def plot_pdf1d_intx(histfile, nosave, vb):
 	
 	## ------------------------------------------------------------------------
 	
-	title = r"PDF slice integrated over x in wall region. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$"%(a,R,S,T)
+	title = r"PDF slice integrated over x in wall region. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f, P=%.1f\pi$"%(a,R,S,T,P)
 	fig.suptitle(title, fontsize=fs["fst"])
 	
 	## ------------------------------------------------------------------------
