@@ -200,27 +200,38 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	
 	##-------------------------------------------------------------------------
 	
+	## Add A=0 point
+	if 1:
+		A = np.hstack([[0.0],A])
+		Pout = np.hstack([[1.0],Pout])
+		Pin = np.hstack([[1.0],Pin])
+		Cout = np.hstack([[1.0],A[1:]*Cout])
+		Cin = np.hstack([[1.0],A[1:]*Cin])
+		## I HAVE REMOVED A* FROM PLOT LINES
+		
+	##-------------------------------------------------------------------------
+	
 	## PLOT DATA
 	fig = plt.figure(figsize=fs["figsize"]); ax = fig.gca()
 	
-	linePo = ax.plot(1+A, Pout, "o", label=r"$-\int_{\rm bulk}^{\infty} fQ\,{\rm d}r$")
-	lineCo = ax.plot(1+A, A*Cout, "o", label=r"M-(1,1) (out)")
+	linePo = ax.plot(1+A, Pout, "o--", label=r"$-\int_{\rm bulk}^{\infty} fQ\,{\rm d}r$")
+	lineCo = ax.plot(1+A, Cout, "v--", label=r"Eq. (20) (outer)")
 	if S>0.0:
-		linePi = ax.plot(1+A, Pin, "o", label=r"$-\int_{0}^{\rm bulk} fQ\,{\rm d}r$")
-		lineCi = ax.plot(1+A, A*Cin, "o", label=r"M-(1,1) (in)")
+		linePi = ax.plot(1+A, Pin, "o--", label=r"$-\int_{0}^{\rm bulk} fQ\,{\rm d}r$")
+		lineCi = ax.plot(1+A, Cin, "v--", label=r"Eq. (20) (inner)")
 		
 	## PLOT FIT
-	## Cout, Pout
-	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitPout)), linePo[0].get_color()+"--", lw=1,
-			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitPout[0]),fitPout[1]))
-	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitCout)), lineCo[0].get_color()+"--", lw=1,
-			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitCout[0]),fitCout[1]))
-	## Cin, Pin
-	if S>0.0:
-		ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitPin)), linePi[0].get_color()+"--", lw=1,
-				label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitPin[0]),fitPin[1]))
-		ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitCin)), lineCi[0].get_color()+"--", lw=1,
-				label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitCin[0]),fitCin[1]))
+#	## Cout, Pout
+#	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitPout)), linePo[0].get_color()+"--", lw=1,
+#			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitPout[0]),fitPout[1]))
+#	ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitCout)), lineCo[0].get_color()+"--", lw=1,
+#			label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitCout[0]),fitCout[1]))
+#	## Cin, Pin
+#	if S>0.0:
+#		ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitPin)), linePi[0].get_color()+"--", lw=1,
+#				label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitPin[0]),fitPin[1]))
+#		ax.plot(1+A, np.exp(fitfunc(np.log(1+A), *fitCin)), lineCi[0].get_color()+"--", lw=1,
+#				label=r"$%.1g(1+\alpha)^{%.3g}$"%(np.exp(fitCin[0]),fitCin[1]))
 		
 	
 #	## PLOT PREDICTION for R=S
@@ -240,14 +251,14 @@ def plot_dir(histdir, nosave, searchstr, vb):
 	ax.set_ylim(top=1e1)
 	
 	ax.set_xlabel(r"$1+\alpha$",fontsize=fs["fsa"])
-	ax.set_ylabel(r"$P$",fontsize=fs["fsa"])
+	ax.set_ylabel(r"$P(\alpha)/P^{\rm passive}$",fontsize=fs["fsa"])
 	ax.grid()
 #	ax.legend(loc="best", fontsize=(fs["fsl"]/2 if S>0.0 else fs["fsl"])).get_frame().set_alpha(0.5)
 	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
-	ax.set_title("Pressure normalised by WN result. $R=%.1f, S=%.1f.$"%(fpars[0],fpars[1]),fontsize=fs["fst"])
+#	ax.set_title("Pressure normalised by WN result. $R=%.1f, S=%.1f.$"%(fpars[0],fpars[1]),fontsize=fs["fst"])
 	
 	## SAVING
-	plotfile = histdir+"/QEe2_Pa_R"+str(fpars[0])+"_S"+str(fpars[1])+".jpg"
+	plotfile = histdir+"/QEe2_Pa_R"+str(fpars[0])+"_S"+str(fpars[1])+"."+fs["saveext"]
 	if not nosave:
 		fig.savefig(plotfile)
 		if vb: print me+"Figure saved to",plotfile

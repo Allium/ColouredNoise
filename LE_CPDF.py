@@ -156,7 +156,7 @@ def plot_pdf1d(histfile, nosave, vb):
 		ax.plot(x, gauss(x,fitQx[0],1/(1+a)), "c-", label=r"$G\left(\mu, \frac{1}{\alpha+1}\right)$")
 	
 	## Potential and WN
-	if   "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
+	elif "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
 	elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
 	elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
 	elif "_NL_" in histfile:	fx = force_nlin([x,0],R,S)[0]
@@ -435,8 +435,8 @@ def plot_pdfq1d(histfile, nosave, vb):
 	fig.canvas.set_window_title("Quasi-1D PDF")
 	
 	## Set number of ticks
-	ax.xaxis.set_major_locator(MaxNLocator(7))
-	ax.yaxis.set_major_locator(MaxNLocator(7))
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
 	
 	plt.rcParams["image.cmap"] = "Greys"#"coolwarm"
 	
@@ -451,10 +451,11 @@ def plot_pdfq1d(histfile, nosave, vb):
 	ax.axvline(R,c="k",lw=1)
 	if T>=0.0:	ax.axvline(T,c="k",lw=1)
 	elif T<0.0 and "_DL_" not in histfile:	ax.axvline(-R,c="k",lw=1)
+	# ax.axvspan(S,R,color="y",alpha=0.1)
 	
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$\eta_x$", fontsize=fs["fsa"])
-	
+		
 	## ------------------------------------------------------------------------
 	
 	if not nosave:

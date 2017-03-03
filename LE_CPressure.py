@@ -16,8 +16,8 @@ from matplotlib.ticker import MaxNLocator, NullLocator
 from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 from LE_Utils import filename_par, fs, set_mplrc
 
-from test_force import plot_U1D_Cartesian
-from test_force import UP_CL, UP_ML
+from schem_force import plot_U1D_Cartesian
+from schem_force import UP_CL, UP_ML
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
@@ -416,7 +416,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 		A = np.hstack([[0.0]*nlin,A])
 		R = np.hstack([R[:nlin],R])
 		S = np.hstack([S[:nlin],S])
-		T = np.hstack([T[:nlin],PT])
+		T = np.hstack([T[:nlin],T])
 		PR = np.hstack([[1.0]*nlin,PR])
 		PS = np.hstack([[1.0]*nlin,PS])
 		PT = np.hstack([[1.0]*nlin,PT])
@@ -430,18 +430,18 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	if np.unique(R).size==1:
 		
 		plotfile = histdir+"/PAS_R%.1f_S%.1f_T%.1f."%(R[0],S[0],T[0])+fs["saveext"] if T[0]>=0.0\
-					else histdir+"/PAS_R%.1f_S%.1f."%(R[0])+fs["saveext"]
+					else histdir+"/PAS_R%.1f_S%.1f."%(R[0],S[0])+fs["saveext"]
 		title = r"Pressure as a function of $\alpha$ for $R=%.1f,T=%.1f$"%(R[0],T[0]) if T[0]>=0.0\
 				else r"Pressure as a function of $\alpha$ for $R=%.2f$"%(R[0])
 		
 		## To plot a single S
 		if np.unique(S).size==1:
-#			ax.plot(Au, PR, "gv--", label=r"$P_R$", zorder=2)
+			ax.plot(Au, PR, "gv--", label=r"$P_R$", zorder=2)
 			ax.plot(Au, PS, "go-", label=r"$P_S$", zorder=2)
 			ax.plot(Au, PT, "bo-", label=r"$P_T$", zorder=2)
 			if "_ML_" in histdir:
 				ax.plot(Au, PU, "bv--", label=r"$P_U$", zorder=2)
-				ax.plot(Au, -(PR-PS+PT-PU), "ks-", label=r"Net", zorder=2)
+				ax.plot(Au, -(PR-PS+PT-PU), "ks:", label=r"Net", zorder=2)
 			
 			##---------------------------------
 			## Casimir insets
@@ -467,12 +467,31 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 				axin.patch.set_alpha(0.3)
 			##---------------------------------
 			## Single wall insets
-			elif 0:# "_ML_" in histdir:
+			elif "_ML_" in histdir:
+				## Plot potential as inset
+				Uleft, Ubottom, Uwidth, Uheight = [0.21, 0.18, 0.30, 0.21]
+				Rschem, Sschem, Tschem = 4.0, 2.0, 0.0
+				x = np.linspace(-Rschem-2.0,+Rschem+2.0,501)
+				fx = force_mlin([x,0],Rschem,Sschem,Tschem)[0]
+				U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+				cuspind = np.abs(x-0.5*(Sschem+Tschem)).argmin()
+				axin = fig.add_axes([Uleft, Ubottom, Uwidth, Uheight])
+				axin.plot(x, U, "k-")
+				axin.axvspan(x[0],x[cuspind], color="b",alpha=0.2)
+				axin.axvspan(x[cuspind],x[-1], color="g",alpha=0.2)
+				axin.set_xlim(x[0], x[-1])
+				axin.set_ylim(top=3*U[cuspind])
+				axin.xaxis.set_major_locator(NullLocator())
+				axin.set_yticks([1.0])
+				axin.set_yticklabels(["1"])
+				axin.grid()
+				axin.set_xlabel(r"$x$", fontsize = fs["fsa"]-5)
+				axin.set_ylabel(r"$U/T$", fontsize = fs["fsa"]-5)
 				## Pressure key
-				left, bottom, width, height = [0.25, 0.15, 0.63, 0.4]
-				axin = fig.add_axes([left, bottom, width, height])
-				UP_ML(axin,R[0],S[0],T[0])
-				axin.patch.set_alpha(0.1)
+#				left, bottom, width, height = [0.25, 0.15, 0.63, 0.4]
+#				axin = fig.add_axes([left, bottom, width, height])
+#				UP_ML(axin,R[0],S[0],T[0])
+#				axin.patch.set_alpha(0.1)
 			##---------------------------------
 			
 		## If S varies
@@ -515,9 +534,9 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 #	ax.set_ylim(1e-1,1e1)
 	
 	ax.set_xlabel(xlabel, fontsize=fs["fsa"])
-	ax.set_ylabel(r"$P(\alpha)$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$P/P^{\rm passive}$", fontsize=fs["fsa"])
 	ax.grid()
-#	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 #	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:

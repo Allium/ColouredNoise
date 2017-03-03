@@ -17,7 +17,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from LE_Utils import filename_par, fs, set_mplrc
 from LE_SSim import force_const, force_lin, force_dcon, force_dlin,\
 					force_tan, force_dtan, force_nu, force_dnu
-from test_force import plot_U3D_polar
+from schem_force import plot_U3D_polar
 
 ## MPL defaults
 set_mplrc(fs)
@@ -130,7 +130,7 @@ def calc_energy_dir(histdir, srchstr, noread, vb):
 		U = -sp.integrate.cumtrapz(f, r, initial=0.0); U -= U.min()
 		
 		## Calculate energy
-		E[i] = sp.integrate.trapz(U*rho, r)
+		E[i] = sp.integrate.trapz(U*rho*2*np.pi*r, r)
 		
 		if vb: print me+"a=%.1f:\tPressure calculation %.2g seconds"%(A[i],time.time()-ti)
 		
@@ -222,7 +222,7 @@ def plot_energy_dir(histdir, srchstr, logplot, nosave, noread, vb):
 		ax.plot(Rj[idx], Ej[idx]/E_WNj[idx], "o-", label=r"\alpha=%.1f"%(Ai))
 		
 	RR = np.linspace(1,R.max(),11)
-	ax.plot(RR,1/(RR),"k:",lw=3,label=r"$R^{-1}$")
+#	ax.plot(RR,1/(RR),"k:",lw=3,label=r"$R^{-1}$")
 					
 	##-------------------------------------------------------------------------
 	

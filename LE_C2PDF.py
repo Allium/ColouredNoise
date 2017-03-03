@@ -15,7 +15,7 @@ from matplotlib.ticker import MaxNLocator
 
 from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 from LE_Utils import filename_par, fs, set_mplrc
-from test_force import plot_U3D_ulin
+from schem_force import plot_U3D_ulin
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
@@ -162,8 +162,8 @@ def plot_pdf2d(histfile, nosave, vb):
 	ax.set_xlim(xbins[0],xbins[-1])
 	ax.set_ylim(ybins[0],ybins[-1])
 	
-	ax.set_xlabel(r"$x/T$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$y/T$", fontsize=fs["fsa"])
+	ax.set_xlabel(r"$x/\lambda$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$y/\lambda$", fontsize=fs["fsa"])
 #	ax.set_title(r"$\rho(x,y)$ data", fontsize=fs["fsa"])
 	
 	ax.xaxis.set_major_locator(MaxNLocator(5))
@@ -244,7 +244,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	
 	## Slices to plot
 	idxs = np.linspace(y.size/4,y.size*3/4,11)
-	labs = [r"$"+str(float(i)/y.size)+"T$" for i in idxs]
+	labs = [r"$"+str(float(i)/y.size)+"\lambda$" for i in idxs]
 	
 	## Plot density and wall
 	for i, idx in enumerate(idxs):
@@ -254,7 +254,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	
 	ax.set_xlim(xbins[0],xbins[-1])
 	
-	ax.set_xlabel(r"$x/T$", fontsize=fs["fsa"])
+	ax.set_xlabel(r"$x/\lambda$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$n(x,y^\ast)$", fontsize=fs["fsa"])
 	
 	ax.xaxis.set_major_locator(MaxNLocator(5))

@@ -10,6 +10,7 @@ if "SSH_TTY" in os.environ:
 	print me0+": Using Agg backend."
 	mpl.use("Agg")
 from matplotlib import pyplot as plt
+from matplotlib.ticker import MaxNLocator, NullLocator
 
 from LE_Utils import filename_par, fs, set_mplrc
 from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
@@ -104,8 +105,9 @@ def plot_file(histfile, nosave, vb):
 	##-------------------------------------------------------------------------
 	
 	## Smooth
-#	sp.ndimage.gaussian_filter1d(Q,1.0,order=0,output=Q)
-#	sp.ndimage.gaussian_filter1d(BC,1.0,order=0,output=BC)
+	sp.ndimage.gaussian_filter1d(Q,1.0,order=0,output=Q)
+	sp.ndimage.gaussian_filter1d(BC,1.0,order=0,output=BC)
+	sp.ndimage.gaussian_filter1d(ex2,1.0,order=0,output=ex2)
 	
 	##-------------------------------------------------------------------------
 	
@@ -113,9 +115,9 @@ def plot_file(histfile, nosave, vb):
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	
 	## Data
-	ax.plot(x, Q/Q.max(),   label=r"$Q(x)$",lw=1)
-	ax.plot(x, ex2/ex2.max(), label=r"$\langle\eta_x^2\rangle(x)$",lw=1)
-	ax.plot(x, BC/BC.max(), label=r"$\langle\eta_x^2\rangle Q$")
+	ax.plot(x, Q/Q.max(),   label=r"$n(x)$",lw=2)
+	ax.plot(x, ex2/ex2.max(), label=r"$\langle\eta_x^2\rangle(x)$",lw=2)
+	ax.plot(x, BC/BC.max(), label=r"$\langle\eta_x^2\rangle \cdot n$",lw=2)
 	
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")	
 		
@@ -139,14 +141,17 @@ def plot_file(histfile, nosave, vb):
 	## ATTRIBUTES
 	
 	ax.set_xlim(left=x[0],right=x[-1])
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
 
 	ax.set_xlabel("$x$",fontsize=fs["fsa"])
 	ax.set_ylabel("Rescaled variable",fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="lower left",fontsize=fs["fsl"]).get_frame().set_alpha(0.8)
+	legloc = [0.35,0.25] if "_ML_" in histfile else [0.32,0.67]
+	ax.legend(loc=legloc,fontsize=fs["fsl"]).get_frame().set_alpha(0.8)
 	title = r"Bulk Constant. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.1f$."%(a,R,S,T) if T>=0.0\
 			else r"Bulk Constant. $\alpha=%.1f, R=%.1f, S=%.1f$."%(a,R,S)
-	fig.suptitle(title,fontsize=fs["fst"])
+#	fig.suptitle(title,fontsize=fs["fst"])
 	
 	## SAVE
 #	ax.set_ylim(top=BC.max())
@@ -263,6 +268,17 @@ def plot_dir(histdir, srchstr, logplot, nosave, vb):
 	
 	##-------------------------------------------------------------------------
 	
+	## Add a=0 point
+	if 0.0 not in A:
+		nlin = np.unique(S).size
+		A = np.hstack([[0.0]*nlin,A])
+		pR = np.hstack([[1.0]*nlin,pR])
+		pS = np.hstack([[1.0]*nlin,pS])
+		PR = np.hstack([[1.0]*nlin,PR])
+		PS = np.hstack([[1.0]*nlin,PS])
+		
+	##-------------------------------------------------------------------------
+	
 	## PLOT DATA
 	
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
@@ -270,6 +286,7 @@ def plot_dir(histdir, srchstr, logplot, nosave, vb):
 	
 	A += int(logplot)
 	
+	"""
 	lpR = ax.plot(A, pR, "o"+sty[0], label=r"BC pR")
 	lpS = ax.plot(A, pS, "o"+sty[1], c=ax.lines[-1].get_color(), label=r"BC pS")
 	if Casimir:	
@@ -279,6 +296,9 @@ def plot_dir(histdir, srchstr, logplot, nosave, vb):
 	ax.plot(A, PS, "v"+sty[1], c=ax.lines[-1].get_color(), label=r"Int PS")
 	if Casimir:	
 		ax.plot(A, PT, "v"+sty[2], c=ax.lines[-1].get_color(), label=r"Int PT")
+	"""
+	lpR = ax.plot(A, 0.5*(pR+pS), "o--", label=r"$\alpha\left<\eta^2\right>n(x)|^{\rm bulk}$")
+	ax.plot(A, 0.5*(PR+PS), "v--", label=r"$-\int f(x)n(x) {\rm d}x$")
 		
 	##-------------------------------------------------------------------------
 	
@@ -293,13 +313,14 @@ def plot_dir(histdir, srchstr, logplot, nosave, vb):
 		xlabel = r"$\alpha$"
 		
 	ax.set_xlim(xlim)
+	ax.set_ylim(1e-1,1e+1)
 	ax.set_xlabel(xlabel,fontsize=fs["fsa"])
-	ax.set_ylabel(r"$P(\alpha)$",fontsize=fs["fsa"])
+	ax.set_ylabel(r"$P(\alpha)/P^{\rm passive}$",fontsize=fs["fsa"])
 	ax.grid()
 	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 	title = "Pressure normalised by WN result. $R=%.1f, S=%.1f, T=%.1f.$"%(R,S,T) if T>=0.0\
 			else "Pressure normalised by WN result. $R=%.1f, S=%.1f.$"%(R,S)
-	fig.suptitle(title,fontsize=fs["fst"])
+#	fig.suptitle(title,fontsize=fs["fst"])
 	
 	## SAVING
 	plotfile = histdir+"/QEe2_Pa_R%.1f_S%.1f_T%.1f"%(R,S,T) if T>=0.0\

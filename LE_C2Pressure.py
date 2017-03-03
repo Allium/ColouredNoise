@@ -87,7 +87,9 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 
 	##-------------------------------------------------------------------------
 	
-	A, R, S, T, Pt, Pt_WN = np.zeros([6,numfiles])
+	## Arrays for parameters and pressure calculations
+	## P is phase array. Pt is total pressure. Py is pressure as a function of y.
+	A, R, S, T, P, Pt, Pt_WN = np.zeros([7,numfiles])
 	Y, Py, Py_WN = [], [], []
 	
 	## Retrieve data
@@ -100,6 +102,10 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 		R[i] = filename_par(histfile, "_R")
 		S[i] = filename_par(histfile, "_S")
 		T[i] = filename_par(histfile, "_T")
+		try:
+			P[i] = filename_par(histfile, "_P")
+		except ValueError:
+			P[i] = 0.0
 			
 		## Space
 		bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
@@ -168,12 +174,12 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 	## SAVING
 	if not noread:
 		pressfile = histdir+"/PRESS_"+srchstr+".npz"
-		np.savez(pressfile, A=A, R=R, S=S, T=T, Y=Y, Py=Py, Py_WN=Py_WN, Pt=Pt, Pt_WN=Pt_WN)
+		np.savez(pressfile, A=A, R=R, S=S, T=T, P=P, Y=Y, Py=Py, Py_WN=Py_WN, Pt=Pt, Pt_WN=Pt_WN)
 		if vb:
 			print me+"Calculations saved to",pressfile
 			print me+"Calculation time %.1f seconds."%(time.time()-t0)
 
-	return {"A":A, "R":R, "S":S, "T":T, "Y":Y, "Py":Py, "Py_WN":Py_WN, "Pt":Pt, "Pt_WN":Pt_WN}
+	return {"A":A, "R":R, "S":S, "T":T, "P":P, "Y":Y, "Py":Py, "Py_WN":Py_WN, "Pt":Pt, "Pt_WN":Pt_WN}
 		
 
 ##=============================================================================
@@ -199,13 +205,13 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	R = pressdata["R"]
 	S = pressdata["S"]
 	T = pressdata["T"]
+	P = pressdata["P"]
 	Y = pressdata["Y"]
 	Py = pressdata["Py"]
 	Pt = pressdata["Pt"]
 	Py_WN = pressdata["Py_WN"]
 	Pt_WN = pressdata["Pt_WN"]
 	del pressdata
-		
 		
 	##-------------------------------------------------------------------------
 	## Add a=0 point 
@@ -216,6 +222,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 		R = np.hstack([R[:add],R])
 		S = np.hstack([S[:add],S])
 		T = np.hstack([T[:add],T])
+		P = np.hstack([P[:add],P])
 		Y = np.vstack([Y[:add],Y])
 		Py = np.vstack([[np.ones(Py.shape[-1])]*add,Py])
 		Pt = np.hstack([[1.0]*add,Pt])
@@ -239,7 +246,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 			plotfile = histdir+"/PAS_CAR_UL_R%.1f."%(R[0])+fs["saveext"]
 			title = r"Pressure as a function of $\alpha$ for $R=%.1f$"%(R[0])
 			xlabel = r"$1+\alpha$" if logplot else r"$\alpha$"
-			ylabel = r"$P_{\rm tot}(\alpha)$"
+			ylabel = r"$P^{\rm tot}(\alpha)$"
 			
 			for Si in np.unique(S):
 				for Ti in np.unique(T):
@@ -255,18 +262,33 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 				ax.set_xlim((0.0,A[-1]))
 				ax.set_ylim(bottom=0.0,top=max(ax.get_ylim()[1],1.0))
 					
-		## If R, S and T are all specified, plot Px(y) for multiple alpha.
-		else:
-			plotfile = histdir+"/PyA_CAR_UL_R%.1f_S%.1f_T%.1f."%(R[0],S[0],T[0])+fs["saveext"]
-			title = r"Pressure as a function of $y$ for $R=%.1f,S=%.1f,T=%.1f$"%(R[0],S[0],T[0])
-			xlabel = r"$y$"
-			ylabel = r"$P_{x}(y)$"
+		## If R, S, T and P are all specified, plot Px(y) for multiple alpha.
+		elif np.unique(P).size==1:
+			plotfile = histdir+"/PyA_CAR_UL_R%.1f_S%.1f_T%.1f_P%.1f."%(R[0],S[0],T[0],P[0])+fs["saveext"]
+			title = r"Pressure as a function of $y$ for $R=%.1f,S=%.1f,T=%.1f,P=%.1f$"%(R[0],S[0],T[0],P[0])
+			xlabel = r"$y/\lambda$"
+			ylabel = r"$P_{x}(y)/P^{\rm passive}$"
 			for i, Ai in enumerate(np.unique(A)):
 				ax.plot(Y[i][:], Py[i][:], "-", label=r"$\alpha=%.1f$"%(Ai))
 			
 			if logplot:
 				ax.set_yscale("log")
 				plotfile = plotfile[:-4]+"_linlog."+fs["saveext"]
+#				ax.set_ylim(1e-3,1e1)
+				
+		## If P varies and all other parameters are fixed
+		else:
+			plotfile = histdir+"/PPA_CAR_UL_R%.1f_S%.1f_T%.1f."%(R[0],S[0],T[0])+fs["saveext"]
+			title = r"Pressure as a function of $\alpha$ for $R=%.1f,S=%.1f,T=%.1f$"%(R[0],S[0],T[0])
+			xlabel = r"$\phi/\pi$"
+			ylabel = r"$P_{\rm tot}/P_{\rm passive}$"
+			
+			for Ai in np.unique(A):
+				idx = (A==Ai)
+				ax.plot(P[idx], Pt[idx], "o-", label=r"$\alpha=%.1f$"%(Ai))
+			
+			ax.set_xlim(0.0,1.0)
+			ax.set_ylim(0.0,1.2)
 				
 	else:
 		raise ImplementationError, me+"Not implemented yet."
@@ -288,6 +310,59 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	if vb: print me+"Plotting time %.1f seconds."%(time.time()-t0)
 	
 	return
+
+
+##=============================================================================
+def calc_pressure_flat(a,R):
+	"""
+	Calculate up the flat-wall pressure corresponding to given parameters.
+	"""
+	me = me0+"calc_pressure_flat: "
+	
+	histdir = "~/Documents/Coloured_Noise/161116_CAR_DL_dt0.01--R100/"
+	histfile = histdir+"BHIS_CAR_DL_a%.1f_R100.0_S%.1f_dt0.01.npy"%(a,2*R)
+	
+	## Space
+	bins = np.load(os.path.dirname(histfile)+"/BHISBIN"+os.path.basename(histfile)[4:-4]+".npz")
+	xbins = bins["xbins"]
+	x = 0.5*(xbins[1:]+xbins[:-1])
+		
+	## Wall indices
+	Rind, Sind, Tind = np.abs(x-R[i]).argmin(), np.abs(x-S[i]).argmin(), np.abs(x-T[i]).argmin()
+	STind = 0 if T[i]<0.0 else (Sind+Tind)/2
+
+	## Adjust indices for pressure calculation
+	if "_DL_" in histfile:
+		STind = 0
+	
+	##-------------------------------------------------------------------------
+	
+	## Histogram
+	H = np.load(histfile)
+	## Spatial density
+	Qx = H.sum(axis=2).sum(axis=1) / (H.sum()*(x[1]-x[0]))
+	
+	##-------------------------------------------------------------------------
+	
+	## Choose force
+	fx = force_dlin([x,0],R[i],S[i])[0]
+	
+	## Calculate integral pressure
+	PR[i] = -sp.integrate.trapz(fx[Rind:]*Qx[Rind:], x[Rind:])
+	PS[i] = +sp.integrate.trapz(fx[STind:Sind]*Qx[STind:Sind], x[STind:Sind])
+	
+	if vb: print me+"a=%.1f:\tPressure calculation %.2g seconds"%(A[i],time.time()-ti)
+	
+	## Potential
+	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+	Qx_WN = np.exp(-U) / np.trapz(np.exp(-U), x)
+	## WN pressure
+	PR_WN[i] = -sp.integrate.trapz(fx[Rind:]*Qx_WN[Rind:], x[Rind:])
+	PS_WN[i] = +sp.integrate.trapz(fx[STind:Sind]*Qx_WN[STind:Sind], x[STind:Sind])
+	if Casimir:
+		PT_WN[i] = -sp.integrate.trapz(fx[Tind:STind]*Qx_WN[Tind:STind], x[Tind:STind])
+	if "_ML_" in histfile:
+		PU_WN[i] = +sp.integrate.trapz(fx[:mRind]*Qx_WN[:mRind], x[:mRind])
 
 
 ##=============================================================================

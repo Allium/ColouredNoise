@@ -104,7 +104,18 @@ def main(a,ftype,R,S,T,P,dt,timefac,vb):
 	ymin, ymax = 0.0, 1.0	## Only relevant when xydata = True
 	
 	## Double quadratic potential
-	if ftype=="dlin":
+	if ftype=="dcon":
+		## Force
+		fxy = lambda xy: force_dcon(xy,R,S)
+		## Filename
+		fstr = "DC"
+		filepar = ""
+		## Simulation limits
+		xmax = R+4.0
+		xmin = S-4.0
+		
+	## Double quadratic potential
+	elif ftype=="dlin":
 		## Force
 		fxy = lambda xy: force_dlin(xy,R,S)
 		## Filename
@@ -321,6 +332,17 @@ def eul(xy, exy, fxy, dt):
 
 ## ====================================================================
 ## FORCES
+	
+
+def force_dcon(xy,R,S):
+	"""
+	Double linear force.
+	xy.size = 2
+	"""
+	fx = (xy[0]<S)-(xy[0]>R)
+	fy = 0.0
+	return np.array([fx,fy])	
+	
 	
 def force_dlin(xy,R,S):
 	"""

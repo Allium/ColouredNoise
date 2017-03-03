@@ -90,9 +90,6 @@ def plot_PM(histdir, srchstr, nosave, vb):
 	del massdata
 	
 	A = pressdata["A"]
-#	R = pressdata["R"]
-#	S = pressdata["S"]
-#	T = pressdata["T"]
 	PR = pressdata["PR"]
 	PS = pressdata["PS"]
 	PT = pressdata["PT"]
@@ -112,9 +109,6 @@ def plot_PM(histdir, srchstr, nosave, vb):
 	if 0.0 not in A:
 		nlin = np.unique(S).size
 		A = np.hstack([[0.0]*nlin,A])
-#		R = np.hstack([R[:nlin],R])
-#		S = np.hstack([S[:nlin],S])
-#		T = np.hstack([T[:nlin],PT])
 		PR = np.hstack([[1.0]*nlin,PR])
 		PS = np.hstack([[1.0]*nlin,PS])
 		PT = np.hstack([[1.0]*nlin,PT])
@@ -135,7 +129,7 @@ def plot_PM(histdir, srchstr, nosave, vb):
 	
 	## PLOTTING
 	
-	## TO PLOT ON TWINNED AXES
+	## TO PLOT ON TWINNED AXES -- deprecated
 	if 0:
 	
 		fig, axP = plt.subplots(1,1)
@@ -185,7 +179,7 @@ def plot_PM(histdir, srchstr, nosave, vb):
 		##----------------------------------------------------------------------------
 		
 		## Number of ticks
-		ntick = 10
+		ntick = 10 if "_CL_" in histdir else 7
 		ax.yaxis.set_major_locator(MaxNLocator(ntick))
 		ax.grid()
 	
@@ -194,24 +188,30 @@ def plot_PM(histdir, srchstr, nosave, vb):
 		ax.set_ylabel(r"$P/P^{\rm passive}$ and $M/M^{\rm passive}$", fontsize=fs["fsa"])
 		
 		## Inset placement
-		Uleft, Ubottom, Uwidth, Uheight = [0.57, 0.39, 0.31, 0.22]
-		qleft, qbottom, qwidth, qheight = [0.20, 0.61, 0.32, 0.27]
+		if "_CL_" in histdir:
+			Uleft, Ubottom, Uwidth, Uheight = [0.57, 0.39, 0.31, 0.22]
+			qleft, qbottom, qwidth, qheight = [0.20, 0.61, 0.32, 0.27]
+			Rschem, Sschem, Tschem = 15.0, 2.0, 0.0
+			force_x = force_clin
+		elif "_ML_" in histdir:
+			ax.set_ylim(bottom=0.7)
+			Uleft, Ubottom, Uwidth, Uheight = [0.21, 0.14, 0.30, 0.20]
+#			Uleft, Ubottom, Uwidth, Uheight = [0.57, 0.26, 0.30, 0.20]
+			qleft, qbottom, qwidth, qheight = [0.19, 0.66, 0.30, 0.23]
+			Rschem, Sschem, Tschem = 4.0, 2.0, 0.0
+			force_x = force_mlin
 	
 	
 	##----------------------------------------------------------------------------
 	## Casimir insets
 	if "_CL_" in histdir:
 		## Plot potential as inset
-#		left, bottom, width, height = [0.2, 0.6, 0.3, 0.25]
 		axin = fig.add_axes([Uleft, Ubottom, Uwidth, Uheight])
-	
-#		x = np.linspace(-x[-1],x[-1],2*x.size)
-#		fx = force_clin([x,0],R,S,T)[0]
-		Rschem, Sschem, Tschem = 15.0, 2.0, 0.0
 		x = np.linspace(-Rschem-2.0,+Rschem+2.0,2*x.size)
 		cuspind = np.abs(x-0.5*(Sschem+Tschem)).argmin()
-		fx = force_clin([x,0],Rschem,Sschem,Tschem)[0]
+		fx = force_x([x,0],Rschem,Sschem,Tschem)[0]
 		U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+		axin = fig.add_axes([Uleft, Ubottom, Uwidth, Uheight])
 		axin.plot(x, U, "k-")
 		axin.axvspan(x[0],-x[cuspind], color=lR[0].get_color(),alpha=0.2)
 		axin.axvspan(-x[cuspind],x[cuspind], color=lL[0].get_color(),alpha=0.2)
@@ -226,7 +226,6 @@ def plot_PM(histdir, srchstr, nosave, vb):
 		axin.set_ylabel(r"$U/T$", fontsize = fs["fsa"]-5)
 	
 		## Plot q(eta) as inset
-#		left, bottom, width, height = [0.55, 0.27, 0.33, 0.28]
 		axin = fig.add_axes([qleft, qbottom, qwidth, qheight])
 		## Grab a file. Hacky. Assumes only one match.
 		histfile = glob.glob(histdir+"/BHIS_CAR_CL_a5.0_*"+srchstr+"*.npy")[0]
@@ -238,10 +237,11 @@ def plot_PM(histdir, srchstr, nosave, vb):
 	## Single wall insets
 	elif "_ML_" in histdir:
 		## Plot potential as inset
-		fx = force_mlin([x,0],R,S,T)[0]
+		x = np.linspace(-Rschem-2.0,+Rschem+2.0,2*x.size)
+		fx = force_x([x,0],R,S,T)[0]
 		U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
-		left, bottom, width, height = [0.18, 0.68, 0.33, 0.20]
-		axin = fig.add_axes([left, bottom, width, height])
+		cuspind = np.abs(x-0.5*(Sschem+Tschem)).argmin()
+		axin = fig.add_axes([Uleft, Ubottom, Uwidth, Uheight])
 		axin.plot(x, U, "k-")
 		axin.axvspan(x[0],x[cuspind], color=lL[0].get_color(),alpha=0.2)
 		axin.axvspan(x[cuspind],x[-1], color=lR[0].get_color(),alpha=0.2)
@@ -250,12 +250,12 @@ def plot_PM(histdir, srchstr, nosave, vb):
 		axin.xaxis.set_major_locator(NullLocator())
 		axin.set_yticks([1.0])
 		axin.set_yticklabels(["1"])
+		axin.grid()
 		axin.set_xlabel(r"$x$", fontsize = fs["fsa"]-5)
 		axin.set_ylabel(r"$U/T$", fontsize = fs["fsa"]-5)
 	
 		## Plot q(eta) as inset
-		left, bottom, width, height = [0.55, 0.35, 0.33, 0.23]
-		axin = fig.add_axes([left, bottom, width, height])
+		axin = fig.add_axes([qleft, qbottom, qwidth, qheight])
 		## Grab a file. Hacky. Assumes only one match.
 		histfile = glob.glob(histdir+"/BHIS_CAR_ML_a10.0_*"+srchstr+"*.npy")[0]
 		plot_peta_CL(histfile, fig, axin, True)

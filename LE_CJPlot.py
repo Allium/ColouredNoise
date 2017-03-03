@@ -142,15 +142,29 @@ def plot_current_1d(histfile, nosave, vb):
 	ax.axvline(R,c="k",lw=1)
 	
 	## Set number of ticks
-	ax.xaxis.set_major_locator(MaxNLocator(5))
-	ax.yaxis.set_major_locator(MaxNLocator(4))
-
+	ax.xaxis.set_major_locator(NullLocator())	#MaxNLocator(5)
+	ax.yaxis.set_major_locator(NullLocator())	#MaxNLocator(4)
+	
 	ax.set_xlim(left=x[0],right=x[-1])
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$\eta$", fontsize=fs["fsa"])
 	ax.grid()
 	# ax.legend(loc="upper right", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 		
+	##-------------------------------------------------------------------------
+	
+	## Add in BC line
+	if 1:
+		from LE_CBulkConst import bulk_const
+		x, Q, BC = bulk_const(histfile)
+		ax.plot(x, (Q/Q.max() )*2.0+ax.get_ylim()[0], "b-", lw=4)
+		ax.plot(x, (BC/Q.max())*2.0+ax.get_ylim()[0], "r-", lw=4)
+		ax2 = ax.twinx()
+		ax2.yaxis.set_major_locator(NullLocator())
+		ax2.set_ylabel(r"$n$ \& $\left<\eta^2\right>n$ \hfill")
+		ax2.yaxis.set_label_coords(-0.07,0.15)
+		# ax.yaxis.set_label_coords(-0.07,0.5)
+	
 	##-------------------------------------------------------------------------
 		
 	if not nosave:
@@ -237,8 +251,8 @@ def plot_current_2d(currfile, nosave, vb):
 
 	ax.set_xlim([xbins[0],xbins[-1]])
 	ax.set_ylim([ybins[0],ybins[-1]])
-	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
+	ax.set_xlabel(r"$x/T$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$y/T$", fontsize=fs["fsa"])
 	ax.grid()
 	# ax.legend(loc="upper right", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 		

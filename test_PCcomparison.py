@@ -10,6 +10,7 @@ if "SSH_TTY" in os.environ:
 	mpl.use("Agg")
 from matplotlib import cm
 from matplotlib import pyplot as plt
+from matplotlib.ticker import NullLocator
 
 from LE_CSim import force_dlin, force_clin
 from LE_Utils import filename_par, fs, set_mplrc
@@ -23,9 +24,9 @@ Plot Q(x) and Q(r) on top of one another for high R. They should match closely.
 try:
 	a, R, S = [float(x) for x in argv[1:4]]
 except (IndexError, ValueError):
-	a = 10.0
+	a = 1.0
 	R = 100.0
-	S = 90.0
+	S = 95.0
 
 histdirP = "/home/users2/cs3006/Documents/Coloured_Noise/161212_POL_DL_dt0.01_psi--R100/"
 histdirC = "/home/users2/cs3006/Documents/Coloured_Noise/161116_CAR_DL_dt0.01--R100/"
@@ -62,22 +63,26 @@ if 1:
 	fig, axs = plt.subplots(1,1, figsize=(10,10))
 
 	ax = axs
-	ax.plot(r, QP/QP.max(), label=r"$Q_{\rm pol}$")
-	ax.plot(x, QC/QC.max(), label=r"$Q_{\rm car}$")
+	ax.plot(r, QP/QP.max(), label=r"$n_{\rm rad}(r)$")
+	ax.plot(x, QC/QC.max(), label=r"$n_{\rm car}(x)$")
 	
 #	ax.plot(x, np.exp(-U)/np.trapz(np.exp(-U),x), "r-", label=r"$Q_{\rm wn}$")
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--",label=r"$U$")
 	
+	ax.axvspan(S,R, color="yellow",alpha=0.2)
 	ax.axvline(R,color="k",lw=1); ax.axvline(S,color="k",lw=1)
 	ax.set_xlim((r[0],r[-1]))
-		
+	
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
+	
 	ax.set_xlabel(r"$r$ or $x$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$Q$ (rescaled)", fontsize=fs["fsa"])
-	ax.legend()
+	ax.set_ylabel(r"$n$ (rescaled)", fontsize=fs["fsa"])
+	ax.legend(loc=[0.35,0.25]).get_frame().set_alpha(1.0)
 	ax.grid()
 	
 	title = r"Spatial PDFs (rescaled). $\alpha=%.1f, R=%.1f, S=%.1f$"%(a,R,S)				
-	fig.suptitle(title, fontsize=fs["fst"])
+#	fig.suptitle(title, fontsize=fs["fst"])
 	
 	plotfile = os.path.dirname(histfileP)+"/PChighR_a%.1f_R%.1f_S%.1f"%(a,R,S)
 	plotfile += "."+fs["saveext"]

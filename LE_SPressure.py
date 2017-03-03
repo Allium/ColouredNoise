@@ -12,12 +12,13 @@ if "SSH_TTY" in os.environ:
 	print me0+": Using Agg backend."
 	mpl.use("Agg")
 from matplotlib import pyplot as plt
+from matplotlib.ticker import MaxNLocator, NullLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from LE_Utils import save_data, filename_pars, fs, set_mplrc
 from LE_SSim import force_const, force_lin, force_dcon, force_dlin,\
 					force_tan, force_dtan, force_nu, force_dnu
-from test_force import plot_U3D_polar
+from schem_force import plot_U3D_polar
 
 ## Ignore warnings
 warnings.filterwarnings("ignore",
@@ -190,20 +191,20 @@ def pressure_pdf_file(histfile, plotpress, vb):
 	## PDF PLOT
 	
 	## PDF and WN PDF
+	sp.ndimage.gaussian_filter1d(rho,sigma=2.0,order=0,output=rho)
 	ax.plot(r,rho,   "b-", label="OUP")
 	ax.fill_between(r,0,rho,facecolor="b",alpha=0.1)
-	ax.plot(r_WN,rho_WN,"r-", label="Thermal")
+	ax.plot(r_WN,rho_WN,"r-", label="Passive")
 	ax.fill_between(r_WN,0,rho_WN,facecolor="r",alpha=0.1)
 	## Wall
 	ax.plot(r, U/U.max()*ax.get_ylim()[1], "k--", label=r"$U(x)$")
-#	plot_wall(ax, ftype, fpars, r)
 	
 	## Accoutrements
 	ax.set_xlim(xlim)
 	ax.set_ylim(bottom=0.0, top=min(20,1.2*max(rho.max(),rho_WN.max())))
 	if not plotpress: ax.set_xlabel("$r$", fontsize=fs["fsa"])
 #	ax.set_ylabel(r"$\rho(r,\phi)$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$Q(r)$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$n(r)$", fontsize=fs["fsa"])
 	ax.grid()
 	ax.legend(loc="upper right")
 	
@@ -567,6 +568,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 			for i in range(AA.size):
 				ax.plot(RR,PP[:,i],  "o-", label=r"$\alpha = %.1f$"%(AA[i]))
 			xlim = [RR[0],RR[-1]]
+			ax.xaxis.set_major_locator(MaxNLocator(3))
 			xlabel = r"$R$"
 	
 	## ------------------------------------------------
@@ -657,6 +659,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 					AA = AA[1:]; PP = PP[:,:,1:]; QQ = QQ[:,:,1:]; PP_WN = PP_WN[:,:,1:]
 				title = r"Pressure difference, $(P_R-P_S)/P_R^{\rm wn}$; $R-S = "+str((RR-SS)[0])+"$; ftype = "+ftype
 				ylabel = "Pressure Difference (normalised)"
+				legloc = "upper right"#(0.25,0.54)
 				plotfile = dirpath+"/DPAS"
 #				## Advance colour cycle for consistent colour between diffrent R-S plots
 #				[ax.plot([],[]) for i in range(np.sum([Ri not in RR for Ri in [0.0,1.0,2.0,5.0]])-1)]
@@ -671,8 +674,15 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				else:
 					for i in range(SS.size):
 						ax.plot(AA,np.diagonal((PP-QQ)/(PP_WN)).T[i,:],	"o-", label="$R = "+str(RR[i])+"$")
+				
+				## POTENTIAL INSET
+				left, bottom, width, height = [0.53, 0.39, 0.33, 0.30] if np.unique(RR-SS) == 0 else [0.52, 0.43, 0.33, 0.31]
+				axin = fig.add_axes([left, bottom, width, height], projection="3d")
+				Rschem, Sschem = (1.7,1.7) if np.unique(RR-SS) == 0 else (5,1.7)
+				plot_U3D_polar(axin, Rschem, Sschem)
+				axin.patch.set_alpha(0.3)
 					
-			else:
+			elif 0:
 				## Plot difference Pout-Pin against R
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN
@@ -701,6 +711,44 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				Rschem, Sschem = (1.7,1.7) if np.unique(RR-SS) == 0 else (5,1.7)
 				plot_U3D_polar(axin, Rschem, Sschem)
 				axin.patch.set_alpha(0.3)
+				
+			
+			else:
+				## SHURA REQUEST Plot difference (Pout-Pin)/(PE2*sqrt(a)) against R
+				DPplot = True
+				PP *= PP_WN; QQ *= QQ_WN
+				ylabel = r"Pressure Difference (normalised)"
+				plotfile = dirpath+"/DPRA_AG"
+				xlabel = r"$R\;(=S+%.1f)$"%((RR-SS)[0]) if (RR-SS)[0]>0.0 else r"$R$"
+				xlim = [RR[0],RR[-1]]
+				PP_E2 = 1/np.sqrt(1+AA)[:,np.newaxis]/(2*np.pi*RR)	## /R for 2D
+				for i in range(0,AA.size,1):	## To plot against R
+					## Normalise by PEN
+#					ax.plot(RR,np.diagonal(PP-QQ).T[:,i]/np.diagonal(PP_WN).T[:,i]/np.sqrt(AA[i]), "o-", label=r"$\alpha = "+str(AA[i])+"$")
+					## Normalise by PE2
+					ax.plot(RR,np.diagonal(PP-QQ).T[:,i]/PP_E2[i]/np.sqrt(AA[i]), "o-", label=r"$\alpha = "+str(AA[i])+"$")
+					## Normalise by Pout
+#					ax.plot(RR,np.diagonal(1-QQ/PP).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$")
+					## Individual
+#					ax.plot(RR,np.diagonal(PP/PP_WN).T[:,i],"o-", label=r"$\alpha = "+str(AA[i])+"$")
+#					ax.plot(RR,np.diagonal(QQ/QQ_WN).T[:,i],"o--", color=ax.lines[-1].get_color())
+#					ax.plot(RR,PP_E2[i,:]/np.diagonal(PP_WN).T[:,i],"o:", color=ax.lines[-1].get_color())
+					##
+				if logplot:
+					RRR = np.linspace(1,RR[-1],10)
+					ax.plot(RRR,1/(RRR),"k:",lw=3,label=r"$R^{-1}$")
+#				ax.set_ylim(1e-5,1e0)
+				xlim = [1.0,RR[-1]]
+				fig.subplots_adjust(left=0.15)
+				
+				## POTENTIAL INSET
+				left, bottom, width, height = [0.51, 0.60, 0.35, 0.31]	## For upper right
+#				left, bottom, width, height = [0.13, 0.14, 0.35, 0.31]	## For lower left
+				axin = fig.add_axes([left, bottom, width, height], projection="3d")
+				Rschem, Sschem = (1.7,1.7) if np.unique(RR-SS) == 0 else (5,1.7)
+				plot_U3D_polar(axin, Rschem, Sschem)
+				axin.patch.set_alpha(0.3)
+				axin.patch.set_facecolor("None")
 			
 	## ------------------------------------------------
 	
@@ -835,14 +883,17 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 	## AD HOC
 	if not logplot:
 		ax.set_ylim(bottom=0.0)
-		ax.set_ylim(top=1.2)
+		ax.set_ylim(top=1.4)
 #	ax.set_ylim(1e-3,1e1)
 	
 	ax.set_xlabel(xlabel,fontsize=fs["fsa"])
 	ax.set_ylabel(ylabel,fontsize=fs["fsa"])
 	
 	ax.grid()
-	ax.legend(loc="best",fontsize=fs["fsl"], ncol=2).get_frame().set_alpha(0.5)
+	try:
+		ax.legend(loc=legloc,fontsize=fs["fsl"]-2, ncol=2).get_frame().set_alpha(0.5)
+	except UnboundLocalError:
+		ax.legend(loc="best",fontsize=fs["fsl"], ncol=2).get_frame().set_alpha(0.5)
 #	fig.suptitle(title,fontsize=fs["fst"])
 	
 	#plt.tight_layout();	plt.subplots_adjust(top=0.9)

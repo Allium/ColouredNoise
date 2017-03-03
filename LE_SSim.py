@@ -152,7 +152,7 @@ def main(a,ftype,fpar,Nrun,dt,timefac,intmeth,ephi,vb):
 	tmax = 5e2*timefac
 	
 	## Simulation limits
-	rmax = R+2.0*lam if infpot else R+5.0
+	rmax = R+2.0*lam if infpot else R+6.0
 	# rmin = 0.0 #max([0.0, 0.9*R-5*np.sqrt(a)])
 	rmin = max(0.0, S-2.0*lam if infpot else S-4.0)
 	## Injection x coordinate -- half-way into bulk

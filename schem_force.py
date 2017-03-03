@@ -146,6 +146,11 @@ def plot_U3D_polar(ax, R, S):
 	ax.yaxis.set_major_locator(NullLocator())
 	ax.zaxis.set_major_locator(NullLocator())
 	
+	lp = -10
+	ax.xaxis.labelpad = lp
+	ax.yaxis.labelpad = lp
+	ax.zaxis.labelpad = lp
+	
 	return
 	
 ##=============================================================================
@@ -183,6 +188,11 @@ def plot_U3D_ulin(ax, R, S, T):
 	ax.xaxis.set_major_locator(NullLocator())
 	ax.yaxis.set_major_locator(NullLocator())
 	ax.zaxis.set_major_locator(NullLocator())
+	
+	lp = -10
+	ax.xaxis.labelpad = lp
+	ax.yaxis.labelpad = lp
+	ax.zaxis.labelpad = lp
 	
 	return
 
@@ -372,7 +382,7 @@ if __name__=="__main__":
 	##=============================================================================
 	
 	## 3D POLAR
-	if 0:
+	if 1:
 		fig = plt.figure()
 		ax = fig.add_subplot(111, projection='3d')
 
