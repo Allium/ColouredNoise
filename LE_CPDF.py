@@ -13,7 +13,7 @@ from matplotlib.ticker import MaxNLocator, NullLocator
 from matplotlib import cm
 from matplotlib import pyplot as plt
 
-from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
+from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin, force_dcon
 from LE_Utils import filename_par, fs, set_mplrc
 
 import warnings
@@ -54,7 +54,7 @@ def main():
 	if os.path.isfile(args[0]):
 		plot_pdf1d(args[0], nosave, vb)
 		plot_pdfq1d(args[0], nosave, vb)
-		plot_pdf2d(args[0], nosave, vb)
+#		plot_pdf2d(args[0], nosave, vb)
 	## Plot all files
 	elif (plotall and os.path.isdir(args[0])):
 		showfig = False
@@ -62,9 +62,9 @@ def main():
 		if vb: print me+"Found",len(filelist),"files."
 		for histfile in filelist:
 			plot_pdf1d(histfile, nosave, vb)
-			plot_pdf2d(histfile, nosave, vb)
+#			plot_pdf2d(histfile, nosave, vb)
 			plt.close()
-	## Plot directory
+	## Plot directory -- scaling of fit parameters
 	elif os.path.isdir(args[0]):
 		plot_fitpars(args[0], searchstr, nosave, vb)
 	else: raise IOError, me+"Check input."
@@ -97,7 +97,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	except ValueError: T= -S
 	
 	doQfit = (R==S and "_DL_" in histfile)
-	plotq = int(True)
+	plotq = int(False)
 	
 	##-------------------------------------------------------------------------
 		
@@ -149,13 +149,14 @@ def plot_pdf1d(histfile, nosave, vb):
 	ax = axs[0] if plotq else axs
 	
 	## Data
-	ax.plot(x, Qx, label=r"Simulation")
+	ax.plot(x, Qx, label=r"OUP")
 	
 	## Gaussian for spatial density
 	if doQfit:
 		ax.plot(x, gauss(x,fitQx[0],1/(1+a)), "c-", label=r"$G\left(\mu, \frac{1}{\alpha+1}\right)$")
 	
 	## Potential and WN
+	if   "_DC_" in histfile:	fx = force_dcon([x,0],R,S)[0]
 	elif "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
 	elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
 	elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
@@ -164,8 +165,8 @@ def plot_pdf1d(histfile, nosave, vb):
 	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
 	
 #	ax.set_ylim((0.0,1.2))	###
-	ax.plot(x, np.exp(-U)/np.trapz(np.exp(-U),x), "r-", label="WN")
-	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--",label="Potential")
+	ax.plot(x, np.exp(-U)/np.trapz(np.exp(-U),x), "r-", label="Passive")
+	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--",label=r"$U(x)$")
 	
 	## Indicate bulk
 	ax.axvline(S,c="k",lw=1)
@@ -180,7 +181,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	
 	ax.set_xlim(left=x[0],right=x[-1])
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-	ax.set_ylabel(r"$Q(x)$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$n(x)$", fontsize=fs["fsa"])
 	ax.grid()
 	ax.legend(loc="upper right", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
 		
@@ -214,7 +215,7 @@ def plot_pdf1d(histfile, nosave, vb):
 				else r"Spatial PDF. $\alpha=%.1f, R=%.1f, S=%.1f, T=%.f$"%(a,R,S,T)
 				
 				
-	fig.suptitle(title, fontsize=fs["fst"])
+#	fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
 		plotfile = os.path.dirname(histfile)+"/PDFxy1d"+os.path.basename(histfile)[4:-4]
@@ -450,7 +451,7 @@ def plot_pdfq1d(histfile, nosave, vb):
 	ax.axvline(S,c="k",lw=1)
 	ax.axvline(R,c="k",lw=1)
 	if T>=0.0:	ax.axvline(T,c="k",lw=1)
-	elif T<0.0 and "_DL_" not in histfile:	ax.axvline(-R,c="k",lw=1)
+	elif T<0.0 and ("_DL_" not in histfile and "_DC_" not in histfile):	ax.axvline(-R,c="k",lw=1)
 	# ax.axvspan(S,R,color="y",alpha=0.1)
 	
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])

@@ -13,7 +13,7 @@ from matplotlib import cm
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MaxNLocator, NullLocator
 
-from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
+from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin, force_dcon
 from LE_Utils import filename_par, fs, set_mplrc
 
 from schem_force import plot_U1D_Cartesian
@@ -117,9 +117,11 @@ def plot_pressure_file(histfile, nosave, vb):
 	STind = (Sind+Tind)/2
 	
 	## Adjust indices for pressure calculation
-	if "_DL_" in histfile:
+	if "_DC_" in histfile:
 		STind = 0
-	if "_NL_" in histfile:
+	elif "_DL_" in histfile:
+		STind = 0
+	elif "_NL_" in histfile:
 		STind = Sind
 		Sind = Rind
 		Tind = x.size-Rind
@@ -134,12 +136,13 @@ def plot_pressure_file(histfile, nosave, vb):
 	##-------------------------------------------------------------------------
 	
 	## Choose force
-	if   "_DL_" in histfile:	fx = force_dlin([x,0],R,S)[0]
+	if   "_DC_" in histfile:	fx = force_dcon([x,0],R,S)[0]
+	elif "_DL_" in histfile:	fx = force_dlin([x,0],R[i],S[i])[0]
 	elif "_CL_" in histfile:	fx = force_clin([x,0],R,S,T)[0]
 	elif "_ML_" in histfile:	fx = force_mlin([x,0],R,S,T)[0]
 	elif "_NL_" in histfile:	fx = force_nlin([x,0],R,S)[0]
 	else: raise IOError, me+"Force not recognised."
-	
+		
 	## Calculate integral pressure
 	PR = -sp.integrate.cumtrapz(fx[Rind:]*Qx[Rind:], x[Rind:], initial=0.0)
 	PS = -sp.integrate.cumtrapz(fx[STind:Sind+1]*Qx[STind:Sind+1], x[STind:Sind+1], initial=0.0); PS -= PS[-1]
@@ -273,13 +276,15 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 		x = 0.5*(xbins[1:]+xbins[:-1])
 		
 		## Wall indices
-		Rind, Sind, Tind = np.abs(x-R[i]).argmin(), np.abs(x-S[i]).argmin(), np.abs(x-T[i]).argmin()
+		Rind, Sind, Tind = np.abs(x-R[i]).argmin(), np.abs(x-S[i]).argmin()+1, np.abs(x-T[i]).argmin()
 		STind = 0 if T[i]<0.0 else (Sind+Tind)/2
 	
 		## Adjust indices for pressure calculation
-		if "_DL_" in histfile:
+		if "_DC_" in histfile:
 			STind = 0
-		if "_NL_" in histfile:
+		elif "_DL_" in histfile:
+			STind = 0
+		elif "_NL_" in histfile:
 			STind = Sind
 			Sind = Rind
 			Tind = x.size-Rind
@@ -294,7 +299,8 @@ def calc_pressure_dir(histdir, srchstr, noread, vb):
 		##-------------------------------------------------------------------------
 		
 		## Choose force
-		if   "_DL_" in histfile:	fx = force_dlin([x,0],R[i],S[i])[0]
+		if   "_DC_" in histfile:	fx = force_dcon([x,0],R[i],S[i])[0]
+		elif "_DL_" in histfile:	fx = force_dlin([x,0],R[i],S[i])[0]
 		elif "_CL_" in histfile:	fx = force_clin([x,0],R[i],S[i],T[i])[0]
 		elif "_ML_" in histfile:	fx = force_mlin([x,0],R[i],S[i],T[i])[0]
 		elif "_NL_" in histfile:	fx = force_nlin([x,0],R[i],S[i])[0]
@@ -360,7 +366,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	"""
 	me = me0+".plot_pressure_dir: "
 	t0 = time.time()
-	
+		
 	##-------------------------------------------------------------------------
 	## Read in existing data or calculate afresh
 		
@@ -386,7 +392,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	PU_WN = pressdata["PU_WN"]
 	del pressdata
 		
-	Casimir = "_DL_" not in histdir
+	Casimir = "_DL_" not in histdir and "_DC_" not in histdir
 
 	##-------------------------------------------------------------------------
 	## FIT if DL
@@ -504,17 +510,22 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 				else:	## If DL, label should be bulk width
 					### One line, average.
 					P = 0.5*(PR+PS)
-					ax.plot(Au, P[S==Si], "o"+sty[0], label=r"$L=%.1f$"%(R[0]-Si))
+					ax.plot(Au, PR[S==Si], "o"+sty[0], label=r"$L=%.1f$"%(R[0]-Si))
+#					ax.plot(Au, PR[S==Si], "o"+sty[0], label=r"$S=%.1f$"%(Si))
+#					ax.plot(Au, PS[S==Si], "o"+sty[1], c=ax.lines[-1].get_color())
 					
 					## Inset of potential
 					left, bottom, width, height = [0.19, 0.58, 0.35, 0.30]
 					axin = fig.add_axes([left, bottom, width, height])
-					plot_U1D_Cartesian(axin, "dlin", 2.0, 0.0, 0.0)
-#					axin.patch.set_alpha(0.5)
+					if "_DL_" in histdir: plot_U1D_Cartesian(axin, "dlin", 2.0, 0.0, 0.0)
+					elif "_DC_" in histdir: plot_U1D_Cartesian(axin, "dcon", 1.0, -1.0, 0.0)
+##					axin.patch.set_alpha(0.5)
 			
 			## Prediction for zero and infinite bulk
 			if "_DL_" in histdir:
 				ax.plot(Au, (Au)**(-0.5), "--", c=ax.lines[0].get_color())
+				ax.plot(Au, np.ones(Au.size), "y--", label=r"$L\to\infty$")
+			if "_DC_" in histdir:
 				ax.plot(Au, np.ones(Au.size), "y--", label=r"$L\to\infty$")
 					
 			

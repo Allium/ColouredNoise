@@ -195,7 +195,7 @@ def main(a,ftype,R,S,T,P,dt,timefac,vb):
 	## ------------
 	## Bin edges: x, etax, etay
 	
-	Nxbin = int(100 * (xmax-xmin))
+	Nxbin = int(500 * (xmax-xmin))
 	Nybin = int(100 * (ymax-ymin))
 	xbins = np.linspace(xmin,xmax,Nxbin+1)
 	ybins = np.linspace(ymin,ymax,Nybin+1)
@@ -260,12 +260,13 @@ def main(a,ftype,R,S,T,P,dt,timefac,vb):
 		coords = simulate_trajectory([xini[i],yini[i]], eIC[i], a, xy_step, dt, tmax, expmt, xydata, vb)
 		
 		## Apply BCs where appropriate
+		## CLIN
 		if ftype[0]=="c":	## Reflecting BC at x=0
 			idx = coords[0]<0.0
 			coords[0][idx] *= -1
 			coords[1][idx] *= -1
 			coords[2][idx] *= -1
-#			coords[0] = np.abs(coords[0])
+		## ULIN
 		if ftype[0]=="u":	## Periodic BC -- what to do with x<0 and (y<0 and y>T)
 			coords = np.array(coords)
 			if P==0:
@@ -339,10 +340,8 @@ def force_dcon(xy,R,S):
 	Double linear force.
 	xy.size = 2
 	"""
-	fx = (xy[0]<S)-(xy[0]>R)
-	fy = 0.0
-	return np.array([fx,fy])	
-	
+	fx = 1.0*(xy[0]<S)-1.0*(xy[0]>R)
+	return np.array([fx,0.0])	
 	
 def force_dlin(xy,R,S):
 	"""
@@ -459,6 +458,13 @@ def force_ulin(xy,R,A,lam,phi=0.0):
 		veco = np.array([np.ones(X.shape),-2*np.pi/lam*A*np.cos(Y)])
 		fxy = np.outer(veco, (+X-R-bo)*(X>+R+bo)) + np.outer(veci, (-X-R+bi)*(X<-R+bi))
 	return fxy
+	
+
+def force_dtan(xy,R,lam):
+	"""
+	"""
+	raise ImplementationError
+	return 
 	
 	
 ## ====================================================================
