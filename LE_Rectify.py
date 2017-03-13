@@ -31,7 +31,7 @@ def main():
 	## Options
 	parser = optparse.OptionParser(conflict_handler="resolve")
 	parser.add_option('-a','--alpha',
-		dest="alpha", type="float", default=1.0)
+		dest="alpha", type="float", default=-1.0)
 	parser.add_option('-L',
 		dest="L", type="float", default=0.8)
 	parser.add_option('-l','--lam',
@@ -70,11 +70,13 @@ def main():
 			print me+"Created directory",outdir
 	
 	## Plot wind
-	if 1:
+	if a<0.0:
+		if vb: print me+"No alpha given. Generating wind diagram with default lists."
 		plot_wind(lam,tmax,dt,outdir,vb)
 	
 	## Plot density
 	else:
+		if vb: print me+"alpha given. Plotting density."
 		x, ex, wind = sim(a,L,lam,tmax,dt,vb)
 		plot_density(x, ex, a, L, lam, wind, outdir, vb)
 
@@ -202,7 +204,6 @@ def plot_wind(lam,tmax,dt,outdir,vb):
 				A += [ai]
 				L += [Li]
 				x, ex, W[i,j] = sim(ai,Li,lam,tmax,dt,vb)
-				# plot_density(x, ex, a, L, lam, W[i,j], outdir, vb); plt.close()
 		
 		W = np.array(W)
 		np.savez(windfile, A=A, L=L, W=W)
