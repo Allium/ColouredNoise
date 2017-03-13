@@ -38,20 +38,22 @@ def plot_trajectory(a, ftype):
 	E0min = 1.0 if ftype=="c" else 0.0
 	
 	NE0 = int((E0max-E0min)*3)+1
-	Eta0 = np.linspace(E0min,E0max,NE0)
+	Eta0 = np.linspace(E0min,E0max,NE0)[::-1]	## Rverse to start colours from top
 	
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	
 	## Each trajectory has different initial value
 	for eta0 in Eta0:
-		N = int(eta0*100)+1		## Number of points
+		N = int(eta0*1000)+1		## Number of points
 		eta = np.linspace(1.0/N,eta0,N)[::-1]
 		x = calc_trajectory_C(a,eta) if ftype=="c" else calc_trajectory_L(a,eta)
+		idx = x>=0.0
+		x = x[idx]; eta = eta[idx]
 		
 		ax.plot(x,eta)
 		
 		## Arrows
-		hw = 0.4 if ftype=="c" else 0.15
+		hw = 0.1*a if ftype=="c" else 0.15
 		i = 3 if ftype=="c" else np.log(2)
 		j = int(i*eta.size/10)
 		color = ax.lines[-1].get_color()
@@ -69,19 +71,18 @@ def plot_trajectory(a, ftype):
 	ax.set_ylabel(r"$\eta$")
 	ax.grid()
 	
-	## Inset 	
-	left, bottom, width, height = [0.60, 0.63, 0.27, 0.25] if ftype=="c" else [0.60, 0.18, 0.27, 0.25]
-	axin = fig.add_axes([left, bottom, width, height])
-	x = np.linspace(-1.0,1.0,51)
-	U = x.copy() if ftype=="c" else 0.5*x*x
-	U[x<=0.0] = 0.0
-	axin.plot(x,U,"k-")
-#	axin.set_xlim([-1.0,1.0])
-	axin.set_xlabel(r"$x$")
-	axin.set_ylabel(r"$U$")
-	axin.set_xticks([0.0])
-	axin.set_xticklabels(["0"])
-	axin.yaxis.set_major_locator(NullLocator())
+	# ## Inset 	
+	# left, bottom, width, height = [0.60, 0.63, 0.27, 0.25] if ftype=="c" else [0.60, 0.18, 0.27, 0.25]
+	# axin = fig.add_axes([left, bottom, width, height])
+	# x = np.linspace(-1.0,1.0,51)
+	# U = x.copy() if ftype=="c" else 0.5*x*x
+	# U[x<=0.0] = 0.0
+	# axin.plot(x,U,"k-")
+	# axin.set_xlabel(r"$x$")
+	# axin.set_ylabel(r"$U$")
+	# axin.set_xticks([0.0])
+	# axin.set_xticklabels(["0"])
+	# axin.yaxis.set_major_locator(NullLocator())
 	
 	return
 	
