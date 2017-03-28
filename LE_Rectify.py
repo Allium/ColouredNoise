@@ -24,6 +24,9 @@ set_mplrc(fs)
 def main():
 	"""
 	An asymmetric periodic potential leads to net current.
+	
+	Call with -a option to simulate and plot a PDF.
+	Specify L (length of one limb) and lam (period).
 	"""
 	me = me0+".main: "
 	t0 = time.time()
@@ -35,7 +38,7 @@ def main():
 	parser.add_option('-L',
 		dest="L", type="float", default=0.8)
 	parser.add_option('-l','--lam',
-		dest="lam", type="float", default=1.0)
+		dest="lam", type="float", default=-1.0)
 	parser.add_option('-t','--tfac',
 		dest="tfac", type="float", default=1.0)
 	parser.add_option('-s','--show',
@@ -57,6 +60,7 @@ def main():
 	a = opt.alpha
 	L = opt.L
 	lam = opt.lam
+#	if lam>0 and L<lam: raise IOError, me+"Think about the geometry."
 	tmax = 15e2*opt.tfac
 	dt = 0.01
 
@@ -64,19 +68,25 @@ def main():
 		outdir = False
 		opt.showfig = True
 	else:
-		outdir = "./Pressure/RECT/RECT_CAR_L_t%.1f/"%(opt.tfac)
+		outdir = "./Pressure/RECT/RECT_CAR_RL_t%.1f/"%(opt.tfac)
 		if not os.path.isdir(outdir):
 			os.mkdir(outdir)
 			print me+"Created directory",outdir
 	
+	## Make many wind plots
+	if lam<0.0:
+		if vb: print me+"Generating wind for many lambda with default parameter lists."
+		for lam in [4.0,3.0,5.0,2.0]:
+			plot_wind(lam,tmax,dt,outdir,vb)
+	
 	## Plot wind
-	if a<0.0:
-		if vb: print me+"No alpha given. Generating wind diagram with default lists."
+	elif a<0.0:
+		if vb: print me+"No alpha given. Generating wind diagram with default parameter lists."
 		plot_wind(lam,tmax,dt,outdir,vb)
 	
 	## Plot density
 	else:
-		if vb: print me+"alpha given. Plotting density."
+		if vb: print me+"alpha given. Simulating and plotting density."
 		x, ex, wind = sim(a,L,lam,tmax,dt,vb)
 		plot_density(x, ex, a, L, lam, wind, outdir, vb)
 
@@ -89,6 +99,7 @@ def main():
 ##=================================================================================================
 def sim(a,L,lam,tmax,dt,vb):
 	"""
+	Simulate OUP in asymmetric potential.
 	"""
 	me = me0+".sim: "
 	t0 = time.time()
@@ -118,7 +129,7 @@ def sim(a,L,lam,tmax,dt,vb):
 	
 	if vb:	print me+"Winding rate %.1g"%(wind)
 	if vb:	print me+"Simulation [a,L,lam]=[%.1f,%.1f,%.1f]: %.1f seconds."%(a,L,lam,time.time()-t0)
-	
+		
 	return x, ex, wind
 	
 ##=================================================================================================
@@ -150,16 +161,37 @@ def plot_density(x, ex, a, L, lam, wind, outdir, vb):
 	## Plot data
 	xc = 0.5*(xbins[:-1]+xbins[1:])
 	ec = 0.5*(ebins[:-1]+ebins[1:])
-	ax.contourf(xc,ec,H.T)
 	
-	## Potential
-	ax.plot(xbins, (U*0.5*emax/U.max())-emax, "k--", label=r"$U(x)$")
+	## To plot x-eta pdf
+	if 1:
+		ax.contourf(xc,ec,H.T)
+
+		## Force
+		ax.plot(xbins, -fx, "k-", label=r"$-f(x)$")
+
+		## Figure
+		ax.set_xlabel(r"$x$")
+		ax.set_ylabel(r"$\eta$")
+		ax.set_title(r"$\alpha=%.1f$. Winding rate %.2g."%(a,wind))
+		ax.grid()
+
+	## To plot eta
+	if 0:
+		outdir = False
+		bulkind = 0
+		cuspind = np.abs(xc-L).argmin()
+		ax.plot(ec,H[bulkind], label=r"Bulk")
+		ax.plot(ec,H[cuspind], label=r"Cusp")
+		ax.plot(ec,np.trapz(H[:cuspind],xc[:cuspind],axis=0), label=r"$L$ limb")
+		ax.plot(ec,np.trapz(H[cuspind:],xc[cuspind:],axis=0), label=r"$\ell$ limb")
 	
 	## Figure
-	ax.set_xlabel(r"$x$")
-	ax.set_ylabel(r"$\eta$")
-	ax.set_title(r"$\alpha=%.1f$. Winding rate %.1g."%(a,wind))
+	ax.legend(loc="best")
+	ax.set_xlabel(r"$\eta$")
+	ax.set_ylabel(r"$p(\eta)$")
+	ax.set_title(r"$\alpha=%.1f,L=%.1f,\lambda=%.1f$. Winding rate %.2g."%(a,L,lam,wind))
 	ax.grid()
+	###
 		
 	## ------------------------------------------------------------------------
 	
@@ -183,7 +215,7 @@ def plot_wind(lam,tmax,dt,outdir,vb):
 	##-------------------------------------------------------------------------
 	## Read in existing data or calculate afresh using phase_calc
 	
-	windfile = outdir+"/WIND.npz"
+	windfile = outdir+"/WIND_lam%.1f.npz"%(lam)
 	
 	try:
 		data = np.load(windfile)
@@ -192,10 +224,11 @@ def plot_wind(lam,tmax,dt,outdir,vb):
 		del data
 		
 	except IOError:
-		print me+"No data found. Calculating."
+		print me+"No data found for lambda=%.1f. Calculating."%(lam)
 	
-		alist = [0.2,0.5,1.0,2.0,3.0,5.0,10.0]
-		Llist = lam*np.linspace(0.5,0.9,5)
+		alist = [0.1,0.15,0.2,0.3,0.4,0.5,0.6,0.8,1.0,1.2,1.5,2.0,3.0]
+#		alist = [0.2,0.5,1.0,1.5,2.0,3.0,4.0,5.0,10.0]
+		Llist = lam*np.linspace(0.5,0.9,10)
 		W = np.zeros([len(alist),len(Llist)])
 		
 		A, L = [], []
@@ -209,35 +242,67 @@ def plot_wind(lam,tmax,dt,outdir,vb):
 		np.savez(windfile, A=A, L=L, W=W)
 	
 	## ------------------------------------------------------------------------
+	## Fiddle
+	
+	if 0.0 not in A:
+		numL = np.unique(L).size
+		A = np.hstack([[0.0]*numL,A])
+		L = np.hstack([L[:numL],L])
+		W = np.vstack([[0.0]*numL,W])
+		
+#	srtidx = A.argsort()
+#	A, L = A[srtidx], L[srtidx]
+#	W = W.flatten()[srtidx]
+	W = W.flatten()
+	
+	## ------------------------------------------------------------------------
 	## Plotting
 	
 	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
-	plt.set_cmap("seismic")
 	
-	im = ax.scatter(A, L, c=W.flatten(), marker="o", s=100)
+	"""## 2D plot with colour for wind
+	if 0:
+		plt.set_cmap("seismic")
+		im = ax.scatter(A, L, c=W, marker="o", s=100)
+		
+		## Keys
+		cbar = fig.colorbar(im, ax=ax, aspect=50)
+		cbar.ax.get_yaxis().labelpad = 30
+		cbar.ax.set_ylabel(r"Winding rate", rotation=270, fontsize=fs["fsl"]-4)
+		wmax = max([W.max(),-W.min()])
+		cbar.set_clim(vmin=-wmax,vmax=+wmax)
+		cbar.ax.tick_params(labelsize=fs["fsl"]-4)
+		cbar.locator = MaxNLocator(5);	cbar.update_ticks()
+		plt.subplots_adjust(right=1.0)
+		
+		ax.set_xlim(0.0,A.max())
+		ax.set_ylim(0.49,1.0)
+		
+		## Figure
+		ax.set_xlabel(r"$\alpha$")
+		ax.set_ylabel(r"$L/\lambda$")
+		ax.grid()"""
 	
-	## Keys
-	cbar = fig.colorbar(im, ax=ax, aspect=50)
-	cbar.ax.get_yaxis().labelpad = 30
-	cbar.ax.set_ylabel(r"Winding rate", rotation=270, fontsize=fs["fsl"]-4)
-	wmax = max([W.max(),-W.min()])
-	cbar.set_clim(vmin=-wmax,vmax=+wmax)
-	cbar.ax.tick_params(labelsize=fs["fsl"]-4)
-	cbar.locator = MaxNLocator(5);	cbar.update_ticks()
-	plt.subplots_adjust(right=1.0)
-	
+	## Plot several lines
+	for Li in np.unique(L):
+		idx = (L==Li)
+		ax.plot(A[idx], W[idx], "o-", label=r"$%.1f$"%((lam-Li)/lam))
+		
+	leg = ax.legend(loc="best")
+	leg.set_title(r"$\ell/\lambda$", prop={"size":fs["fsl"]})
+	leg.get_frame().set_alpha(0.7)
 	ax.set_xlim(0.0,A.max())
-	ax.set_ylim(0.49,1.0)
 	
 	## Figure
 	ax.set_xlabel(r"$\alpha$")
-	ax.set_ylabel(r"$L/\lambda$")
+	ax.set_ylabel(r"$\left< v \right>$")
+	ax.set_title(r"$\lambda=%.1f$"%(lam), fontsize=fs["fsa"])
 	ax.grid()
-	
+		
 	## ------------------------------------------------------------------------
 	
 	if outdir:
-		plotfile = outdir+"/WIND."+fs["saveext"]
+		plotfile = outdir+"/WIND_lam%.1f."%(lam)+fs["saveext"]
 		fig.savefig(plotfile)
 		if vb:	print me+"Density plot saved to",plotfile
 	
@@ -246,88 +311,88 @@ def plot_wind(lam,tmax,dt,outdir,vb):
 	return
 
 
-##=================================================================================================
-def plot_traj():
-	raise NotImplementedError
-	## ----------------------------------------------------------------
-	## PLOT TRAJECTORY
+# ##=================================================================================================
+# def plot_traj():
+	# raise NotImplementedError
+	# ## ----------------------------------------------------------------
+	# ## PLOT TRAJECTORY
 	
-	exit()
-	print me+"Starting to plot trajectories."
+	# exit()
+	# print me+"Starting to plot trajectories."
 	
-	outdir = outdir+"/RECT_CAR_L_a%.1f_L%.1f_l%.1f_t%.1f"%(a,L,lam,opt.tfac)
+	# outdir = outdir+"/RECT_CAR_L_a%.1f_L%.1f_l%.1f_t%.1f"%(a,L,lam,opt.tfac)
 
 	
-	## Coarsen to speed up plotting
-	crsn = 5
-	if crsn>1:
-		x = x[::crsn]
-		ex = ex[::crsn]
+	# ## Coarsen to speed up plotting
+	# crsn = 5
+	# if crsn>1:
+		# x = x[::crsn]
+		# ex = ex[::crsn]
 	
-	## Number of steps per frame
-	nsteps = int(tmax/dt/crsn)
-	stride = 50/crsn	## Make a frame every stride timesteps
-	numf = nsteps/stride
+	# ## Number of steps per frame
+	# nsteps = int(tmax/dt/crsn)
+	# stride = 50/crsn	## Make a frame every stride timesteps
+	# numf = nsteps/stride
 	
-	## Loop over frames
-	for fnum in range(numf):
-		ti = time.time()
-		fig = plot_traj(x[:fnum*stride],ex[:fnum*stride],L,lam,a,dt,x.size,vb)
+	# ## Loop over frames
+	# for fnum in range(numf):
+		# ti = time.time()
+		# fig = plot_traj(x[:fnum*stride],ex[:fnum*stride],L,lam,a,dt,x.size,vb)
 	
-		## Save
-		plotfile = outdir+"/f%04d."%(fnum)+fs["saveext"]
-		fig.savefig(plotfile)
-		plt.close()
-		if not fnum%10: print me+"Frame %04d/%04d saved. Time per file %.1f seconds."%(fnum,numf,time.time()-ti)
+		# ## Save
+		# plotfile = outdir+"/f%04d."%(fnum)+fs["saveext"]
+		# fig.savefig(plotfile)
+		# plt.close()
+		# if not fnum%10: print me+"Frame %04d/%04d saved. Time per file %.1f seconds."%(fnum,numf,time.time()-ti)
 
-	return
+	# return
 	
-##=============================================================================
+# ##=============================================================================
 	
-def plot_traj(x,ex,L,lam,a,dt,totpts,vb):
-	"""
-	"""
-	me = me0+".plot_traj: "
+# def plot_traj(x,ex,L,lam,a,dt,totpts,vb):
+	# """
+	# """
+	# me = me0+".plot_traj: "
 
-	fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
+	# fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 	
-	## ------------------------------------------------------------------------
-	## LINE COLOUR
-	## Constant colour for each line segment of CH points
-	## Colour decays away and hits min value.
+	# ## ------------------------------------------------------------------------
+	# ## LINE COLOUR
+	# ## Constant colour for each line segment of CH points
+	# ## Colour decays away and hits min value.
 	
-	cm = plt.get_cmap("GnBu")
+	# cm = plt.get_cmap("GnBu")
 	
-	CH = int(a/dt/5)	## Points in a colouring chunk
-	NCH = totpts/CH ## Total number of chunks
-	NCHC = 50 ## Number of coloured chunks, after which line is cmin
-	cmin = 0.3
+	# CH = int(a/dt/5)	## Points in a colouring chunk
+	# NCH = totpts/CH ## Total number of chunks
+	# NCHC = 50 ## Number of coloured chunks, after which line is cmin
+	# cmin = 0.3
 	
-	## colourlist is linearly declining until NCHC chunks have been coloured, then constant colour
-	colourlist = [cm(max(1.*(NCHC-i)/(NCHC-1),cmin)) for i in range(NCHC)] + [cm(cmin)]*(NCH-NCHC)
+	# ## colourlist is linearly declining until NCHC chunks have been coloured, then constant colour
+	# colourlist = [cm(max(1.*(NCHC-i)/(NCHC-1),cmin)) for i in range(NCHC)] + [cm(cmin)]*(NCH-NCHC)
 	
-	ax.set_prop_cycle("color", colourlist) #if system()=="Linux" else ax.set_color_cycle(colourlist)
-	## ------------------------------------------------------------------------	
+	# ax.set_prop_cycle("color", colourlist) #if system()=="Linux" else ax.set_color_cycle(colourlist)
+	# ## ------------------------------------------------------------------------	
 
-	x = x[::-1]
-	ex = ex[::-1]
-	for i in range(totpts/CH):
-		xseg = x[i*CH:(i+1)*CH+1]
-		exseg = ex[i*CH:(i+1)*CH+1]
-		ax.plot(xseg,exseg, "x")
+	# x = x[::-1]
+	# ex = ex[::-1]
+	# for i in range(totpts/CH):
+		# xseg = x[i*CH:(i+1)*CH+1]
+		# exseg = ex[i*CH:(i+1)*CH+1]
+		# ax.plot(xseg,exseg, "x")
 							
-	## Plot walls
-	xx = np.linspace(0,lam,1000)
-	U = -sp.integrate.cumtrapz(force_rect(xx,L,lam), xx, initial=0.0)
-	ax.plot(xx, U, "k--", label=r"$U(x)$")
+	# ## Plot walls
+	# xx = np.linspace(0,lam,1000)
+	# U = -sp.integrate.cumtrapz(force_rect(xx,L,lam), xx, initial=0.0)
+	# ax.plot(xx, U, "k--", label=r"$U(x)$")
 	
-	ax.set_xlim(0,lam)
-	ax.set_ylim(-3/a**0.5,+3/a**0.5)
-	ax.set_xlabel(r"$x$")
-	ax.set_ylabel(r"$\eta$")
-	ax.grid()
+	# ax.set_xlim(0,lam)
+	# ax.set_ylim(-3/a**0.5,+3/a**0.5)
+	# ax.set_xlabel(r"$x$")
+	# ax.set_ylabel(r"$\eta$")
+	# ax.grid()
 	
-	return fig
+	# return fig
 	
 ##=============================================================================
 
@@ -362,6 +427,9 @@ def force_rect(x,L,lam):
 	fx = -1.0*x*(x<=L)+(L/(lam-L))**2*(lam-x)*(x>L)
 	return fx
 	
+## ====================================================================
+
+
 ## ====================================================================
 ## ====================================================================
 if __name__=="__main__":

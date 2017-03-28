@@ -10,9 +10,10 @@ from matplotlib.ticker import MaxNLocator, NullLocator
 from mpl_toolkits.mplot3d import axes3d
 from LE_Utils import fs, set_mplrc
 
-from LE_CSim import force_clin, force_mlin, force_nlin, force_ulin
+from LE_CSim import force_clin, force_mlin, force_nlin, force_ulin, force_dcon
 from LE_CSim import force_dlin as force_Cdlin
 from LE_SSim import force_dlin as force_Pdlin
+from LE_Rectify import force_rect	
 
 set_mplrc(fs)
 
@@ -32,13 +33,14 @@ def plot_U1D_Cartesian(ax, ftype, R, S, T):
 
 	if ftype is "dlin":		fx = force_Cdlin([x,0],R,S)[0]
 	elif ftype is "nlin":	fx = force_nlin([x,0],R,S)[0]
+	elif ftype is "dcon":	fx = force_dcon([x,0],R,S)[0]
 	else: raise IOError, me+"Option not available yet."
 
 	U = -sp.integrate.cumtrapz(fx,x,initial=0.0); U-=U.min()
 
 	ax.plot(x, U, "k-")
 	
-	if ftype is "dlin":
+	if ftype is "dlin" or ftype is "dcon":
 		ay = 0.15*U.max()
 		ax.annotate("",[S,ay],[R,ay],
 			arrowprops=dict(arrowstyle='<|-|>',facecolor='black'))
@@ -194,6 +196,48 @@ def plot_U3D_ulin(ax, R, S, T):
 	ax.yaxis.labelpad = lp
 	ax.zaxis.labelpad = lp
 	
+	return
+	
+##=============================================================================
+
+## 2D potential -- CAR ULIN
+def plot_U2D_ulin(ax, R, A, l):
+	"""
+	Plot undulating potential in 2D. Must be passed axes and parameters.
+	"""
+	p=0.0
+	
+	x = np.linspace(0.0,R+1.2*A,201)
+	y = np.linspace(0,l,101)
+
+	X, Y = np.meshgrid(x, y, indexing="ij")
+	U = 0.5*(X-R-A*np.sin(2*np.pi*Y/l))**2 * (X>R+A*np.sin(2*np.pi*Y/l)) +\
+		0.5*(X+R-A*np.sin(2*np.pi*Y/l+p))**2 * (X<-R+A*np.sin(2*np.pi*Y/l+p))
+	U = (U[:,::-1])**0.6
+	
+	##-------------------------------------------------------------------------
+	## Plotting
+	
+	plt.rcParams["image.cmap"] = "Greys"
+
+	##-------------------------------------------------------------------------
+	## Plot potential
+
+	ax.contourf(x, y, U.T, 30)
+
+	## Wall boundary
+	yfine = np.linspace(y[0],y[-1],2001)
+	ax.scatter(R-A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
+	ax.scatter(-R-A*np.sin(2*np.pi*yfine/l+p), yfine, c="k", s=1)
+
+	ax.set_xlim((x[0],x[-1]))
+	ax.set_ylim((y[0],y[-1]))
+	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+	ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
+	
+	ax.xaxis.set_major_locator(NullLocator())
+	ax.yaxis.set_major_locator(NullLocator())
+
 	return
 
 ##=============================================================================
@@ -382,7 +426,7 @@ if __name__=="__main__":
 	##=============================================================================
 	
 	## 3D POLAR
-	if 1:
+	if 0:
 		fig = plt.figure()
 		ax = fig.add_subplot(111, projection='3d')
 
@@ -400,13 +444,14 @@ if __name__=="__main__":
 	##=============================================================================
 	
 	## 2D force -- for ULIN
-	if 1:
+	if 0:
 		R = 1.0
 		A = 0.5
 		l = 1.0
-		p = np.pi/2
+		p = 0.0*np.pi
 		
-		x = np.linspace(-R-1.5*A,R+1.5*A,201)
+		x = np.linspace(0.0,R+1.0*A,201)
+#		x = np.linspace(-R-1.5*A,R+1.5*A,201)
 		y = np.linspace(0,2*l,101)
 
 		fxy = np.array([force_ulin([xi,yi],R,A,l,p) for xi in x for yi in y]).reshape((x.size,y.size,2))
@@ -419,8 +464,8 @@ if __name__=="__main__":
 		
 		##-------------------------------------------------------------------------
 		## Plotting
-		lvls = 15
-		plt.rcParams["image.cmap"] = "coolwarm"
+		lvls = 20
+		plt.rcParams["image.cmap"] = "Greys"
 	
 		##-------------------------------------------------------------------------
 		## Plot potential
@@ -428,10 +473,10 @@ if __name__=="__main__":
 		fig, ax = plt.subplots(1,1, figsize=fs["figsize"])
 		fig.canvas.set_window_title("Potential")
 	
-		ax.contourf(x,y,U.T, lvls)
+		ax.contourf(x,y,(U.T)**0.7, lvls)
 
 		## Wall boundary
-		yfine = np.linspace(y[0],y[-1],1000)
+		yfine = np.linspace(y[0],y[-1],2001)
 		ax.scatter(R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
 		ax.scatter(-R+A*np.sin(2*np.pi*yfine/l+p), yfine, c="k", s=1)
 
@@ -440,28 +485,34 @@ if __name__=="__main__":
 		ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 		ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
 		
+		ax.xaxis.set_major_locator(NullLocator())
+		ax.yaxis.set_major_locator(NullLocator())
+		
 		##-------------------------------------------------------------------------
 		## Plot force
 	
-		fig, ax = plt.subplots(1,1, figsize=fs["figsize"], sharey=True)
-		fig.canvas.set_window_title("Force")
+#		fig, ax = plt.subplots(1,1, figsize=fs["figsize"], sharey=True)
+#		fig.canvas.set_window_title("Force")
 
-		ax.contourf(x,y,f.T, lvls)
-	
-		U, V = fxy
-		stp = [3,3]
-		ax.quiver(X[::stp[0],::stp[1]], Y[::stp[0],::stp[1]], U[::stp[0],::stp[1]], V[::stp[0],::stp[1]],
-				units="width")#, color='r', linewidths=(1,), edgecolors=('k'), headaxislength=5)
-	
-		## Wall boundary
-		yfine = np.linspace(y[0],y[-1],1000)
-		ax.scatter(R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
-		ax.scatter(-R+A*np.sin(2*np.pi*yfine/l+p), yfine, c="k", s=1)
+#		ax.contourf(x,y,f.T, lvls)
+#	
+#		U, V = fxy
+#		stp = [3,3]
+#		ax.quiver(X[::stp[0],::stp[1]], Y[::stp[0],::stp[1]], U[::stp[0],::stp[1]], V[::stp[0],::stp[1]],
+#				units="width")#, color='r', linewidths=(1,), edgecolors=('k'), headaxislength=5)
+#	
+#		## Wall boundary
+#		yfine = np.linspace(y[0],y[-1],1000)
+#		ax.scatter(R+A*np.sin(2*np.pi*yfine/l), yfine, c="k", s=1)
+#		ax.scatter(-R+A*np.sin(2*np.pi*yfine/l+p), yfine, c="k", s=1)
 
-		ax.set_xlim((x[0],x[-1]))
-		ax.set_ylim((y[0],y[-1]))
-		ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
-		ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
+#		ax.set_xlim((x[0],x[-1]))
+#		ax.set_ylim((y[0],y[-1]))
+#		ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
+#		ax.set_ylabel(r"$y$", fontsize=fs["fsa"])
+#		
+#		ax.xaxis.set_major_locator(NullLocator())
+#		ax.yaxis.set_major_locator(NullLocator())
 
 		##-------------------------------------------------------------------------
 
@@ -547,5 +598,28 @@ if __name__=="__main__":
 		S = 1.0
 		T = 0.0
 		UP_CL(fig,ax,R,S,T)
+		plt.show()
+		
+		
+	## RECTIFICATION	
+	if 1:
+		L, lam = 0.7,1.0
+		x = np.linspace(0,lam,1000)
+		fx = force_rect(x,L,lam)
+		
+		fig, ax = plt.subplots(1,1)
+
+		ax.plot(x,fx)
+		ax.grid()
+		
+		ax.set_xlabel(r"$x$")
+		ax.set_ylabel(r"$f(x)$")
+		
+		ax.set_xticks([0,0.5*lam,L,lam])
+		ax.set_xticklabels([r"$0$",r"$\frac{1}{2}(L+\ell)$",r"$L$",r"$L+\ell$"])
+		
+		ax.set_yticks([-L,0,+L*L/(lam-L)])
+		ax.set_yticklabels([r"$-L$",r"$0$",r"$L^2/\ell$"])
+		
 		plt.show()
 
