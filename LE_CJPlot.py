@@ -79,6 +79,7 @@ def plot_current_1d(histfile, nosave, vb):
 	a = filename_par(histfile, "_a")
 	R = filename_par(histfile, "_R")
 	S = filename_par(histfile, "_S")
+	T = filename_par(histfile, "_T")
 	
 	##-------------------------------------------------------------------------
 		
