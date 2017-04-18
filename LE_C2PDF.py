@@ -15,7 +15,7 @@ from matplotlib.ticker import MaxNLocator
 
 from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 from LE_Utils import filename_par, fs, set_mplrc
-from schem_force import plot_U3D_ulin
+from schem_force import plot_U3D_ulin, plot_U2D_ulin
 
 import warnings
 warnings.filterwarnings("ignore",category=FutureWarning)
@@ -42,7 +42,7 @@ def main():
 	t0 = time.time()
 	
 	parser = optparse.OptionParser(conflict_handler="resolve")
-	parser.add_option('-1','--1dplot','--slices',
+	parser.add_option('-1','--1dplot','--slices','--multi',
 		dest="slices", default=False, action="store_true")
 	parser.add_option('--intx',
 		dest="intx", default=False, action="store_true")
@@ -152,8 +152,8 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	## Plot density
 	cax = ax.contourf(x, y, rho.T, lvls)
-	cbar = fig.colorbar(cax,)
-	cbar.locator = MaxNLocator(nbins=5); cbar.update_ticks()
+#	cbar = fig.colorbar(cax,)
+#	cbar.locator = MaxNLocator(nbins=5); cbar.update_ticks()
 	
 	## Indicate bulk
 	yfine = np.linspace(y[0],y[-1],1000)
@@ -164,19 +164,29 @@ def plot_pdf2d(histfile, nosave, vb):
 	
 	ax.set_xlabel(r"$x/\lambda$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$y/\lambda$", fontsize=fs["fsa"])
-#	ax.set_title(r"$\rho(x,y)$ data", fontsize=fs["fsa"])
 	
 	ax.xaxis.set_major_locator(MaxNLocator(5))
 	
 	ax.grid()
 	
 	## ------------------------------------------------------------------------
+	## Potential inset
 	
 	## Plot potential in 3D
-	left, bottom, width, height = [0.44, 0.16, 0.30, 0.30]	## For upper right
-	axin = fig.add_axes([left, bottom, width, height], projection="3d")
+#	left, bottom, width, height = [0.44, 0.16, 0.30, 0.30]	## For lower right
+#	axin = fig.add_axes([left, bottom, width, height], projection="3d")
+#	Rschem, Sschem, Tschem = (2.0,1.0,1.0)
+#	plot_U3D_ulin(axin, Rschem, Sschem, Tschem)
+	## Plot potential in 2D
+	try:
+		cbar
+		left, bottom, width, height = [0.47, 0.16, 0.25, 0.25]	## For lower right
+	except:
+		left, bottom, width, height = [0.57, 0.16, 0.30, 0.30]
+	axin = fig.add_axes([left, bottom, width, height])
 	Rschem, Sschem, Tschem = (2.0,1.0,1.0)
-	plot_U3D_ulin(axin, Rschem, Sschem, Tschem)
+	plot_U2D_ulin(axin, Rschem, Sschem, Tschem)
+	
 	axin.set_axis_bgcolor(plt.get_cmap()(0.00))
 	axin.patch.set_facecolor("None")
 		
@@ -244,13 +254,14 @@ def plot_pdf1d(histfile, nosave, vb):
 	
 	## Slices to plot
 	idxs = np.linspace(y.size/4,y.size*3/4,11)
-	labs = [r"$"+str(float(i)/y.size)+"\lambda$" for i in idxs]
+	labs = [r"$"+str(float(i)/y.size)+"$" for i in idxs]
 	
 	## Plot density and wall
 	for i, idx in enumerate(idxs):
 		sp.ndimage.gaussian_filter1d(rho[:,idx],1.0,order=0,output=rho[:,idx])
-		ax.plot(x, rho[:,idx], label=labs[i])
-		ax.axvline(+R-S*np.sin(2*np.pi*y[idx]/T), c=ax.lines[-1].get_color(),ls="--")
+		off = 0.0*S*np.sin(idxs[i]/y.size*T*2*np.pi)
+		ax.plot(x+off, rho[:,idx], label=labs[i])
+		ax.axvline(+R-S*np.sin(2*np.pi*y[idx]/T)+off, c=ax.lines[-1].get_color(),ls="--")
 	
 	ax.set_xlim(xbins[0],xbins[-1])
 	
@@ -260,7 +271,9 @@ def plot_pdf1d(histfile, nosave, vb):
 	ax.xaxis.set_major_locator(MaxNLocator(5))
 	ax.yaxis.set_major_locator(MaxNLocator(7))
 	ax.grid()
-	ax.legend(loc="upper left")
+	leg = ax.legend(loc="upper left",ncol=1)
+	leg.set_title(r"$y^\ast/\lambda$", prop={"size":fs["fsl"]})
+	# leg.get_frame().set_alpha(0.7)
 	
 	## ------------------------------------------------------------------------
 	

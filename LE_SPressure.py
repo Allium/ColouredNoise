@@ -726,7 +726,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 					## Normalise by PEN
 #					ax.plot(RR,np.diagonal(PP-QQ).T[:,i]/np.diagonal(PP_WN).T[:,i]/np.sqrt(AA[i]), "o-", label=r"$\alpha = "+str(AA[i])+"$")
 					## Normalise by PE2
-					ax.plot(RR,np.diagonal(PP-QQ).T[:,i]/PP_E2[i]/np.sqrt(AA[i]), "o-", label=r"$\alpha = "+str(AA[i])+"$")
+					ax.plot(RR,np.diagonal(PP-QQ).T[:,i]/PP_E2[i]/np.sqrt(AA[i]), "o-", label=r"$"+str(AA[i])+"$")
 					## Normalise by Pout
 #					ax.plot(RR,np.diagonal(1-QQ/PP).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$")
 					## Individual
@@ -891,9 +891,11 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 	
 	ax.grid()
 	try:
-		ax.legend(loc=legloc,fontsize=fs["fsl"]-2, ncol=2).get_frame().set_alpha(0.5)
+		leg = ax.legend(loc=legloc,fontsize=fs["fsl"]-2, ncol=2)
 	except UnboundLocalError:
-		ax.legend(loc="best",fontsize=fs["fsl"], ncol=2).get_frame().set_alpha(0.5)
+		leg = ax.legend(loc="best",fontsize=fs["fsl"], ncol=2)
+	leg.get_frame().set_alpha(0.5)
+	leg.set_title(r"${k\tau}/{\zeta}$", prop={"size":fs["fsl"]})
 #	fig.suptitle(title,fontsize=fs["fst"])
 	
 	#plt.tight_layout();	plt.subplots_adjust(top=0.9)

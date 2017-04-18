@@ -195,7 +195,7 @@ def main(a,ftype,R,S,T,P,dt,timefac,vb):
 	## ------------
 	## Bin edges: x, etax, etay
 	
-	Nxbin = int(500 * (xmax-xmin))
+	Nxbin = int(200 * (xmax-xmin))
 	Nybin = int(100 * (ymax-ymin))
 	xbins = np.linspace(xmin,xmax,Nxbin+1)
 	ybins = np.linspace(ymin,ymax,Nybin+1)

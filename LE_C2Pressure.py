@@ -27,6 +27,10 @@ set_mplrc(fs)
 def main():
 	"""
 	Adapted from LE_CPDF.py.
+	
+	Plot pressure on sinusoidal wall, given a directory of histfiles.
+	Call with specific geometry parameters S,T to plot Px(y) for many alpha.
+	If S,T vary, will plot flat wall pressure.
 	"""
 	me = me0+".main: "
 	t0 = time.time()
@@ -300,7 +304,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	ax.set_xlabel(xlabel, fontsize=fs["fsa"])
 	ax.set_ylabel(ylabel, fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="best", fontsize=fs["fsl"]).get_frame().set_alpha(0.5)
+	ax.legend(loc="best", fontsize=fs["fsl"], ncol=2).get_frame().set_alpha(0.5)
 	# fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:

@@ -88,12 +88,14 @@ def plot_current_1d(histfile, nosave, vb):
 	xbins = bins["xbins"]
 	exbins = bins["exbins"]
 	x = 0.5*(xbins[1:]+xbins[:-1])
+	## Double space
+	x = np.hstack([-x[::-1],x])
 	etax = 0.5*(exbins[1:]+exbins[:-1])
 	X, ETAX = np.meshgrid(x,etax, indexing="ij")
 	
 	## Wall indices
 	Rind, Sind = np.abs(x-R).argmin(), np.abs(x-S).argmin()
-	
+		
 	##-------------------------------------------------------------------------
 	
 	## Force
@@ -110,6 +112,9 @@ def plot_current_1d(histfile, nosave, vb):
 	H = np.load(histfile)
 	rho = H.sum(axis=2) / (H.sum() * (x[1]-x[0])*(etax[1]-etax[0]))
 	
+	## Double space
+	rho = np.vstack([rho[::-1,::-1],rho])
+	
 	## Currents
 	Jx = (F + ETAX)*rho
 	Jy = -1/a*ETAX*rho - 1/(a*a)*np.gradient(rho,etax[1]-etax[0])[1]
@@ -119,8 +124,8 @@ def plot_current_1d(histfile, nosave, vb):
 	
 	## SMOOTHING
 	
-	Vy = sp.ndimage.gaussian_filter(Vy, 1.0, order=0)
-	
+	Vy = sp.ndimage.gaussian_filter(Vy, 2.0, order=0)
+		
 	##-------------------------------------------------------------------------
 	
 	## PLOTTING
@@ -134,19 +139,25 @@ def plot_current_1d(histfile, nosave, vb):
 	
 	## Data
 	ax.contourf(x, etax, rho.T)
-	sx, se = 30, 5
-	ax.quiver(x[::sx], etax[::se], Vx.T[::se,::sx], Vy.T[::se,::sx])
-	
+	sx, se = 50, 5
+#	sx, se = 20, 2
+	ax.quiver(x[::sx], etax[::se], Vx.T[::se,::sx], Vy.T[::se,::sx] , scale=2, units='x', width=0.011*2)
 	
 	## Indicate bulk
-	ax.axvline(S,c="k",lw=1)
-	ax.axvline(R,c="k",lw=1)
+	if 0:
+		ax.axvline(S,c="k",lw=1)
+		ax.axvline(R,c="k",lw=1)
 	
 	## Set number of ticks
-	ax.xaxis.set_major_locator(NullLocator())	#MaxNLocator(5)
-	ax.yaxis.set_major_locator(NullLocator())	#MaxNLocator(4)
+#	ax.xaxis.set_major_locator(NullLocator())	#MaxNLocator(5)
+#	ax.yaxis.set_major_locator(NullLocator())	#MaxNLocator(4)
+	ax.set_xticks([-S,-0.5*(S+T),T,+0.5*(S+T),+S])
+	ax.set_xticklabels([""]*5)
+	ax.set_yticks([-0.5*(S+T),0.0,+0.5*(S+T)])
+	ax.set_yticklabels([""]*3)
 	
-	ax.set_xlim(left=x[0],right=x[-1])
+#	ax.set_xlim(left=x[0],right=x[-1])
+	ax.set_xlim(left=-S*2,right=S*2)
 	ax.set_xlabel(r"$x$", fontsize=fs["fsa"])
 	ax.set_ylabel(r"$\eta$", fontsize=fs["fsa"])
 	ax.grid()
@@ -154,18 +165,30 @@ def plot_current_1d(histfile, nosave, vb):
 		
 	##-------------------------------------------------------------------------
 	
+	## Add force line
+	if 1:
+		ax.plot(x, -fx, "k-", label=r"$-f(x)$")
+		ymax = min(3*fx.max(),etax.max())
+		ax.set_ylim(-ymax,ymax)
+		
+	##-------------------------------------------------------------------------
+	
 	## Add in BC line
 	if 1:
 		from LE_CBulkConst import bulk_const
 		x, Q, BC = bulk_const(histfile)
-		ax.plot(x, (Q/Q.max() )*2.0+ax.get_ylim()[0], "b-", lw=4)
-		ax.plot(x, (BC/Q.max())*2.0+ax.get_ylim()[0], "r-", lw=4)
+		## Double space
+		x = np.hstack([-x[::-1],x])
+		Q = np.hstack([Q[::-1],Q])
+		BC = np.hstack([BC[::-1],BC])
+		ax.plot(x, (Q/Q.max())*0.5*ax.get_ylim()[1]+ax.get_ylim()[0], "b-", lw=4)
+		ax.plot(x, (BC/BC.max())*0.5*ax.get_ylim()[1]+ax.get_ylim()[0], "r-", lw=4)
 		ax2 = ax.twinx()
 		ax2.yaxis.set_major_locator(NullLocator())
 		ax2.set_ylabel(r"$n$ \& $\left<\eta^2\right>n$ \hfill")
 		ax2.yaxis.set_label_coords(-0.07,0.15)
 		# ax.yaxis.set_label_coords(-0.07,0.5)
-	
+			
 	##-------------------------------------------------------------------------
 		
 	if not nosave:

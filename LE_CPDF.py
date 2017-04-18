@@ -150,6 +150,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	
 	## Data
 	ax.plot(x, Qx, label=r"OUP")
+	ax.fill_between(x, 0.0, Qx, color="b", alpha=0.1)
 	
 	## Gaussian for spatial density
 	if doQfit:
@@ -164,8 +165,12 @@ def plot_pdf1d(histfile, nosave, vb):
 	else: raise IOError, me+"Force not recognised."
 	U = -sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
 	
-#	ax.set_ylim((0.0,1.2))	###
-	ax.plot(x, np.exp(-U)/np.trapz(np.exp(-U),x), "r-", label="Passive")
+	## Plot passive density
+	Qx_WN = np.exp(-U)/np.trapz(np.exp(-U),x)
+	ax.plot(x, Qx_WN, "r-", label="Passive")
+	ax.fill_between(x, 0.0, Qx_WN, color="r", alpha=0.1)
+	
+	## Plot potential
 	ax.plot(x, U/U.max()*ax.get_ylim()[1], "k--",label=r"$U(x)$")
 	
 	## Indicate bulk

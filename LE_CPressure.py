@@ -536,7 +536,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	if logplot:
 		ax.set_xscale("log"); ax.set_yscale("log")
 		ax.set_xlim((ax.get_xlim()[0],A[-1]+1))
-		xlabel = r"$1+\alpha$"
+		xlabel = r"$1+\frac{k\tau}{\zeta}$"
 		plotfile = plotfile[:-4]+"_loglog."+fs["saveext"]
 	else:
 		ax.set_xlim((0.0,A[-1]))

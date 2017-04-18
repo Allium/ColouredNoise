@@ -16,7 +16,7 @@ from LE_CSim import force_dlin, force_clin, force_mlin, force_nlin
 from LE_Utils import filename_par, fs, set_mplrc
 
 from test_etaCas import plot_peta_CL
-from test_force import plot_U1D_Cartesian
+from schem_force import plot_U1D_Cartesian
 from matplotlib.ticker import MaxNLocator, NullLocator
 
 import warnings
@@ -184,7 +184,7 @@ def plot_PM(histdir, srchstr, nosave, vb):
 		ax.grid()
 	
 		## Axis labels
-		ax.set_xlabel(r"$\alpha$", fontsize=fs["fsa"])
+		ax.set_xlabel(r"$\frac{k\tau}{\zeta}$", fontsize=fs["fsa"])
 		ax.set_ylabel(r"$P/P^{\rm passive}$ and $M/M^{\rm passive}$", fontsize=fs["fsa"])
 		
 		## Inset placement
@@ -216,10 +216,10 @@ def plot_PM(histdir, srchstr, nosave, vb):
 		axin.axvspan(x[0],-x[cuspind], color=lR[0].get_color(),alpha=0.2)
 		axin.axvspan(-x[cuspind],x[cuspind], color=lL[0].get_color(),alpha=0.2)
 		axin.axvspan(x[cuspind],x[-1], color=lR[0].get_color(),alpha=0.2)
-		axin.set_xlim(x[0], x[-1])
+		axin.set_xlim(-Rschem, +Rschem)
 		axin.set_ylim(top=3*U[cuspind])
-		axin.set_yticks([1.0])
-		axin.set_yticklabels(["1"])
+		axin.set_yticks([0.0,1.0])
+		axin.set_yticklabels(["0","1"])
 		axin.xaxis.set_major_locator(NullLocator())
 		axin.grid()
 		axin.set_xlabel(r"$x$", fontsize = fs["fsa"]-5)
@@ -257,7 +257,8 @@ def plot_PM(histdir, srchstr, nosave, vb):
 		## Plot q(eta) as inset
 		axin = fig.add_axes([qleft, qbottom, qwidth, qheight])
 		## Grab a file. Hacky. Assumes only one match.
-		histfile = glob.glob(histdir+"/BHIS_CAR_ML_a10.0_*"+srchstr+"*.npy")[0]
+#		histfile = glob.glob(histdir+"/BHIS_CAR_ML_a10.0_*"+srchstr+"*.npy")[0]
+		histfile = histdir+"/BHIS_CAR_ML_a5.0_R4.0_S4.0_T2.0_dt0.01.npy"
 		plot_peta_CL(histfile, fig, axin, True)
 		axin.xaxis.set_major_locator(NullLocator())
 		axin.yaxis.set_major_locator(NullLocator())

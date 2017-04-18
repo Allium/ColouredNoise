@@ -1,12 +1,11 @@
-me0 = "test_etaPDF"
+me0 = "test_etaCas"
 
 import numpy as np
 import scipy as sp
 from scipy.optimize import curve_fit
 from matplotlib import pyplot as plt
 from matplotlib.ticker import MaxNLocator, NullLocator
-from sys import argv
-import os
+import os, optparse, glob, time
 from LE_Utils import filename_par, fs, set_mplrc
 
 from LE_CSim import force_mlin
@@ -23,16 +22,32 @@ def main():
 	"""
 	me = me0+".main: "
 
-	histfile = argv[1]
+	parser = optparse.OptionParser(conflict_handler="resolve")
+	parser.add_option('-s','--show',
+		dest="showfig", default=False, action="store_true")
+	parser.add_option('-a','--plotall',
+		dest="plotall", default=False, action="store_true")
+	parser.add_option('--str',
+		dest="searchstr", default="", type="str")
+	parser.add_option('--nosave',
+		dest="nosave", default=False, action="store_true")
+	parser.add_option('-v','--verbose',
+		dest="verbose", default=False, action="store_true")
+	opt, args = parser.parse_args()
+	showfig = opt.showfig
+	plotall = opt.plotall
+	searchstr = opt.searchstr
+	nosave = opt.nosave
+	vb = opt.verbose
 
-	## To save, need argv2. 	try: nosave = not bool(argv[2])
-	except IndexError: nosave = True
+	histfile = args[0]
 	
 	fig, ax = plt.subplots(1,1)
 	
 	plot_peta_CL(histfile, fig, ax, nosave)
 	
-#	plt.show()
+	if showfig:
+		plt.show()
 	
 	return
 
@@ -82,11 +97,13 @@ def plot_peta_CL(histfile, fig, ax, nosave=True):
 		qin  = H[Tind]
 		qout = np.trapz(H[Sind:Rind+1], x[Sind:Rind+1], axis=0)
 		labels = ["Interior","Bulk"]
+		colour = ["g","b"]
 	elif "_ML_" in histfile:
 		## in is now right region and out is left region
 		qin  = np.trapz(H[Sind:Rind+1], x[Sind:Rind+1], axis=0) if Sind!=Rind else H[Sind]
 		qout = np.trapz(H[x.size-Rind:Tind], x[x.size-Rind:Tind], axis=0)
 		labels = ["Small bulk","Large bulk"]
+		colour = ["b","g"]
 
 	## Normalise each individually so we can see just distrbution
 	qin /= np.trapz(qin, ex)
@@ -95,10 +112,34 @@ def plot_peta_CL(histfile, fig, ax, nosave=True):
 	##---------------------------------------------------------------	
 	## PDF PLOT
 	
-	ax.plot(ex, qin, "b-", label=labels[0])
-	ax.fill_between(ex,0,qin,facecolor="blue",alpha=0.1)
-	ax.plot(ex, qout, "g-", label=labels[1])
-	ax.fill_between(ex,0,qout,facecolor="green",alpha=0.1)
+	ax.plot(ex, qout, colour[0]+"-", label=labels[1])
+	ax.fill_between(ex,0,qout,facecolor=colour[0],alpha=0.1)
+	ax.plot(ex, qin, colour[1]+"-", label=labels[0])
+	ax.fill_between(ex,0,qin,facecolor=colour[1],alpha=0.1)
+	
+##	##---------------------------------------------------------------	
+##	## Entire in/out region
+##	qIN  = np.trapz(H[0:cuspind], x[0:cuspind], axis=0)
+##	qOUT = np.trapz(H[cuspind:], x[cuspind:], axis=0)
+##	## Normalise pdf
+###	qIN /= np.trapz(qIN, ex)
+###	qOUT /= np.trapz(qOUT, ex)
+##	## Normalise by size of region
+###	qIN /= x[cuspind]-x[0]
+###	qOUT /= x[-1]-x[cuspind]
+##	## Plot
+###	ax.plot(ex, qIN, "b-", label=labels[0])
+###	ax.fill_between(ex,0,qIN,facecolor="blue",alpha=0.1)
+###	ax.plot(ex, qOUT, "g-", label=labels[1])
+###	ax.fill_between(ex,0,qOUT,facecolor="green",alpha=0.1)
+#	## Lots of intermediate
+#	colours = ["r","k","b","k","grey","orange","grey","k","b"]
+#	linesty = ["-"]*6+["--"]*3
+#	for i,idx in enumerate([0,cuspind/2,cuspind,3*cuspind/2,Sind,(Sind+Rind)/2,Rind,Rind+cuspind/2,Rind+cuspind]):
+#		ax.plot(ex, H[idx], c=colours[i], ls=linesty[i], label="%.2f"%(x[idx]))
+#	ax.set_ylim(0,1.5*H[Sind].max())
+##	##
+##	##---------------------------------------------------------------	
 		
 	## Accoutrements
 	ax.yaxis.set_major_locator(MaxNLocator(7))
@@ -137,7 +178,7 @@ def plot_peta_CL(histfile, fig, ax, nosave=True):
 	if not nosave:
 		plotfile = os.path.dirname(histfile)+"/PDFeta"+os.path.basename(histfile)[4:-4]+".pdf"
 		fig.savefig(plotfile)
-		print me+": Figure saved to",plotfile
+		print me+"Figure saved to",plotfile
 	
 	return
 

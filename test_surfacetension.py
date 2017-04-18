@@ -132,7 +132,7 @@ def calc_energy_dir(histdir, srchstr, noread, vb):
 		## Calculate energy
 		E[i] = sp.integrate.trapz(U*rho*2*np.pi*r, r)
 		
-		if vb: print me+"a=%.1f:\tPressure calculation %.2g seconds"%(A[i],time.time()-ti)
+		if vb: print me+"a=%.1f:\tEnergy calculation %.2g seconds"%(A[i],time.time()-ti)
 		
 		## Potential
 		rho_WN = np.exp(-U) / np.trapz(np.exp(-U), r)
@@ -203,11 +203,12 @@ def plot_energy_dir(histdir, srchstr, logplot, nosave, noread, vb):
 #		E_WN = np.hstack([[1.0]*nlin,E_WN])
 
 	## Eliminate R=0
-	idx = (R!=0.0)
-	A = A[idx]
-	R = R[idx]
-	E = E[idx]
-	E_WN = E_WN[idx]
+	if logplot:
+		idx = (R!=0.0)
+		A = A[idx]
+		R = R[idx]
+		E = E[idx]
+		E_WN = E_WN[idx]
 			
 	##-------------------------------------------------------------------------
 	
@@ -215,13 +216,18 @@ def plot_energy_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	
 	plotfile = histdir+"/E_R=S."+fs["saveext"]
 	
+#	for Ri in np.unique(R):
+#		idx = (R==Ri)	## Pick out each alpha
+#		Aj, Ej, E_WNj = A[idx], E[idx], E_WN[idx]
+#		idx = Aj.argsort()	## Sort according to A
+#		ax.plot(Aj[idx], Ej[idx]/E_WNj[idx], "o-", label=r"R=%.1f"%(Ri))
 	for Ai in np.unique(A):
 		idx = (A==Ai)	## Pick out each alpha
 		Rj, Ej, E_WNj = R[idx], E[idx], E_WN[idx]
 		idx = Rj.argsort()	## Sort according to R
 		ax.plot(Rj[idx], Ej[idx]/E_WNj[idx], "o-", label=r"\alpha=%.1f"%(Ai))
 		
-	RR = np.linspace(1,R.max(),11)
+	RR = np.linspace(1,R.max(),201)
 #	ax.plot(RR,1/(RR),"k:",lw=3,label=r"$R^{-1}$")
 					
 	##-------------------------------------------------------------------------
@@ -229,7 +235,9 @@ def plot_energy_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	## Plot appearance
 			
 	if logplot:
-		ax.set_xscale("log"); ax.set_yscale("log")
+		ax.set_xscale("log")
+		ax.set_yscale("log")
+#		ax.set_ylim(top=1e1)
 		plotfile = plotfile[:-4]+"_loglog."+fs["saveext"]
 	
 	ax.set_xlabel(r"$R$", fontsize=fs["fsa"])
