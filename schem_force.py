@@ -603,23 +603,41 @@ if __name__=="__main__":
 		
 	## RECTIFICATION	
 	if 1:
-		L, lam = 0.7,1.0
-		x = np.linspace(0,lam,1000)
-		fx = force_rect(x,L,lam)
-		
-		fig, ax = plt.subplots(1,1)
 
+		u, lam = 1.0, 0.3
+		x = np.linspace(0,2*u-lam*u,1000)
+		fx = -force_rect(x,u,lam)
+		U = sp.integrate.cumtrapz(fx, x, initial=0.0); U -= U.min()
+		
+		fig, axs = plt.subplots(2,1, sharex=True)
+
+		ax = axs[0]
+		
+		ax.plot(x,U, "r-")
+		ax.grid()
+		
+		ax.set_ylim(0,1.2*u)
+		ax.set_yticks([0, u])
+		ax.set_yticklabels([r"$0$", r"$U_0$"], fontsize=fs["fsa"]+2)
+		ax.set_ylabel(r"$U(x)$")
+		
+		ax = axs[1]
+		
 		ax.plot(x,fx)
 		ax.grid()
+		
+		ax.set_xticks([0, lam*u, 0.5*u+lam*u, (1-lam)*u+lam*u, u+lam*u])
+		ax.set_xticklabels([r"",r"$-L$", r"", r"$0$", r"$+\ell$",r""], fontsize=fs["fsa"])
+		ax.set_yticks([-2/(1-lam), 0, 2/(lam)])
+		ax.set_yticklabels([r"$-\frac{2U_0}{L}$", r"$0$", r"$\frac{2U_0}{\ell}$"], fontsize=fs["fsa"]+2)
+		ax.set_xlim(x[0],x[-1])
+		
+		ax.xaxis.labelpad = -15
+		ax.yaxis.labelpad = -30
 		
 		ax.set_xlabel(r"$x$")
 		ax.set_ylabel(r"$f(x)$")
 		
-		ax.set_xticks([0,0.5*lam,L,lam])
-		ax.set_xticklabels([r"$0$",r"$\frac{1}{2}(L+\ell)$",r"$L$",r"$L+\ell$"])
-		
-		ax.set_yticks([-L,0,+L*L/(lam-L)])
-		ax.set_yticklabels([r"$-L$",r"$0$",r"$L^2/\ell$"])
+		fig.tight_layout()
 		
 		plt.show()
-

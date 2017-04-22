@@ -651,7 +651,7 @@ def plot_pressure_dir(dirpath, srchstr, logplot, nosave, noread, vb):
 				for i in range(0,AA.size,1):	## To plot against R
 					ax.plot(RR,np.diagonal(PP).T[:,i], "o-", label=r"$\alpha = "+str(AA[i])+"$") 
 					ax.plot(RR,np.diagonal(QQ).T[:,i], "v--", color=ax.lines[-1].get_color())
-			elif 0:
+			elif 1:
 				## Plot difference Pout-Pin against ALPHA, for multiple S
 				DPplot = True
 				PP *= PP_WN; QQ *= QQ_WN

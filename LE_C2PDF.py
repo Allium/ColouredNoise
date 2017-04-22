@@ -254,7 +254,7 @@ def plot_pdf1d(histfile, nosave, vb):
 	
 	## Slices to plot
 	idxs = np.linspace(y.size/4,y.size*3/4,11)
-	labs = [r"$"+str(float(i)/y.size)+"$" for i in idxs]
+	labs = [r"$%.2f$"%(float(i)/y.size) for i in idxs]
 	
 	## Plot density and wall
 	for i, idx in enumerate(idxs):

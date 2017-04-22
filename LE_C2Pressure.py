@@ -273,7 +273,7 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 			xlabel = r"$y/\lambda$"
 			ylabel = r"$P_{x}(y)/P^{\rm passive}$"
 			for i, Ai in enumerate(np.unique(A)):
-				ax.plot(Y[i][:], Py[i][:], "-", label=r"$\alpha=%.1f$"%(Ai))
+				ax.plot(Y[i][:], Py[i][:], "-", label=r"$%.1f$"%(Ai))
 			
 			if logplot:
 				ax.set_yscale("log")
@@ -304,7 +304,10 @@ def plot_pressure_dir(histdir, srchstr, logplot, nosave, noread, vb):
 	ax.set_xlabel(xlabel, fontsize=fs["fsa"])
 	ax.set_ylabel(ylabel, fontsize=fs["fsa"])
 	ax.grid()
-	ax.legend(loc="best", fontsize=fs["fsl"], ncol=2).get_frame().set_alpha(0.5)
+	
+	leg = ax.legend(loc="best",ncol=2)
+	leg.set_title(r"$\alpha$", prop={"size":fs["fsl"]})
+#	leg.get_frame().set_alpha(0.7)
 	# fig.suptitle(title, fontsize=fs["fst"])
 	
 	if not nosave:
